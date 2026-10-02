@@ -161,6 +161,16 @@ function main() {
   console.log(
     `Seeded ${inserted} tools, ${CATEGORIES.length} categories, ${tagSet.size} tags.`,
   );
+
+  // Fold the WAL back into the main db file so CI/serverless builds that
+  // only trace *.db still get every seeded row.
+  try {
+    (db.$client as import("better-sqlite3").Database).pragma(
+      "wal_checkpoint(TRUNCATE)",
+    );
+  } catch {
+    // read-only or WAL-less environment: nothing to fold
+  }
 }
 
 main();
