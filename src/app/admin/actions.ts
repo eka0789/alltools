@@ -8,7 +8,8 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { submissions, tools } from "@/db/schema";
 import { ADMIN_COOKIE, adminToken, isAdmin } from "@/lib/admin";
-import { getCatalog, invalidateCatalog } from "@/lib/data";
+import { getCatalog, invalidateCatalog, refreshCatalogFromDb } from "@/lib/data";
+import { DB_IS_REMOTE } from "@/db/client";
 import { invalidateSearchIndex } from "@/lib/search";
 import { generateUniqueSlug } from "@/lib/tools-service";
 import { slugify } from "@/lib/slug";
@@ -17,9 +18,12 @@ async function requireAdmin() {
   if (!(await isAdmin())) redirect("/admin");
 }
 
-function touch() {
+async function touch() {
   invalidateCatalog();
   invalidateSearchIndex();
+  // Remote DB: repopulate the catalog cache from the database so the next
+  // render already includes this mutation (the bundled JSON is stale).
+  if (DB_IS_REMOTE) await refreshCatalogFromDb();
   revalidatePath("/");
   revalidatePath("/tools");
   revalidatePath("/admin/tools");
@@ -148,7 +152,7 @@ export async function saveToolAction(formData: FormData) {
   } else {
     await db.insert(tools).values({ ...values, createdAt: now });
   }
-  touch();
+  await touch();
   redirect("/admin/tools?saved=1");
 }
 
@@ -157,7 +161,7 @@ export async function deleteToolAction(formData: FormData) {
   const id = Number(formData.get("id") ?? 0);
   if (id) {
     await db.delete(tools).where(eq(tools.id, id));
-    touch();
+    await touch();
   }
   redirect("/admin/tools?deleted=1");
 }
@@ -171,7 +175,7 @@ export async function toggleFeaturedAction(formData: FormData) {
       .update(tools)
       .set({ featured: !tool.featured, updatedAt: Date.now() })
       .where(eq(tools.id, id));
-    touch();
+    await touch();
   }
 }
 
@@ -213,7 +217,7 @@ export async function approveSubmissionAction(formData: FormData) {
     .update(submissions)
     .set({ status: "approved", reviewedAt: now })
     .where(eq(submissions.id, id));
-  touch();
+  await touch();
   redirect("/admin/submissions?approved=1");
 }
 

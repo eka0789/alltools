@@ -1,4 +1,4 @@
-import { db, DB_IS_FILE } from "@/db/client";
+import { db, DB_ACTIVE, DB_IS_REMOTE } from "@/db/client";
 import { categories, linkChecks, subcategories, tools } from "@/db/schema";
 import type { Category, Subcategory, Tool } from "@/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
@@ -125,11 +125,41 @@ function buildCatalog(
 }
 
 let cache: Catalog | null = null;
+let rehydrateStarted = false;
+
+function catalogFromBundledJson(): Catalog {
+  // Serverless fallback: the catalog JSON is bundled at build time.
+  const j = catalogJson as unknown as {
+    categories: RawRow[];
+    subcategories: RawRow[];
+    tools: RawRow[];
+  };
+  return buildCatalog(j.categories, j.subcategories, j.tools);
+}
+
+// Rebuild the in-memory catalog from the database. Awaited by admin
+// mutations so the next rendered page already reflects them.
+export async function refreshCatalogFromDb(): Promise<void> {
+  const catRows = (await db.select().from(categories)) as unknown as RawRow[];
+  const subRows = (await db.select().from(subcategories)) as unknown as RawRow[];
+  const toolRows = (await db.select().from(tools)) as unknown as RawRow[];
+  cache = buildCatalog(catRows, subRows, toolRows);
+  const { invalidateSearchIndex } = await import("./search");
+  invalidateSearchIndex();
+}
+
+async function rehydrateCatalogFromDb(): Promise<void> {
+  try {
+    await refreshCatalogFromDb();
+  } catch {
+    // Remote DB unreachable right now — keep the bundled snapshot.
+  }
+}
 
 export function getCatalog(): Catalog {
   if (cache) return cache;
 
-  if (DB_IS_FILE) {
+  if (DB_ACTIVE && !DB_IS_REMOTE) {
     try {
       const catRows = db.select().from(categories).all() as unknown as RawRow[];
       const subRows = db.select().from(subcategories).all() as unknown as RawRow[];
@@ -141,13 +171,13 @@ export function getCatalog(): Catalog {
     }
   }
 
-  // Serverless fallback: the catalog JSON is bundled at build time.
-  const j = catalogJson as unknown as {
-    categories: RawRow[];
-    subcategories: RawRow[];
-    tools: RawRow[];
-  };
-  cache = buildCatalog(j.categories, j.subcategories, j.tools);
+  cache = catalogFromBundledJson();
+  // Remote DB: the sync function cannot await, so serve the bundled snapshot
+  // immediately and swap in the database-backed catalog once it resolves.
+  if (DB_IS_REMOTE && !rehydrateStarted) {
+    rehydrateStarted = true;
+    void rehydrateCatalogFromDb();
+  }
   return cache;
 }
 
@@ -159,23 +189,28 @@ export function getToolBySlug(slug: string): ToolWithMeta | null {
   return getCatalog().bySlug.get(slug) ?? null;
 }
 
-export function needsReviewCount(): number {
-  if (!DB_IS_FILE) return 0;
-  return (
-    db
+export async function needsReviewCount(): Promise<number> {
+  if (!DB_ACTIVE) return 0;
+  try {
+    const rows = await db
       .select({ n: sql<number>`count(*)` })
       .from(tools)
-      .where(eq(tools.status, "needs_review"))
-      .all()[0]?.n ?? 0
-  );
+      .where(eq(tools.status, "needs_review"));
+    return rows[0]?.n ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
-export function latestLinkChecks(limit = 20) {
-  if (!DB_IS_FILE) return [];
-  return db
-    .select()
-    .from(linkChecks)
-    .orderBy(desc(linkChecks.checkedAt))
-    .limit(limit)
-    .all();
+export async function latestLinkChecks(limit = 20) {
+  if (!DB_ACTIVE) return [];
+  try {
+    return await db
+      .select()
+      .from(linkChecks)
+      .orderBy(desc(linkChecks.checkedAt))
+      .limit(limit);
+  } catch {
+    return [];
+  }
 }

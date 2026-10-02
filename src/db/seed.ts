@@ -1,4 +1,4 @@
-import { db } from "./client";
+import { db, DB_IS_REMOTE } from "./client";
 import { categories, subcategories, tags, tools, linkChecks } from "./schema";
 import { CATEGORIES } from "../data/categories";
 import { ALL_SEED_TOOLS } from "../data/tools";
@@ -25,8 +25,8 @@ const TRENDING_SLUGS = new Set([
 
 const reset = process.argv.includes("--reset");
 
-function main() {
-  const existing = db.select({ id: tools.id }).from(tools).all();
+async function main() {
+  const existing = await db.select({ id: tools.id }).from(tools);
   if (existing.length > 0 && !reset) {
     console.error(
       `Database already has ${existing.length} tools. Use --reset to wipe and reseed.`,
@@ -36,19 +36,19 @@ function main() {
 
   console.log("Seeding AllTools database...");
 
-  db.delete(linkChecks).run();
-  db.delete(tools).run();
-  db.delete(subcategories).run();
-  db.delete(categories).run();
-  db.delete(tags).run();
+  await db.delete(linkChecks);
+  await db.delete(tools);
+  await db.delete(subcategories);
+  await db.delete(categories);
+  await db.delete(tags);
 
   // Categories & subcategories
   const catIdBySlug = new Map<string, number>();
   const subIdBySlug = new Map<string, number>(); // key: `${catSlug}/${subSlug}`
   let homeOrder = 0;
-  CATEGORIES.forEach((cat, i) => {
+  for (const [i, cat] of CATEGORIES.entries()) {
     if (cat.home) homeOrder += 1;
-    const res = db
+    const res = await db
       .insert(categories)
       .values({
         slug: cat.slug,
@@ -57,29 +57,27 @@ function main() {
         icon: cat.icon,
         homeOrder: cat.home ? homeOrder : null,
         sortOrder: i,
-      })
-      .run();
+      });
     const catId = Number(res.lastInsertRowid);
     catIdBySlug.set(cat.slug, catId);
-    (cat.subs ?? []).forEach((sub, j) => {
-      const sres = db
+    for (const [j, sub] of (cat.subs ?? []).entries()) {
+      const sres = await db
         .insert(subcategories)
         .values({
           categoryId: catId,
           slug: sub.slug,
           name: sub.name,
           sortOrder: j,
-        })
-        .run();
+        });
       subIdBySlug.set(`${cat.slug}/${sub.slug}`, Number(sres.lastInsertRowid));
-    });
-  });
+    }
+  }
 
   // Tools
   const slugCounts = new Map<string, number>();
   const generatedSlugs = new Set<string>();
   for (const t of ALL_SEED_TOOLS) {
-    let slug = t.slug ?? slugify(t.n);
+    const slug = t.slug ?? slugify(t.n);
     slugCounts.set(slug, (slugCounts.get(slug) ?? 0) + 1);
     if (slugCounts.get(slug)! > 1) {
       console.error(`Duplicate tool slug from name "${t.n}": ${slug}`);
@@ -93,7 +91,7 @@ function main() {
   const tagSet = new Map<string, string>();
   let inserted = 0;
 
-  ALL_SEED_TOOLS.forEach((t, i) => {
+  for (const [i, t] of ALL_SEED_TOOLS.entries()) {
     const catId = catIdBySlug.get(t.c);
     if (!catId) {
       console.error(`Tool "${t.n}" references unknown category "${t.c}"`);
@@ -125,7 +123,7 @@ function main() {
     for (const tag of entryTags) tagSet.set(slugify(tag), tag);
 
     const createdAt = now - (total - i) * 3 * 60 * 60 * 1000; // staggered 3h apart
-    db.insert(tools)
+    await db.insert(tools)
       .values({
         name: t.n,
         slug,
@@ -149,13 +147,12 @@ function main() {
         featured: !!t.feat,
         createdAt,
         updatedAt: createdAt,
-      })
-      .run();
+      });
     inserted += 1;
-  });
+  }
 
   for (const [slug, name] of tagSet) {
-    db.insert(tags).values({ slug, name }).run();
+    await db.insert(tags).values({ slug, name });
   }
 
   console.log(
@@ -163,14 +160,20 @@ function main() {
   );
 
   // Fold the WAL back into the main db file so CI/serverless builds that
-  // only trace *.db still get every seeded row.
-  try {
-    (db.$client as import("better-sqlite3").Database).pragma(
-      "wal_checkpoint(TRUNCATE)",
-    );
-  } catch {
-    // read-only or WAL-less environment: nothing to fold
+  // only trace *.db still get every seeded row. Remote databases have no
+  // local WAL — skip.
+  if (!DB_IS_REMOTE) {
+    try {
+      (db.$client as import("better-sqlite3").Database).pragma(
+        "wal_checkpoint(TRUNCATE)",
+      );
+    } catch {
+      // read-only or WAL-less environment: nothing to fold
+    }
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

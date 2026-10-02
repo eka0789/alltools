@@ -16,9 +16,41 @@ if (!fs.existsSync(DB_PATH)) {
 }
 const db = new Database(DB_PATH, { readonly: true });
 
-const categories = db.prepare("SELECT * FROM categories ORDER BY sort_order").all();
-const subcategories = db.prepare("SELECT * FROM subcategories ORDER BY sort_order").all();
-const tools = db.prepare("SELECT * FROM tools ORDER BY id").all();
+// better-sqlite3 returns raw snake_case column names; data.ts's catalog
+// builder expects the drizzle-style camelCase property names.
+const COLUMN_MAP = {
+  category_id: "categoryId",
+  subcategory_id: "subcategoryId",
+  open_source: "openSource",
+  self_hosted: "selfHosted",
+  github_url: "githubUrl",
+  documentation_url: "documentationUrl",
+  use_cases: "useCases",
+  related_tools: "relatedTools",
+  last_verified_at: "lastVerifiedAt",
+  created_at: "createdAt",
+  updated_at: "updatedAt",
+  home_order: "homeOrder",
+  sort_order: "sortOrder",
+  tool_count: "toolCount",
+};
+const camelize = (row) =>
+  Object.fromEntries(
+    Object.entries(row).map(([k, v]) => [COLUMN_MAP[k] ?? k, v]),
+  );
+
+const categories = db
+  .prepare("SELECT * FROM categories ORDER BY sort_order")
+  .all()
+  .map(camelize);
+const subcategories = db
+  .prepare("SELECT * FROM subcategories ORDER BY sort_order")
+  .all()
+  .map(camelize);
+const tools = db
+  .prepare("SELECT * FROM tools ORDER BY id")
+  .all()
+  .map(camelize);
 
 const payload = { exportedAt: Date.now(), categories, subcategories, tools };
 const out = path.join(process.cwd(), "src", "data", "catalog.generated.json");

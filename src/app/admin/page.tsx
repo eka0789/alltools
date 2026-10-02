@@ -53,7 +53,7 @@ export default async function AdminPage({
   }
 
   const catalog = getCatalog();
-  const needsReview = needsReviewCount();
+  const needsReview = await needsReviewCount();
   const pending = await db
     .select()
     .from(submissions)
