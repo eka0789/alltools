@@ -147,6 +147,14 @@ Preferred: use **/admin → Add tool** (or /submit then approve). Bulk edits
 can be made in `src/data/tools/*.ts` followed by
 `npm run db:seed -- --reset` (development only — it wipes tool rows).
 
+## Deployment (Vercel)
+
+Live: https://alldevtools.vercel.app
+
+- `vercel-build` script pushes the schema, seeds SQLite, exports `src/data/catalog.generated.json`, and bundles it into the server code — Vercel functions are read-only, so the catalog ships as bundled data.
+- On Vercel the catalog is read-only: admin CRUD and submissions need a persistent database (e.g. Turso/libSQL or Neon Postgres) — swap `src/db/client.ts` and the drizzle driver.
+- Environment vars on Vercel: `ADMIN_TOKEN`, `NEXT_PUBLIC_SITE_URL`.
+
 ## Project Layout
 
 ```
