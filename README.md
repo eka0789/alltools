@@ -64,7 +64,10 @@ Open http://localhost:3000 (or your chosen port).
 
 | Variable               | Default                 | Purpose                          |
 | ---------------------- | ----------------------- | -------------------------------- |
-| `ALLTOOLS_DB`          | `./data/alltools.db`    | SQLite database location         |
+| `ALLTOOLS_DB`          | `./data/alltools.db`    | SQLite database location (local) |
+| `ALLTOOLS_DB_URL`      | —                       | Remote libSQL/Turso URL (`libsql://…`) — enables persistent reads/writes |
+| `ALLTOOLS_DB_AUTH_TOKEN` | —                     | Auth token for the remote database |
+| `ALLTOOLS_DB_DRIVER`   | auto                    | Force `libsql` driver against a local file (testing) |
 | `ADMIN_TOKEN`          | `alltools-admin`        | Token for `/admin` login         |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical URLs, sitemap, OpenGraph |
 
@@ -151,9 +154,10 @@ can be made in `src/data/tools/*.ts` followed by
 
 Live: https://alldevtools.vercel.app
 
-- `vercel-build` script pushes the schema, seeds SQLite, exports `src/data/catalog.generated.json`, and bundles it into the server code — Vercel functions are read-only, so the catalog ships as bundled data.
-- On Vercel the catalog is read-only: admin CRUD and submissions need a persistent database (e.g. Turso/libSQL or Neon Postgres) — swap `src/db/client.ts` and the drizzle driver.
-- Environment vars on Vercel: `ADMIN_TOKEN`, `NEXT_PUBLIC_SITE_URL`.
+- `vercel-build` script (`scripts/prepare-build.mjs`) pushes the schema, seeds a **local** SQLite file, exports `src/data/catalog.generated.json`, and bundles it into the server code — the build never touches the live database.
+- **Production uses Turso (libSQL)**: `ALLTOOLS_DB_URL` + `ALLTOOLS_DB_AUTH_TOKEN` point at `libsql://alltools-eka0789.aws-ap-south-1.turso.io` (Mumbai), so `/submit`, admin CRUD and submission review persist across deploys. Reads fall back to the bundled JSON if the remote DB is unreachable.
+- Re-seed the remote database after changing the seed data: `ALLTOOLS_DB_URL=… ALLTOOLS_DB_AUTH_TOKEN=… npm run db:seed -- --reset` — wipes and reseeds the catalog tables (community submissions are preserved).
+- Environment vars on Vercel: `ADMIN_TOKEN`, `NEXT_PUBLIC_SITE_URL`, `ALLTOOLS_DB_URL`, `ALLTOOLS_DB_AUTH_TOKEN`.
 
 ## Project Layout
 
