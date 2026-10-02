@@ -10,7 +10,7 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/db/seed.ts",
     "check-links": "node scripts/check-links.mjs",
-    "vercel-build": "drizzle-kit push --force && tsx src/db/seed.ts --reset && next build"
+    "vercel-build": "drizzle-kit push --force && tsx src/db/seed.ts --reset && node scripts/export-catalog.mjs && next build"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

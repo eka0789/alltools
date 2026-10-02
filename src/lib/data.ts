@@ -1,7 +1,8 @@
-import { db } from "@/db/client";
+import { db, DB_IS_FILE } from "@/db/client";
 import { categories, linkChecks, subcategories, tools } from "@/db/schema";
 import type { Category, Subcategory, Tool } from "@/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
+import catalogJson from "@/data/catalog.generated.json";
 
 type ToolJsonField =
   | "tags"
@@ -38,8 +39,12 @@ export interface Catalog {
   recent: ToolWithMeta[];
 }
 
-function parseJsonArray(value: string | null): string[] {
-  if (!value) return [];
+interface RawRow {
+  [key: string]: unknown;
+}
+
+function parseJsonArray(value: unknown): string[] {
+  if (typeof value !== "string") return [];
   try {
     const parsed = JSON.parse(value);
     return Array.isArray(parsed) ? parsed : [];
@@ -48,30 +53,28 @@ function parseJsonArray(value: string | null): string[] {
   }
 }
 
-export function getToolTags(tool: Tool): string[] {
+export function getToolTags(tool: ToolWithMeta | RawRow): string[] {
   return parseJsonArray(tool.tags);
 }
-export function getToolPlatforms(tool: Tool): string[] {
+export function getToolPlatforms(tool: ToolWithMeta | RawRow): string[] {
   return parseJsonArray(tool.platforms);
 }
 
-let cache: Catalog | null = null;
-
-export function getCatalog(): Catalog {
-  if (cache) return cache;
-
-  const catRows = db.select().from(categories).all();
-  const subRows = db.select().from(subcategories).all();
-  const toolRows = db.select().from(tools).all();
-
-  const catById = new Map(catRows.map((c) => [c.id, c]));
-  const subById = new Map(subRows.map((s) => [s.id, s]));
+// Shared row → meta mapping, used for both the SQLite source and the
+// statically-imported catalog JSON (serverless fallback).
+function buildCatalog(
+  catRows: RawRow[],
+  subRows: RawRow[],
+  toolRows: RawRow[],
+): Catalog {
+  const catById = new Map(catRows.map((c) => [c.id as number, c]));
+  const subById = new Map(subRows.map((s) => [s.id as number, s]));
 
   const toolsWithMeta: ToolWithMeta[] = toolRows.map((t) => {
-    const cat = catById.get(t.categoryId);
-    const sub = t.subcategoryId ? subById.get(t.subcategoryId) : undefined;
+    const cat = catById.get(t.categoryId as number);
+    const sub = t.subcategoryId ? subById.get(t.subcategoryId as number) : undefined;
     return {
-      ...t,
+      ...(t as unknown as Tool),
       tags: parseJsonArray(t.tags),
       platforms: parseJsonArray(t.platforms),
       languages: parseJsonArray(t.languages),
@@ -79,11 +82,11 @@ export function getCatalog(): Catalog {
       useCases: parseJsonArray(t.useCases),
       alternatives: parseJsonArray(t.alternatives),
       relatedTools: parseJsonArray(t.relatedTools),
-      categoryName: cat?.name ?? "Uncategorized",
-      categorySlug: cat?.slug ?? "uncategorized",
-      categoryIcon: cat?.icon ?? "Box",
-      subcategoryName: sub?.name ?? null,
-      subcategorySlug: sub?.slug ?? null,
+      categoryName: (cat?.name as string) ?? "Uncategorized",
+      categorySlug: (cat?.slug as string) ?? "uncategorized",
+      categoryIcon: (cat?.icon as string) ?? "Box",
+      subcategoryName: sub ? (sub.name as string) : null,
+      subcategorySlug: sub ? (sub.slug as string) : null,
     };
   });
 
@@ -94,8 +97,8 @@ export function getCatalog(): Catalog {
 
   const sortedCats = catRows
     .slice()
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((c) => ({ ...c, toolCount: counts.get(c.id) ?? 0 }));
+    .sort((a, b) => (a.sortOrder as number) - (b.sortOrder as number))
+    .map((c) => ({ ...(c as unknown as Category), toolCount: counts.get(c.id as number) ?? 0 }));
 
   const bySlug = new Map(toolsWithMeta.map((t) => [t.slug, t]));
   const byId = new Map(toolsWithMeta.map((t) => [t.id, t]));
@@ -109,16 +112,42 @@ export function getCatalog(): Catalog {
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 8);
 
-  cache = {
+  return {
     tools: toolsWithMeta,
     bySlug,
     byId,
     categories: sortedCats,
-    subcategories: subRows,
+    subcategories: subRows as unknown as Subcategory[],
     total: toolsWithMeta.length,
     featured,
     recent,
   };
+}
+
+let cache: Catalog | null = null;
+
+export function getCatalog(): Catalog {
+  if (cache) return cache;
+
+  if (DB_IS_FILE) {
+    try {
+      const catRows = db.select().from(categories).all() as unknown as RawRow[];
+      const subRows = db.select().from(subcategories).all() as unknown as RawRow[];
+      const toolRows = db.select().from(tools).all() as unknown as RawRow[];
+      cache = buildCatalog(catRows, subRows, toolRows);
+      return cache;
+    } catch {
+      // broken/unavailable db file → fall through to bundled JSON
+    }
+  }
+
+  // Serverless fallback: the catalog JSON is bundled at build time.
+  const j = catalogJson as unknown as {
+    categories: RawRow[];
+    subcategories: RawRow[];
+    tools: RawRow[];
+  };
+  cache = buildCatalog(j.categories, j.subcategories, j.tools);
   return cache;
 }
 
@@ -131,14 +160,18 @@ export function getToolBySlug(slug: string): ToolWithMeta | null {
 }
 
 export function needsReviewCount(): number {
-  return db
-    .select({ n: sql<number>`count(*)` })
-    .from(tools)
-    .where(eq(tools.status, "needs_review"))
-    .all()[0]?.n ?? 0;
+  if (!DB_IS_FILE) return 0;
+  return (
+    db
+      .select({ n: sql<number>`count(*)` })
+      .from(tools)
+      .where(eq(tools.status, "needs_review"))
+      .all()[0]?.n ?? 0
+  );
 }
 
 export function latestLinkChecks(limit = 20) {
+  if (!DB_IS_FILE) return [];
   return db
     .select()
     .from(linkChecks)
