@@ -1,0 +1,119 @@
+import {
+  sqliteTable,
+  text,
+  integer,
+  index,
+} from "drizzle-orm/sqlite-core";
+
+export const categories = sqliteTable("categories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  icon: text("icon").notNull().default("Box"),
+  homeOrder: integer("home_order"), // position on homepage grid, null = not on homepage
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const subcategories = sqliteTable(
+  "subcategories",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    categoryId: integer("category_id")
+      .notNull()
+      .references(() => categories.id),
+    slug: text("slug").notNull(), // unique within its category
+    name: text("name").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [index("subcategories_category_slug_idx").on(t.categoryId, t.slug)],
+);
+
+export const tags = sqliteTable("tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+});
+
+export const tools = sqliteTable(
+  "tools",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    url: text("url").notNull(),
+    description: text("description").notNull(),
+    logo: text("logo"), // domain used to resolve a favicon
+    categoryId: integer("category_id")
+      .notNull()
+      .references(() => categories.id),
+    subcategoryId: integer("subcategory_id").references(() => subcategories.id),
+    // JSON-encoded string arrays (v1 keeps these denormalized; see README)
+    tags: text("tags").notNull().default("[]"),
+    pricing: text("pricing").notNull().default("free"), // free | freemium | paid
+    openSource: integer("open_source", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    selfHosted: integer("self_hosted", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    githubUrl: text("github_url"),
+    documentationUrl: text("documentation_url"),
+    platforms: text("platforms").notNull().default("[]"), // web | desktop | cli | mobile | extension
+    languages: text("languages").notNull().default("[]"),
+    frameworks: text("frameworks").notNull().default("[]"),
+    useCases: text("use_cases").notNull().default("[]"),
+    alternatives: text("alternatives").notNull().default("[]"), // tool slugs
+    relatedTools: text("related_tools").notNull().default("[]"), // tool slugs
+    status: text("status").notNull().default("active"), // active | needs_review | deprecated
+    verified: integer("verified", { mode: "boolean" }).notNull().default(false),
+    lastVerifiedAt: integer("last_verified_at"), // unix ms
+    popularity: integer("popularity"), // intentionally null until objective data exists
+    featured: integer("featured", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [
+    index("tools_category_idx").on(t.categoryId),
+    index("tools_status_idx").on(t.status),
+  ],
+);
+
+export const submissions = sqliteTable("submissions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  description: text("description").notNull(),
+  categorySlug: text("category_slug").notNull(),
+  githubUrl: text("github_url"),
+  documentationUrl: text("documentation_url"),
+  pricing: text("pricing").notNull().default("free"),
+  tags: text("tags").notNull().default("[]"),
+  status: text("status").notNull().default("pending"), // pending | approved | rejected
+  createdAt: integer("created_at").notNull(),
+  reviewedAt: integer("reviewed_at"),
+});
+
+export const linkChecks = sqliteTable(
+  "link_checks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    toolId: integer("tool_id")
+      .notNull()
+      .references(() => tools.id),
+    url: text("url").notNull(),
+    httpStatus: integer("http_status"),
+    ok: integer("ok", { mode: "boolean" }).notNull(),
+    responseTimeMs: integer("response_time_ms"),
+    error: text("error"),
+    checkedAt: integer("checked_at").notNull(),
+  },
+  (t) => [index("link_checks_tool_idx").on(t.toolId)],
+);
+
+export type Tool = typeof tools.$inferSelect;
+export type NewTool = typeof tools.$inferInsert;
+export type Category = typeof categories.$inferSelect;
+export type Subcategory = typeof subcategories.$inferSelect;
+export type Submission = typeof submissions.$inferSelect;
+export type LinkCheck = typeof linkChecks.$inferSelect;
