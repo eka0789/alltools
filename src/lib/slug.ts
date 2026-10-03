@@ -14,14 +14,6 @@ export function domainOf(url: string): string {
   }
 }
 
-export function cn(...classes: (string | false | null | undefined)[]): string {
-  return classes.filter(Boolean).join(" ");
-}
-
-export function formatNumber(n: number): string {
-  return n.toLocaleString("en-US");
-}
-
 export function formatDate(ms: number): string {
   return new Date(ms).toLocaleDateString("en-US", {
     year: "numeric",

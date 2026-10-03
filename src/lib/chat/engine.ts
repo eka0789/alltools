@@ -2,8 +2,8 @@ import type { ToolWithMeta } from "@/lib/data";
 import { getCatalog } from "@/lib/data";
 import { searchTools } from "@/lib/search";
 import { CAREERS, LANGUAGES, type CareerProfile, type LanguageProfile } from "./knowledge";
+import { welcomeReply } from "./welcome";
 import type { ChatHistoryTurn, ChatLang, ChatLink, ChatResponse, ChatToolRef } from "./types";
-
 // ── Text helpers ────────────────────────────────────────────────────────
 
 function norm(s: string): string {
@@ -36,18 +36,39 @@ function categoryName(slug: string): string {
 }
 
 // ── Language detection ──────────────────────────────────────────────────
-// One regex per language, built from the knowledge base aliases. Word
-// boundaries keep "javascript" from matching the "java" pattern.
+// Aliases that collide with everyday words ("how to go from junior to
+// senior"). They only count as a language mention when the message carries
+// language-ish intent, or when the message is just the alias itself.
+const AMBIGUOUS_ALIASES = new Set(["go", "dart", "swift", "c"]);
 
-const LANG_RES: { slug: string; re: RegExp }[] = LANGUAGES.map((l) => ({
-  slug: l.slug,
-  re: new RegExp(`(?<![\\w#+])(${l.aliases.map(esc).join("|")})(?![\\w#+])`, "i"),
-}));
+// One regex per alias (precompiled), with word-boundary lookarounds so
+// "javascript" doesn't match the "java" pattern.
+
+const LANG_ALIAS_RES: { slug: string; re: RegExp; ambiguous: boolean }[] =
+  LANGUAGES.flatMap((l) =>
+    l.aliases.map((a) => ({
+      slug: l.slug,
+      re: new RegExp(`(?<![\\w#+])(${esc(a)})(?![\\w#+])`, "i"),
+      ambiguous: AMBIGUOUS_ALIASES.has(a.toLowerCase()),
+    })),
+  );
+
+function hasLangContext(text: string): boolean {
+  return /\b(apa itu|what is|what's|belajar|learn|language|bahasa|code|coding|rekomendasi|recommend|tool|tools|profesi|career|cocok|stack|vs\.?\s|pake|pakai|use|using|ketik|typed|written|ditulis|developer)\b/i.test(
+    text,
+  );
+}
 
 function detectLangs(text: string): string[] {
+  const contextual =
+    hasLangContext(text) || AMBIGUOUS_ALIASES.has(text.trim().toLowerCase());
   const found: string[] = [];
-  for (const { slug, re } of LANG_RES) {
-    if (re.test(text)) found.push(slug);
+  const seen = new Set<string>();
+  for (const { slug, re, ambiguous } of LANG_ALIAS_RES) {
+    if (seen.has(slug) || !re.test(text)) continue;
+    if (ambiguous && !contextual) continue;
+    seen.add(slug);
+    found.push(slug);
   }
   return found;
 }
@@ -79,7 +100,7 @@ function detectCareers(text: string): { career: CareerProfile; score: number }[]
 const ID_MARKERS =
   /\b(apa|apakah|yang|untuk|saya|aku|gw|gue|suka|mau|ingin|butuh|cari|rekomendasi|cocok|profesi|karir|karier|pekerjaan|belajar|bikin|bangun|gimana|bagaimana|kenapa|dong|sih|nih|aja|minat|banget|paling|tolong|boleh|keren|mantap|makasih|terima)\b/i;
 const EN_MARKERS =
-  /\b(what|whats|which|how|why|should|recommend|suggest|best|learn|career|become|suited|interested|want|need|please|thanks|hello)\b/i;
+  /\b(what|whats|which|how|why|should|recommend|suggest|best|learn|career|become|suited|interested|want|need|please|thanks|hello|the|and|for|with|from|or|is|are|can|does|do|my|your)\b/i;
 
 function detectResponseLang(text: string): ChatLang {
   const id = ID_MARKERS.test(text);
@@ -109,7 +130,7 @@ const RE = {
 // ── Topic extraction for tool search ────────────────────────────────────
 
 const FILLER =
-  /\b(rekomendasi|rekomendasikan|recommendation|recommend|recommended|suggestion|suggest|saran|butuh|need|apa|apakah|what|which|tool|tools|aplikasi|app|apps|software|untuk|for|yang|dengan|with|dan|and|atau|or|bagus|good|best|terbaik|top|populer|popular|gratis|gratisan|free|cari|mencari|looking|find|kasih|tolong|please|dong|donk|deh|ya|saja|aja|jenis|list|daftar|pake|pakai|use|dipakai|digunakan|aku|saya|suka|like|favorit|favorite|senang|banget|sekali|nih|sih|ada|kayak|seperti|buat|bikin|kamu|kalian|anda)\b/gi;
+  /\b(rekomendasi|rekomendasikan|recommendation|recommend|recommended|suggestion|suggest|saran|butuh|need|apa|apakah|itu|what|which|tool|tools|aplikasi|app|apps|software|untuk|for|yang|dengan|with|dan|and|atau|or|bagus|good|best|terbaik|top|populer|popular|gratis|gratisan|free|cari|mencari|looking|find|kasih|tolong|please|dong|donk|deh|ya|saja|aja|jenis|list|daftar|pake|pakai|use|dipakai|digunakan|aku|saya|suka|like|favorit|favorite|senang|banget|sekali|nih|sih|ada|kayak|seperti|buat|bikin|kamu|kalian|anda)\b/gi;
 
 const ID_TERM_MAP: [RegExp, string][] = [
   [/\bfoto(s)?\b/gi, "photo image"],
@@ -185,29 +206,45 @@ function toolsByProfile(
 
 function toolsBySearch(query: string, limit = 6): ChatToolRef[] {
   if (!query) return [];
-  return searchTools({ q: query, perPage: limit }).items.map(toToolRef);
+  // facets:false — chat never renders facet counts, and skipping them saves
+  // two full-index passes per message.
+  return searchTools({ q: query, perPage: limit, facets: false }).items.map(toToolRef);
 }
 
 function toolsByLang(lang: string, limit = 4): ChatToolRef[] {
-  const byFilter = searchTools({ filters: { lang }, perPage: limit, sort: "name" }).items;
+  const byFilter = searchTools({ filters: { lang }, perPage: limit, sort: "name", facets: false }).items;
   if (byFilter.length > 0) return byFilter.map(toToolRef);
   return toolsByProfile(["programming"], [lang], lang, limit);
 }
 
 // ── Context carry from history ──────────────────────────────────────────
+// Follow-ups like "yang gratis aja dong" only make sense with the previous
+// subject, so the engine carries the last language / career / topic from
+// earlier user turns.
 
-function carryFromHistory(
-  history: ChatHistoryTurn[],
-): { langs: string[]; career: CareerProfile | null } {
+function carryFromHistory(history: ChatHistoryTurn[]): {
+  langs: string[];
+  career: CareerProfile | null;
+  topic: string;
+} {
+  let langs: string[] = [];
+  let career: CareerProfile | null = null;
+  let topic = "";
   for (let i = history.length - 1; i >= 0; i--) {
     const turn = history[i];
     if (turn.role !== "user") continue;
-    const langs = detectLangs(turn.text);
-    if (langs.length > 0) return { langs, career: null };
-    const careers = detectCareers(turn.text).filter((c) => c.score >= 2);
-    if (careers.length > 0) return { langs: [], career: careers[0].career };
+    if (langs.length === 0) langs = detectLangs(turn.text);
+    if (!career) {
+      const careers = detectCareers(turn.text).filter((c) => c.score >= 2);
+      if (careers.length > 0) career = careers[0].career;
+    }
+    if (!topic) {
+      const t = extractTopic(turn.text);
+      if (t.length >= 3) topic = t;
+    }
+    if (langs.length > 0 && career && topic) break;
   }
-  return { langs: [], career: null };
+  return { langs, career, topic };
 }
 
 // ── Stack plans (per domain) ────────────────────────────────────────────
@@ -578,12 +615,13 @@ function careerListReply(rl: ChatLang): ChatResponse {
 
 function recommendReply(
   text: string,
+  topicQuery: string,
   langs: string[],
   career: CareerProfile | null,
   rl: ChatLang,
 ): ChatResponse {
   const id = rl === "id";
-  const topic = extractTopic(text);
+  const topic = extractTopic(topicQuery);
   const wantsFree = /\b(gratis|gratisan|free|tanpa bayar)\b/i.test(text);
 
   // The user asked for tools around a mentioned career
@@ -607,7 +645,7 @@ function recommendReply(
   if (tools.length === 0 && career) {
     tools = toolsByProfile(career.categories, career.tags, langs[0] ?? career.langs[0], 6);
   }
-  if (tools.length === 0) return fallbackReply(text, rl);
+  if (tools.length === 0) return fallbackReply(text, topicQuery, rl);
 
   const langMention = langs.length > 0 ? langBySlug(langs[0]) : undefined;
   const connector = id ? " untuk " : " for ";
@@ -693,35 +731,10 @@ function stackReply(text: string, langs: string[], rl: ChatLang): ChatResponse {
 function greetingReply(rl: ChatLang): ChatResponse {
   const id = rl === "id";
   const h = new Date().getHours();
-  const timeId =
-    h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 19 ? "Selamat sore" : "Selamat malam";
-  const reply = id
-    ? [
-        `${timeId}! 👋 Aku **DevDict AI** — asisten Developer Dictionary dari AllTools.`,
-        [
-          "- 🧭 **Rekomendasi tools** — sebutkan kebutuhanmu, aku pilihkan dari katalog",
-          "- 🎯 **Panduan profesi** — ceritakan bahasa favoritmu, aku tunjukkan jalur kariernya",
-          "- 📚 **Kamus bahasa pemrograman** — tanya apa itu Python, Rust, dan lainnya",
-          "- 🧱 **Rekomendasi stack** — tanya stack untuk web, mobile, data, dan lainnya",
-        ].join("\n"),
-        "Mau mulai dari mana? Ketuk salah satu di bawah, atau langsung tanya. 😄",
-      ].join("\n\n")
-    : [
-        `Hello! 👋 I'm **DevDict AI** — the AllTools Developer Dictionary assistant.`,
-        [
-          "- 🧭 **Tool recommendations** — tell me what you need, I pick from the catalog",
-          "- 🎯 **Career guidance** — share your favorite language, I'll map the career paths",
-          "- 📚 **Programming language dictionary** — ask what Python, Rust, etc. are",
-          "- 🧱 **Stack suggestions** — web, mobile, data, and more",
-        ].join("\n"),
-        "Where shall we start? Tap a suggestion below, or just ask. 😄",
-      ].join("\n\n");
-
-  const chips = id
-    ? ["Rekomendasi tools untuk web", "Aku suka Python, cocok profesi apa?", "Apa itu TypeScript?", "Stack untuk aplikasi mobile"]
-    : ["Best tools for web dev", "I like Python, which career fits?", "What is TypeScript?", "Mobile app stack"];
-
-  return { intent: "greeting", responseLang: rl, reply, tools: [], chips };
+  const timeGreeting = id
+    ? h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 19 ? "Selamat sore" : "Selamat malam"
+    : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  return welcomeReply(rl, timeGreeting);
 }
 
 function helpReply(rl: ChatLang): ChatResponse {
@@ -766,9 +779,9 @@ function thanksReply(rl: ChatLang): ChatResponse {
   return { intent: "thanks", responseLang: rl, reply, tools: [], chips };
 }
 
-function fallbackReply(text: string, rl: ChatLang): ChatResponse {
+function fallbackReply(text: string, topicQuery: string, rl: ChatLang): ChatResponse {
   const id = rl === "id";
-  const topic = extractTopic(text);
+  const topic = extractTopic(topicQuery);
   const tools = topic.length >= 2 ? toolsBySearch(topic, 4) : [];
   if (tools.length > 0) {
     return {
@@ -823,22 +836,29 @@ export function respond(message: string, history: ChatHistoryTurn[] = []): ChatR
   const careers = detectCareers(text);
   const topCareer = (careers[0]?.score ?? 0) >= 2 ? careers[0].career : undefined;
 
-  // Carry language context from recent turns for follow-up questions
-  let effectiveLangs = langs;
-  if (
-    effectiveLangs.length === 0 &&
-    (RE.career.test(text) || RE.recommend.test(text) || RE.stack.test(text) || RE.learn.test(text))
-  ) {
-    effectiveLangs = carryFromHistory(history).langs.slice(0, 2);
-  }
-  const carriedCareer = careers.length === 0 ? carryFromHistory(history).career : null;
-
-  if (RE.greeting.test(text)) return greetingReply(rl);
-  if (RE.thanks.test(text) && text.length < 60) return thanksReply(rl);
-  if (RE.help.test(text)) return helpReply(rl);
+  // Context carry: follow-ups like "yang gratis aja dong" inherit language,
+  // career, and topic from earlier turns. Current-message detection always
+  // wins when it finds something.
+  const carried = carryFromHistory(history);
+  const effectiveLangs = langs.length > 0 ? langs : carried.langs.slice(0, 2);
+  const carriedCareer = careers.length === 0 ? carried.career : null;
+  // A "bare" follow-up adds no new subject — search with the carried topic.
+  const bare = !topicish(text) && langs.length === 0 && !topCareer;
+  const topicQuery = bare && carried.topic ? carried.topic : text;
 
   const wantsCareer = RE.career.test(text);
   const wantsLangInfo = RE.langinfo.test(text) || RE.learn.test(text);
+
+  // An explicit tool request outranks the thanks/help short-circuits:
+  // "makasih, rekomendasi tools foto dong" is a request, not gratitude.
+  const hasToolAsk =
+    RE.recommend.test(text) || RE.stack.test(text) || /\b(tool|tools|app|aplikasi|software)\b/i.test(text);
+  if (RE.greeting.test(text)) return greetingReply(rl);
+  if (RE.thanks.test(text) && text.length < 60 && !hasToolAsk) return thanksReply(rl);
+  // "cara pakai docker" is about Docker, not about my capabilities — only
+  // answer generically when there's no concrete topic attached.
+  if (RE.help.test(text) && !hasToolAsk && !topicish(text)) return helpReply(rl);
+
   const careerWords =
     /\b(profesi|karir|karier|career|pekerjaan|jobs?|jurusan|minat|cocok|jadi|menjadi|become|suited|sesuai)\b/i.test(
       text,
@@ -860,8 +880,10 @@ export function respond(message: string, history: ChatHistoryTurn[] = []): ChatR
   // 5) Language info / a message that is basically just language name(s).
   //    Gated on `langs` (this message) so carried context doesn't turn a
   //    follow-up like "rekomendasi tools dong" into a dictionary lookup.
+  //    An explicit recommend request ("rekomendasi tools zig") still wins.
   if (
     effectiveLangs.length > 0 &&
+    !RE.recommend.test(text) &&
     (wantsLangInfo || (langs.length > 0 && isMostlyLangs(text, langs)))
   ) {
     const lang = langBySlug(effectiveLangs[0]);
@@ -871,11 +893,11 @@ export function respond(message: string, history: ChatHistoryTurn[] = []): ChatR
   // 6) Tool recommendation (with language/career personalization)
   const wantsFree = /\b(gratis|gratisan|free|tanpa bayar)\b/i.test(text);
   if (RE.recommend.test(text) || RE.stack.test(text) || wantsFree || topicish(text)) {
-    return recommendReply(text, effectiveLangs, carriedCareer, rl);
+    return recommendReply(text, topicQuery, effectiveLangs, carriedCareer, rl);
   }
 
   // 7) Fallback
-  return fallbackReply(text, rl);
+  return fallbackReply(text, topicQuery, rl);
 }
 
 /** True when, after removing filler and the detected language names, the

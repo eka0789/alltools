@@ -9,12 +9,12 @@ export function generateUniqueSlug(name: string, excludeId?: number): string {
   const base = slugify(name) || "tool";
   let slug = base;
   let n = 2;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  while (getCatalog().bySlug.has(slug)) {
     const existing = getCatalog().bySlug.get(slug);
     if (!existing || existing.id === excludeId) return slug;
     slug = `${base}-${n++}`;
   }
+  return slug;
 }
 
 export function touchData() {

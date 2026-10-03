@@ -5,6 +5,7 @@ import { ToolCard, ToolCardCompact } from "@/components/tool-card";
 import { CategoryIcon } from "@/components/category-icon";
 import { getCatalog } from "@/lib/data";
 import { STACKS } from "@/lib/stacks";
+import { COLLECTIONS } from "@/data/collections";
 
 export const revalidate = 120;
 
@@ -82,8 +83,8 @@ export default function HomePage() {
               <span className="text-accent">In One Place.</span>
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
-              Search thousands of developer tools, resources, services,
-              documentation and AI tools.
+              Search {total.toLocaleString()} curated developer tools, resources,
+              services, documentation and AI tools.
             </p>
             <div className="mt-7">
               <SearchBox size="lg" />
@@ -98,7 +99,7 @@ export default function HomePage() {
             </div>
             <p className="mt-6 text-xs text-muted-foreground">
               {total.toLocaleString()} curated tools · {categories.length}{" "}
-              categories · links verified regularly
+              categories · link health checked automatically
             </p>
           </div>
         </div>
@@ -174,6 +175,30 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Curated Collections */}
+      <section className="mx-auto max-w-6xl px-4 py-12">
+        <SectionHeading
+          title="Curated Collections"
+          href="/collections"
+          linkLabel="All collections"
+        />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {COLLECTIONS.map((c) => (
+            <Link
+              key={c.slug}
+              href={`/collections/${c.slug}`}
+              className="card flex items-start gap-3 p-4 transition-colors hover:border-accent/40"
+            >
+              <span className="text-2xl" aria-hidden>{c.emoji}</span>
+              <span>
+                <span className="block text-sm font-medium leading-tight">{c.title}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">{c.tagline}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* Explore by Stack */}
       <section className="border-y border-border bg-muted/40">
         <div className="mx-auto max-w-6xl px-4 py-12">
@@ -199,9 +224,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Recently Added */}
+      {/* Latest in the Catalog */}
       <section className="mx-auto max-w-6xl px-4 py-12">
-        <SectionHeading title="Recently Added" href="/tools?sort=newest" />
+        <SectionHeading title="Latest in the Catalog" href="/tools?sort=newest" />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {recent.map((tool) => (
             <ToolCardCompact key={tool.slug} tool={tool} />

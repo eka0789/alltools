@@ -1,7 +1,7 @@
 import { db, DB_ACTIVE, DB_IS_REMOTE } from "@/db/client";
-import { categories, linkChecks, subcategories, tools } from "@/db/schema";
+import { categories, subcategories, tools } from "@/db/schema";
 import type { Category, Subcategory, Tool } from "@/db/schema";
-import { desc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import catalogJson from "@/data/catalog.generated.json";
 
 type ToolJsonField =
@@ -32,6 +32,7 @@ export interface Catalog {
   tools: ToolWithMeta[];
   bySlug: Map<string, ToolWithMeta>;
   byId: Map<number, ToolWithMeta>;
+  byUrl: Map<string, number>; // normalized website URL → tool id (duplicate detection)
   categories: (Category & { toolCount: number })[];
   subcategories: Subcategory[];
   total: number;
@@ -102,6 +103,7 @@ function buildCatalog(
 
   const bySlug = new Map(toolsWithMeta.map((t) => [t.slug, t]));
   const byId = new Map(toolsWithMeta.map((t) => [t.id, t]));
+  const byUrl = new Map(toolsWithMeta.map((t) => [t.url, t.id]));
 
   const featured = toolsWithMeta
     .filter((t) => t.featured && t.status === "active")
@@ -116,6 +118,7 @@ function buildCatalog(
     tools: toolsWithMeta,
     bySlug,
     byId,
+    byUrl,
     categories: sortedCats,
     subcategories: subRows as unknown as Subcategory[],
     total: toolsWithMeta.length,
@@ -224,18 +227,5 @@ export async function needsReviewCount(): Promise<number> {
     return rows[0]?.n ?? 0;
   } catch {
     return 0;
-  }
-}
-
-export async function latestLinkChecks(limit = 20) {
-  if (!DB_ACTIVE) return [];
-  try {
-    return await db
-      .select()
-      .from(linkChecks)
-      .orderBy(desc(linkChecks.checkedAt))
-      .limit(limit);
-  } catch {
-    return [];
   }
 }

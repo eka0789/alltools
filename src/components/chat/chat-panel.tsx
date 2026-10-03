@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ExternalLink, RotateCcw, Send, Sparkles } from "lucide-react";
 import { ToolLogo } from "@/components/tool-logo";
 import { PRICING_LABEL, type Pricing } from "@/data/types";
 import type { ChatResponse, ChatToolRef } from "@/lib/chat/types";
+import { welcomeReply } from "@/lib/chat/welcome";
 
 // ── Markdown-lite rendering (**bold**, *italic*, `code`, bullets) ───────
 
@@ -128,9 +129,16 @@ interface ChatMsg {
   text?: string; // user messages
   data?: ChatResponse; // bot messages
   pending?: boolean;
+  failed?: boolean; // network failure — offers a retry
+  prompt?: string; // original user text of a failed turn
 }
 
 const STORAGE_KEY = "alltools-devdict-history";
+
+// The site's chrome is English; the bot itself answers in the user's
+// language, so the static welcome bubble uses English and follow-up replies
+// switch per-message.
+const WELCOME = welcomeReply("en");
 
 // Must be called post-mount only: reading sessionStorage during render makes
 // the hydrated tree differ from SSR and trips a hydration mismatch.
@@ -147,35 +155,13 @@ function loadStoredMessages(): ChatMsg[] | null {
   return null;
 }
 
-const WELCOME: ChatResponse = {
-  intent: "greeting",
-  responseLang: "id",
-  reply: [
-    "Halo! 👋 Aku **DevDict AI** — asisten Developer Dictionary dari AllTools.",
-    [
-      "- 🧭 **Rekomendasi tools** — sebutkan kebutuhanmu, aku pilihkan dari katalog",
-      "- 🎯 **Panduan profesi** — ceritakan bahasa favoritmu, aku tunjukkan jalur kariernya",
-      "- 📚 **Kamus bahasa pemrograman** — tanya apa itu Python, Rust, dan lainnya",
-      "- 🧱 **Rekomendasi stack** — tanya stack untuk web, mobile, data, dan lainnya",
-    ].join("\n"),
-    "Mau mulai dari mana? Ketuk salah satu di bawah, atau langsung tanya. 😄",
-  ].join("\n\n"),
-  tools: [],
-  chips: [
-    "Rekomendasi tools untuk web",
-    "Aku suka Python, cocok profesi apa?",
-    "Apa itu TypeScript?",
-    "Stack untuk aplikasi mobile",
-  ],
-};
-
 // ── Typing indicator ────────────────────────────────────────────────────
 
 function TypingBubble() {
   return (
     <div className="chat-msg flex items-center gap-2.5">
       <BotAvatar />
-      <div className="card flex items-center gap-1.5 px-4 py-3" aria-label="DevDict AI sedang mengetik">
+      <div className="card flex items-center gap-1.5 px-4 py-3" aria-label="DevDict AI is typing">
         <span className="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground" style={{ animationDelay: "0ms" }} />
         <span className="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground" style={{ animationDelay: "160ms" }} />
         <span className="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground" style={{ animationDelay: "320ms" }} />
@@ -205,11 +191,20 @@ export function ChatPanel({ variant }: { variant: "page" | "widget" }) {
   const idCounter = useRef(0);
   const nextId = () => `m-${++idCounter.current}`;
 
-  // restore the conversation after mount (sessionStorage)
+  // restore the conversation after mount (sessionStorage). Reading storage
+  // during render trips hydration, and the lint rule forbids sync setState
+  // in effects — a microtask satisfies both.
   useEffect(() => {
-    const stored = loadStoredMessages();
-    if (stored) setMessages(stored);
-    setHydrated(true);
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      const stored = loadStoredMessages();
+      if (stored) setMessages(stored);
+      setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -223,56 +218,88 @@ export function ChatPanel({ variant }: { variant: "page" | "widget" }) {
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    // Follow the conversation only while the user is near the bottom —
+    // force-scrolling yanks the view away while they're reading history.
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  async function send(raw: string) {
-    const text = raw.trim();
-    if (!text || busy) return;
+  const send = useCallback(
+    async (raw: string) => {
+      const text = raw.trim();
+      if (!text || busy) return;
 
-    const history = messages
-      .filter((m) => !m.pending)
-      .slice(-8)
-      .map((m) => ({ role: m.role, text: m.role === "user" ? m.text ?? "" : m.data?.reply ?? "" }));
+      // The engine only reads user turns; sending user turns alone keeps
+      // the payload small.
+      const history = messages
+        .filter((m) => m.role === "user" && !m.pending)
+        .slice(-8)
+        .map((m) => ({ role: "user" as const, text: m.text ?? "" }));
 
-    const userMsg: ChatMsg = { id: nextId(), role: "user", text };
-    const botId = nextId();
-    setMessages((prev) => [...prev, userMsg, { id: botId, role: "bot", pending: true }]);
-    setInput("");
-    setBusy(true);
+      const userMsg: ChatMsg = { id: nextId(), role: "user", text };
+      const botId = nextId();
+      setMessages((prev) => [...prev, userMsg, { id: botId, role: "bot", pending: true }]);
+      setInput("");
+      setBusy(true);
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as ChatResponse;
-      setMessages((prev) =>
-        prev.map((m) => (m.id === botId ? { id: botId, role: "bot", data } : m)),
-      );
-    } catch {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === botId
-            ? {
-                id: botId,
-                role: "bot",
-                data: {
-                  intent: "fallback",
-                  responseLang: "id",
-                  reply: "Koneksi ke asisten terganggu. 😅 Coba kirim ulang pertanyaanmu ya.",
-                  tools: [],
-                  chips: ["Rekomendasi tools untuk web", "Apa itu Python?"],
-                },
-              }
-            : m,
-        ),
-      );
-    } finally {
-      setBusy(false);
-    }
+      // A hung request used to leave the composer disabled forever.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000);
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, history }),
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as ChatResponse;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === botId ? { id: botId, role: "bot", data } : m)),
+        );
+      } catch {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === botId
+              ? {
+                  id: botId,
+                  role: "bot",
+                  failed: true,
+                  prompt: text,
+                  data: {
+                    intent: "fallback",
+                    responseLang: "en",
+                    reply: "The connection to the assistant dropped. 😅 Please try again.",
+                    tools: [],
+                    chips: ["Best tools for web dev", "What is Python?"],
+                  },
+                }
+              : m,
+          ),
+        );
+      } finally {
+        clearTimeout(timeout);
+        setBusy(false);
+      }
+    },
+    [busy, messages],
+  );
+
+  function retry(text: string) {
+    // Drop the failed bubble and resend.
+    setMessages((prev) => {
+      let idx = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].role === "bot" && prev[i].failed) {
+          idx = i;
+          break;
+        }
+      }
+      return idx === -1 ? prev : [...prev.slice(0, idx)];
+    });
+    void send(text);
   }
 
   function reset() {
@@ -349,6 +376,16 @@ export function ChatPanel({ variant }: { variant: "page" | "widget" }) {
                       ))}
                     </div>
                   )}
+                  {msg.failed && (
+                    <button
+                      type="button"
+                      onClick={() => retry(msg.prompt ?? "")}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-accent hover:text-accent"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Retry
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -368,8 +405,8 @@ export function ChatPanel({ variant }: { variant: "page" | "widget" }) {
           <button
             type="button"
             onClick={reset}
-            aria-label="Reset percakapan"
-            title="Reset percakapan"
+            aria-label="Reset conversation"
+            title="Reset conversation"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-accent hover:text-accent"
           >
             <RotateCcw className="h-4 w-4" />
@@ -377,8 +414,8 @@ export function ChatPanel({ variant }: { variant: "page" | "widget" }) {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Tanya tools, profesi, atau bahasa pemrograman…"
-            aria-label="Pertanyaan untuk DevDict AI"
+            placeholder="Ask about tools, careers, or languages…"
+            aria-label="Ask DevDict AI"
             className="input flex-1 rounded-full !px-4"
             maxLength={500}
             autoComplete="off"
@@ -386,15 +423,15 @@ export function ChatPanel({ variant }: { variant: "page" | "widget" }) {
           <button
             type="submit"
             disabled={busy || !input.trim()}
-            aria-label="Kirim pesan"
+            aria-label="Send message"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-all hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
           </button>
         </form>
         <p className="mt-2 hidden text-center text-[10px] text-muted-foreground sm:block">
-          Jawaban dihasilkan dari {""}
-          <span className="font-medium text-foreground/70">katalog AllTools</span> — tanpa data eksternal.
+          Answers come straight from the{" "}
+          <span className="font-medium text-foreground/70">AllTools catalog</span> — no external data.
         </p>
       </div>
     </div>

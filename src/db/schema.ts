@@ -3,6 +3,7 @@ import {
   text,
   integer,
   index,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 export const categories = sqliteTable("categories", {
@@ -69,6 +70,11 @@ export const tools = sqliteTable(
     verified: integer("verified", { mode: "boolean" }).notNull().default(false),
     lastVerifiedAt: integer("last_verified_at"), // unix ms
     popularity: integer("popularity"), // intentionally null until objective data exists
+    // Objective GitHub signals, filled by scripts/fetch-github-stats.mjs
+    // (never invented — stays null until real data lands).
+    githubStars: integer("github_stars"),
+    githubPushedAt: integer("github_pushed_at"), // unix ms of last push
+    githubLicense: text("github_license"),
     featured: integer("featured", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
@@ -76,6 +82,7 @@ export const tools = sqliteTable(
   (t) => [
     index("tools_category_idx").on(t.categoryId),
     index("tools_status_idx").on(t.status),
+    uniqueIndex("tools_url_unique").on(t.url),
   ],
 );
 
@@ -111,9 +118,32 @@ export const linkChecks = sqliteTable(
   (t) => [index("link_checks_tool_idx").on(t.toolId)],
 );
 
+// Community reports from the "Report broken link / suggest edit" affordance
+// on tool pages. Reviewed in the admin dashboard.
+export const feedback = sqliteTable("feedback", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  toolSlug: text("tool_slug").notNull(),
+  type: text("type").notNull(), // broken_link | edit_suggestion
+  message: text("message").notNull().default(""),
+  status: text("status").notNull().default("open"), // open | resolved | dismissed
+  createdAt: integer("created_at").notNull(),
+  resolvedAt: integer("resolved_at"),
+});
+
+// Aggregate outbound-click counter per tool slug, written by the tracking
+// endpoint when visitors open a tool's website. Seeds never touch this —
+// it is pure runtime signal.
+export const toolClicks = sqliteTable("tool_clicks", {
+  slug: text("slug").primaryKey(),
+  clicks: integer("clicks").notNull().default(0),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export type Tool = typeof tools.$inferSelect;
 export type NewTool = typeof tools.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type Subcategory = typeof subcategories.$inferSelect;
 export type Submission = typeof submissions.$inferSelect;
 export type LinkCheck = typeof linkChecks.$inferSelect;
+export type Feedback = typeof feedback.$inferSelect;
+export type ToolClick = typeof toolClicks.$inferSelect;

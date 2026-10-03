@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/check-links?batch=40",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

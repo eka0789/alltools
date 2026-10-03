@@ -49,3 +49,6 @@ src/data/catalog.generated.json
 
 .vercel
 gui-test-screenshots/
+
+# committed snapshot of real GitHub stats (scripts/fetch-github-stats.mjs)
+!/data/github-stats.json

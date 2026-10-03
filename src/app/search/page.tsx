@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { SearchBox } from "@/components/search-box";
 import {
   Filters,
+  SortLinks,
   activeFilterChips,
   buildHref,
   type BrowserSearchParams,
@@ -18,12 +19,19 @@ interface Props {
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
+  // Query URLs are thin variations of the same page — never index them and
+  // always point at /search, otherwise crawlers can index thousands of
+  // near-duplicates.
+  const robots = Object.keys(sp).length
+    ? { index: false as const, follow: true as const }
+    : undefined;
   return {
     title: q ? `Search: ${q}` : "Search developer tools",
     description: q
       ? `Developer tools matching “${q}” — API tools, formatters, testing, AI and more.`
-      : "Search thousands of developer tools, resources and AI services with fuzzy matching, synonyms and task-based search.",
-    alternates: { canonical: q ? `/search?q=${encodeURIComponent(q)}` : "/search" },
+      : "Search hundreds of curated developer tools, resources and AI services with fuzzy matching, synonyms and task-based search.",
+    robots,
+    alternates: { canonical: "/search" },
   };
 }
 
@@ -37,7 +45,8 @@ export default async function SearchPage({ searchParams }: Props) {
   const q = params.q ?? "";
   const filters = parseFilters(raw);
   const page = Number(params.page ?? "1") || 1;
-  const result = searchTools({ q, filters, page, perPage: 24 });
+  const sort = params.sort === "newest" ? "newest" : "name";
+  const result = searchTools({ q, filters, page, perPage: 24, sort });
   const { categories } = getCatalog();
 
   const chips = activeFilterChips(filters);
@@ -89,6 +98,7 @@ export default async function SearchPage({ searchParams }: Props) {
                 ))}
               </div>
             )}
+            <SortLinks params={params} basePath="/search" active={sort} />
           </div>
 
           {result.items.length === 0 ? (

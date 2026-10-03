@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getCatalog } from "@/lib/data";
 import { deleteToolAction, toggleFeaturedAction } from "../actions";
 import { PricingBadge } from "@/components/tool-card";
+import { ConfirmDeleteButton } from "./confirm-delete-button";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,16 @@ export default async function AdminToolsPage({ searchParams }: Props) {
       {sp.saved && (
         <p className="mt-3 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-xs text-success">
           Tool saved.
+        </p>
+      )}
+      {sp.error === "duplicate" && (
+        <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Not saved: another tool already uses this website URL.
+        </p>
+      )}
+      {sp.error === "subcategory" && (
+        <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Not saved: the subcategory doesn&apos;t belong to the chosen category.
         </p>
       )}
       {sp.deleted && (
@@ -116,9 +127,7 @@ export default async function AdminToolsPage({ searchParams }: Props) {
                     </Link>
                     <form action={deleteToolAction}>
                       <input type="hidden" name="id" value={t.id} />
-                      <button type="submit" className="text-xs text-red-500 hover:underline">
-                        Delete
-                      </button>
+                      <ConfirmDeleteButton name={t.name} />
                     </form>
                   </div>
                 </td>

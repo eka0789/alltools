@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { respond } from "@/lib/chat/engine";
+import { enhanceReply, llmEnabled } from "@/lib/chat/llm";
 import type { ChatHistoryTurn } from "@/lib/chat/types";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const MAX_BODY_BYTES = 8 * 1024;
+
+// The public chat endpoint used to have zero protection and masked errors
+// as HTTP 200 — both fixed here.
 export async function POST(req: NextRequest) {
+  const contentLength = Number(req.headers.get("content-length") ?? "0");
+  if (contentLength > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: "payload too large" }, { status: 413 });
+  }
+
+  const limiter = rateLimit(`chat:${clientIp(req)}`, 20, 60_000);
+  if (!limiter.ok) {
+    return NextResponse.json(
+      { error: "rate limited" },
+      { status: 429, headers: { "Retry-After": String(limiter.retryAfter) } },
+    );
+  }
+
   let message = "";
   let history: ChatHistoryTurn[] = [];
   try {
@@ -36,16 +55,26 @@ export async function POST(req: NextRequest) {
 
   try {
     const data = respond(message, history);
-    return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+    // Optional LLM polish (only when an API key is configured); the catalog
+    // tool picks from the rule engine stay authoritative either way.
+    const llmReply = llmEnabled() ? await enhanceReply(message, history, data) : null;
+    return NextResponse.json(llmReply ? { ...data, reply: llmReply } : data, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (err) {
     console.error("[chat] respond failed:", err);
-    return NextResponse.json({
-      intent: "fallback",
-      responseLang: "id",
-      reply:
-        "Waduh, ada gangguan di sisi aku. 😅 Coba tanya sekali lagi ya — atau jelajahi katalog lewat menu Search.",
-      tools: [],
-      chips: ["Rekomendasi tools untuk web", "Apa itu Python?", "Profil Data Scientist"],
-    });
+    // Real 500 so monitoring and the client's res.ok check can tell failure
+    // apart from success; the body stays user-friendly.
+    return NextResponse.json(
+      {
+        intent: "fallback",
+        responseLang: "en",
+        reply:
+          "Something went wrong on my side. 😅 Try asking again — or browse the catalog via Search.",
+        tools: [],
+        chips: ["Recommend tools for web dev", "What is Python?", "Data Scientist profile"],
+      },
+      { status: 500 },
+    );
   }
 }

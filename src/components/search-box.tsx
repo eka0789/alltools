@@ -35,24 +35,31 @@ interface SearchBoxProps {
 export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchBoxProps) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
-  const [results, setResults] = useState<QuickResult[]>([]);
+  // Results carry the query they belong to — display derives from the
+  // current input, so stale responses never render.
+  const [search, setSearch] = useState<{ q: string; items: QuickResult[] }>({
+    q: "",
+    items: [],
+  });
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
-  const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [placeholder, setPlaceholder] = useState(PLACEHOLDERS[0]);
+  const [typing, setTyping] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingRef = useRef(false);
+  const placeholderIdx = useRef(0);
+
+  const trimmed = query.trim();
+  const results = trimmed.length >= 2 && search.q === trimmed ? search.items : [];
+  const searched = trimmed.length >= 2;
 
   // Rotating placeholder (pauses while typing)
   useEffect(() => {
     const id = setInterval(() => {
       if (!typingRef.current) {
-        setPlaceholderIdx((i) => {
-          const next = (i + 1) % PLACEHOLDERS.length;
-          setPlaceholder(PLACEHOLDERS[next]);
-          return next;
-        });
+        placeholderIdx.current = (placeholderIdx.current + 1) % PLACEHOLDERS.length;
+        setPlaceholder(PLACEHOLDERS[placeholderIdx.current]);
       }
     }, 2600);
     return () => clearInterval(id);
@@ -61,11 +68,7 @@ export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchB
   // Debounced quick results
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setOpen(false);
-      return;
-    }
+    if (q.length < 2) return;
     const controller = new AbortController();
     const id = setTimeout(async () => {
       try {
@@ -74,7 +77,7 @@ export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchB
         });
         if (res.ok) {
           const data = await res.json();
-          setResults(data.items ?? []);
+          setSearch({ q, items: data.items ?? [] });
           setHighlight(-1);
           setOpen(true);
         }
@@ -144,11 +147,13 @@ export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchB
           autoFocus={autoFocus}
           onChange={(e) => {
             setQuery(e.target.value);
-            typingRef.current = e.target.value.length > 0;
+            const isTyping = e.target.value.length > 0;
+            typingRef.current = isTyping;
+            setTyping(isTyping);
           }}
-          onFocus={() => results.length > 0 && setOpen(true)}
+          onFocus={() => searched && setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder={typingRef.current ? "" : `What do you need? e.g. ${placeholder}`}
+          placeholder={typing ? "" : `What do you need? e.g. ${placeholder}`}
           aria-label="Search developer tools"
           className={`w-full bg-transparent outline-none placeholder:text-muted-foreground/70 ${
             big ? "text-base" : "text-sm"
@@ -164,13 +169,20 @@ export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchB
         )}
       </div>
 
-      {open && results.length > 0 && (
+      {open && searched && (
         <div
           id="search-dropdown"
           role="listbox"
           className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
         >
-          <ul>
+          {results.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">
+              No matches for “{query.trim()}”. Press Enter for a full search —
+              fuzzy matching may still find it.
+            </p>
+          ) : (
+            <>
+            <ul>
             {results.map((r, i) => (
               <li key={r.slug} role="option" aria-selected={i === highlight}>
                 <button
@@ -190,18 +202,23 @@ export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchB
                       {r.categoryName} — {r.description}
                     </span>
                   </span>
-                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{r.pricing}</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  </span>
                 </button>
               </li>
             ))}
-          </ul>
-          <button
-            type="button"
-            onClick={() => go(query.trim())}
-            className="block w-full border-t border-border px-4 py-2.5 text-left text-sm font-medium text-accent hover:bg-muted"
-          >
-            See all results for “{query.trim()}”
-          </button>
+            </ul>
+            <button
+              type="button"
+              onClick={() => go(query.trim())}
+              className="block w-full border-t border-border px-4 py-2.5 text-left text-sm font-medium text-accent hover:bg-muted"
+            >
+              See all results for “{query.trim()}”
+            </button>
+            </>
+          )}
         </div>
       )}
     </div>

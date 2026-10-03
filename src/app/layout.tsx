@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     template: "%s | AllTools",
   },
   description:
-    "Search thousands of developer tools, resources, services, documentation and AI tools. One search for every developer need.",
+    "Search hundreds of curated developer tools, resources, services, documentation and AI tools. One search for every developer need.",
   keywords: [
     "developer tools",
     "dev tools directory",
@@ -28,11 +28,11 @@ export const metadata: Metadata = {
     siteName: "AllTools",
     title: "AllTools — The Developer Dictionary",
     description:
-      "Everything developers need, in one place. Search thousands of tools, resources and AI services.",
+      "Everything developers need, in one place. Search hundreds of curated tools, resources and AI services.",
     url: siteUrl,
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "AllTools — The Developer Dictionary",
     description: "Everything developers need, in one place.",
   },
@@ -57,6 +57,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Native form controls, scrollbars and autofill follow in dark mode */}
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0c" />
       </head>
       <body className="min-h-screen flex flex-col">
         <Navbar />

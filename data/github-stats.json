@@ -1,0 +1,277 @@
+{
+  "commitlint": {
+    "stars": 18761,
+    "pushedAt": 1790929734000,
+    "license": "MIT"
+  },
+  "learn-git-branching": {
+    "stars": 34108,
+    "pushedAt": 1790939503000,
+    "license": "MIT"
+  },
+  "husky": {
+    "stars": 35337,
+    "pushedAt": 1773961396000,
+    "license": "MIT"
+  },
+  "pre-commit": {
+    "stars": 15609,
+    "pushedAt": 1790714716000,
+    "license": "MIT"
+  },
+  "freecodecamp": {
+    "stars": 456660,
+    "pushedAt": 1790979794000,
+    "license": "BSD-3-Clause"
+  },
+  "devdocs": {
+    "stars": 39515,
+    "pushedAt": 1790929903000,
+    "license": "MPL-2.0"
+  },
+  "git-lfs": {
+    "stars": 14529,
+    "pushedAt": 1790830334000,
+    "license": null
+  },
+  "the-odin-project": {
+    "stars": 4648,
+    "pushedAt": 1790793349000,
+    "license": "MIT"
+  },
+  "devhints": {
+    "stars": 14462,
+    "pushedAt": 1790995741000,
+    "license": null
+  },
+  "quickref-me": {
+    "stars": 10885,
+    "pushedAt": 1790998400000,
+    "license": "GPL-3.0"
+  },
+  "roadmap-sh": {
+    "stars": 368745,
+    "pushedAt": 1790931646000,
+    "license": null
+  },
+  "next-js": {
+    "stars": 143017,
+    "pushedAt": 1790993543000,
+    "license": "MIT"
+  },
+  "vue": {
+    "stars": 54479,
+    "pushedAt": 1790996803000,
+    "license": "MIT"
+  },
+  "react": {
+    "stars": 250863,
+    "pushedAt": 1790975635000,
+    "license": "MIT"
+  },
+  "nuxt": {
+    "stars": 60917,
+    "pushedAt": 1790975606000,
+    "license": "MIT"
+  },
+  "angular": {
+    "stars": 101013,
+    "pushedAt": 1790967422000,
+    "license": "MIT"
+  },
+  "svelte": {
+    "stars": 88230,
+    "pushedAt": 1790785258000,
+    "license": "MIT"
+  },
+  "astro": {
+    "stars": 63019,
+    "pushedAt": 1790971250000,
+    "license": null
+  },
+  "solidjs": {
+    "stars": 36094,
+    "pushedAt": 1790983171000,
+    "license": "MIT"
+  },
+  "htmx": {
+    "stars": 49537,
+    "pushedAt": 1790937542000,
+    "license": null
+  },
+  "alpine-js": {
+    "stars": 31955,
+    "pushedAt": 1790709063000,
+    "license": "MIT"
+  },
+  "tailwind-css": {
+    "stars": 97754,
+    "pushedAt": 1790364763000,
+    "license": "MIT"
+  },
+  "bootstrap": {
+    "stars": 174983,
+    "pushedAt": 1790853812000,
+    "license": "MIT"
+  },
+  "material-ui": {
+    "stars": 99124,
+    "pushedAt": 1790988586000,
+    "license": "MIT"
+  },
+  "shadcn-ui": {
+    "stars": 125009,
+    "pushedAt": 1790940722000,
+    "license": "MIT"
+  },
+  "radix-ui": {
+    "stars": 19359,
+    "pushedAt": 1786207191000,
+    "license": "MIT"
+  },
+  "zustand": {
+    "stars": 58785,
+    "pushedAt": 1790723505000,
+    "license": "MIT"
+  },
+  "redux": {
+    "stars": 61484,
+    "pushedAt": 1790735806000,
+    "license": "MIT"
+  },
+  "jotai": {
+    "stars": 21289,
+    "pushedAt": 1790691049000,
+    "license": "MIT"
+  },
+  "react-hook-form": {
+    "stars": 44870,
+    "pushedAt": 1790976307000,
+    "license": "MIT"
+  },
+  "framer-motion": {
+    "stars": 33810,
+    "pushedAt": 1790943691000,
+    "license": "MIT"
+  },
+  "gsap": {
+    "stars": 28777,
+    "pushedAt": 1776085738000,
+    "license": null
+  },
+  "lucide-icons": {
+    "stars": 24825,
+    "pushedAt": 1790978720000,
+    "license": null
+  },
+  "heroicons": {
+    "stars": 23846,
+    "pushedAt": 1778593878000,
+    "license": "MIT"
+  },
+  "font-awesome": {
+    "stars": 76947,
+    "pushedAt": 1784139353000,
+    "license": null
+  },
+  "phosphor-icons": {
+    "stars": 384,
+    "pushedAt": 1767734928000,
+    "license": "MIT"
+  },
+  "simple-icons": {
+    "stars": 25951,
+    "pushedAt": 1790796633000,
+    "license": "CC0-1.0"
+  },
+  "vite": {
+    "stars": 83101,
+    "pushedAt": 1790967937000,
+    "license": "MIT"
+  },
+  "webpack": {
+    "stars": 65956,
+    "pushedAt": 1790995099000,
+    "license": "MIT"
+  },
+  "eslint": {
+    "stars": 27531,
+    "pushedAt": 1790971628000,
+    "license": "MIT"
+  },
+  "prettier": {
+    "stars": 52316,
+    "pushedAt": 1790994414000,
+    "license": "MIT"
+  },
+  "storybook": {
+    "stars": 91196,
+    "pushedAt": 1790959683000,
+    "license": "MIT"
+  },
+  "express": {
+    "stars": 69503,
+    "pushedAt": 1790892488000,
+    "license": "MIT"
+  },
+  "node-js": {
+    "stars": 122227,
+    "pushedAt": 1790980419000,
+    "license": null
+  },
+  "nestjs": {
+    "stars": 76783,
+    "pushedAt": 1790958341000,
+    "license": "MIT"
+  },
+  "fastify": {
+    "stars": 37222,
+    "pushedAt": 1790853215000,
+    "license": "MIT"
+  },
+  "django": {
+    "stars": 91221,
+    "pushedAt": 1790976569000,
+    "license": "BSD-3-Clause"
+  },
+  "laravel": {
+    "stars": 85045,
+    "pushedAt": 1790776605000,
+    "license": null
+  },
+  "symfony": {
+    "stars": 31168,
+    "pushedAt": 1790967931000,
+    "license": "MIT"
+  },
+  "fastapi": {
+    "stars": 102772,
+    "pushedAt": 1790940998000,
+    "license": "MIT"
+  },
+  "flask": {
+    "stars": 74796,
+    "pushedAt": 1788885653000,
+    "license": "BSD-3-Clause"
+  },
+  "spring": {
+    "stars": 60267,
+    "pushedAt": 1790952716000,
+    "license": "Apache-2.0"
+  },
+  "spring-boot": {
+    "stars": 81547,
+    "pushedAt": 1790961762000,
+    "license": "Apache-2.0"
+  },
+  "phoenix": {
+    "stars": 23171,
+    "pushedAt": 1790857372000,
+    "license": "MIT"
+  },
+  "grpc": {
+    "stars": 45359,
+    "pushedAt": 1790998946000,
+    "license": "Apache-2.0"
+  }
+}

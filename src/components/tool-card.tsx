@@ -2,6 +2,9 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import type { ToolWithMeta } from "@/lib/data";
 import { ToolLogo } from "./tool-logo";
+import { FavoriteButton } from "./favorite-button";
+import { CompareButton } from "./compare-button";
+import { TrackedOutboundLink } from "./tracked-outbound-link";
 import { PRICING_LABEL, type Pricing } from "@/data/types";
 
 const PRICING_STYLE: Record<Pricing, string> = {
@@ -11,10 +14,12 @@ const PRICING_STYLE: Record<Pricing, string> = {
 };
 
 export function PricingBadge({ pricing }: { pricing: string }) {
-  const key = (pricing as Pricing) in PRICING_STYLE ? (pricing as Pricing) : "free";
+  // Unknown pricing values fall back to their raw text in a neutral style —
+  // silently relabeling them "Free" would be wrong.
+  const key = (pricing as Pricing) in PRICING_STYLE ? (pricing as Pricing) : null;
   return (
-    <span className={`text-xs font-medium ${PRICING_STYLE[key]}`}>
-      {PRICING_LABEL[key] ?? pricing}
+    <span className={`text-xs font-medium ${key ? PRICING_STYLE[key] : "text-muted-foreground"}`}>
+      {key ? PRICING_LABEL[key] : pricing}
     </span>
   );
 }
@@ -24,7 +29,11 @@ export function ToolCard({ tool }: { tool: ToolWithMeta }) {
     <article className="card flex h-full flex-col gap-3 p-4 transition-colors hover:border-accent/40">
       <div className="flex items-start justify-between gap-3">
         <ToolLogo url={tool.url} name={tool.name} size="md" />
-        <PricingBadge pricing={tool.pricing} />
+        <div className="flex items-center gap-1.5">
+          <PricingBadge pricing={tool.pricing} />
+          <FavoriteButton slug={tool.slug} name={tool.name} />
+          <CompareButton slug={tool.slug} name={tool.name} />
+        </div>
       </div>
       <div>
         <div className="flex items-center gap-2">
@@ -55,15 +64,16 @@ export function ToolCard({ tool }: { tool: ToolWithMeta }) {
         </div>
       )}
       <div className="mt-auto flex items-center gap-2 pt-1">
-        <a
+        <TrackedOutboundLink
           href={tool.url}
+          slug={tool.slug}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-secondary flex-1 !py-1.5 text-xs"
         >
           Open Website
           <ExternalLink className="h-3 w-3" />
-        </a>
+        </TrackedOutboundLink>
         <Link href={`/tools/${tool.slug}`} className="btn-primary flex-1 !py-1.5 text-xs">
           Details
         </Link>

@@ -4,6 +4,8 @@ import { CATEGORIES } from "../data/categories";
 import { ALL_SEED_TOOLS } from "../data/tools";
 import type { Pricing } from "../data/types";
 import { slugify } from "../lib/slug";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // Existing seed entries that are currently trending on GitHub — the seeder
 // appends the "trending" tag so the homepage section picks them up.
@@ -24,6 +26,17 @@ const TRENDING_SLUGS = new Set([
 ]);
 
 const reset = process.argv.includes("--reset");
+
+// Objective GitHub signals captured by scripts/fetch-github-stats.mjs. The
+// file is optional — entries stay null (never invented) until real data
+// lands for a repo.
+let githubStats: Record<string, { stars?: number; pushedAt?: number; license?: string }> = {};
+try {
+  const statsPath = fileURLToPath(new URL("../../data/github-stats.json", import.meta.url));
+  githubStats = JSON.parse(readFileSync(statsPath, "utf8"));
+} catch {
+  // no stats file yet
+}
 
 async function main() {
   const existing = await db.select({ id: tools.id }).from(tools);
@@ -86,10 +99,14 @@ async function main() {
     generatedSlugs.add(slug);
   }
 
-  const now = Date.now();
-  const total = ALL_SEED_TOOLS.length;
   const tagSet = new Map<string, string>();
   let inserted = 0;
+
+  // Deterministic "added" dates. Real acquisition dates don't exist for
+  // curated entries, and anchoring them to `now` reshuffled "Recently added"
+  // and every sitemap lastModified on each deploy. A fixed epoch keeps them
+  // stable; newer entries still sort after older ones.
+  const SEED_EPOCH_MS = Date.UTC(2026, 0, 1);
 
   for (const [i, t] of ALL_SEED_TOOLS.entries()) {
     const catId = catIdBySlug.get(t.c);
@@ -122,7 +139,8 @@ async function main() {
 
     for (const tag of entryTags) tagSet.set(slugify(tag), tag);
 
-    const createdAt = now - (total - i) * 3 * 60 * 60 * 1000; // staggered 3h apart
+    const createdAt = SEED_EPOCH_MS + i * 3 * 60 * 60 * 1000; // stable, staggered 3h apart
+    const stats = githubStats[slug];
     await db.insert(tools)
       .values({
         name: t.n,
@@ -145,6 +163,9 @@ async function main() {
         alternatives: JSON.stringify(pick(t.alt)),
         relatedTools: JSON.stringify(pick(t.rel)),
         featured: !!t.feat,
+        githubStars: typeof stats?.stars === "number" ? stats.stars : null,
+        githubPushedAt: typeof stats?.pushedAt === "number" ? stats.pushedAt : null,
+        githubLicense: typeof stats?.license === "string" ? stats.license : null,
         createdAt,
         updatedAt: createdAt,
       });

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CategoryIcon } from "@/components/category-icon";
-import { EmptyState, ResultGrid } from "@/components/result-grid";
+import { EmptyState, Pagination, ResultGrid } from "@/components/result-grid";
 import { searchTools } from "@/lib/search";
 import { getCatalog } from "@/lib/data";
 
@@ -29,12 +29,16 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const sp = await searchParams;
   const sub = typeof sp.sub === "string" ? sp.sub : undefined;
+  const page = Number(typeof sp.page === "string" ? sp.page : "1") || 1;
   const { categories } = getCatalog();
   const cat = categories.find((c) => c.slug === slug);
   if (!cat) notFound();
 
+  // 60 per page with real pagination — the largest category (67 tools) used
+  // to silently hide its overflow with no page controls.
   const result = searchTools({
     filters: { category: slug, sub },
+    page,
     perPage: 60,
     sort: "name",
   });
@@ -95,7 +99,15 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         {result.items.length === 0 ? (
           <EmptyState />
         ) : (
-          <ResultGrid tools={result.items} />
+          <>
+            <ResultGrid tools={result.items} />
+            <Pagination
+              params={{ sub, page: String(page) }}
+              basePath={`/categories/${cat.slug}`}
+              page={result.page}
+              totalPages={result.totalPages}
+            />
+          </>
         )}
       </div>
     </div>

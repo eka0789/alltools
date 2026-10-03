@@ -24,6 +24,11 @@ export default function SubmitForm({
           {state.error}
         </p>
       )}
+      {/* Honeypot — hidden from humans, irresistible to bots. */}
+      <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+        <label htmlFor="company">Company</label>
+        <input id="company" name="company" tabIndex={-1} autoComplete="off" />
+      </div>
       <div>
         <label htmlFor="name" className="mb-1.5 block text-sm font-medium">
           Tool name *

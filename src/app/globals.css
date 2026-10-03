@@ -20,6 +20,7 @@
 }
 
 .dark {
+  color-scheme: dark; /* native scrollbars, form controls, autofill adapt */
   --background: #0a0a0c;
   --foreground: #fafafa;
   --muted: #18181b;

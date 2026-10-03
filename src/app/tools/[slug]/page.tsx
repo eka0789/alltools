@@ -6,6 +6,7 @@ import {
   BookOpen,
   CheckCircle2,
   Link2,
+  Star,
 } from "lucide-react";
 
 function GithubIcon({ className }: { className?: string }) {
@@ -17,6 +18,11 @@ function GithubIcon({ className }: { className?: string }) {
 }
 import { ToolLogo } from "@/components/tool-logo";
 import { PricingBadge } from "@/components/tool-card";
+import { FavoriteButton } from "@/components/favorite-button";
+import { CompareButton } from "@/components/compare-button";
+import { FeedbackButton } from "@/components/feedback-button";
+import { TrackedOutboundLink } from "@/components/tracked-outbound-link";
+import { RecentlyViewedStrip, RecentlyViewedTracker } from "@/components/recently-viewed";
 import { getToolBySlug, getCatalog } from "@/lib/data";
 import { PLATFORM_LABEL, type Platform } from "@/data/types";
 import { formatDate } from "@/lib/slug";
@@ -87,6 +93,9 @@ export default async function ToolPage({ params }: Props) {
   const alternatives = resolve(tool.alternatives);
   const related = resolve(tool.relatedTools);
 
+  // Only emit an Offer when it is factually expressible: free = price 0.
+  // Freemium/paid would need a real price we don't claim to know, and an
+  // Offer without a price is invalid for Google rich results.
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -95,13 +104,9 @@ export default async function ToolPage({ params }: Props) {
     url: tool.url,
     applicationCategory: tool.categoryName,
     ...(tool.openSource ? { license: "https://opensource.org/licenses" } : {}),
-    offers: {
-      "@type": "Offer",
-      price:
-        tool.pricing === "free" ? "0" : tool.pricing === "paid" ? undefined : "0",
-      priceCurrency: "USD",
-      description: tool.pricing,
-    },
+    ...(tool.pricing === "free"
+      ? { offers: { "@type": "Offer", price: "0", priceCurrency: "USD" } }
+      : {}),
   };
   const breadcrumbLd = {
     "@context": "https://schema.org",
@@ -142,6 +147,8 @@ export default async function ToolPage({ params }: Props) {
         <span className="text-foreground">{tool.name}</span>
       </nav>
 
+      <RecentlyViewedTracker slug={tool.slug} />
+
       {/* Header */}
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
@@ -166,10 +173,16 @@ export default async function ToolPage({ params }: Props) {
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <a href={tool.url} target="_blank" rel="noopener noreferrer" className="btn-primary">
+          <TrackedOutboundLink
+            href={tool.url}
+            slug={tool.slug}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary"
+          >
             Open Website
             <ArrowUpRight className="h-4 w-4" />
-          </a>
+          </TrackedOutboundLink>
           {tool.githubUrl && (
             <LinkButton href={tool.githubUrl} icon={<GithubIcon className="h-4 w-4" />} external>
               GitHub
@@ -180,22 +193,27 @@ export default async function ToolPage({ params }: Props) {
               Docs
             </LinkButton>
           )}
+          <FavoriteButton slug={tool.slug} name={tool.name} variant="button" />
+          <CompareButton slug={tool.slug} name={tool.name} variant="button" />
         </div>
       </div>
 
       {/* Directory notice */}
-      <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Link2 className="h-3 w-3" />
-        AllTools is a directory — this link opens the official {tool.name} website.
-        {tool.verified ? (
-          <span className="inline-flex items-center gap-1 text-success">
-            <CheckCircle2 className="h-3 w-3" />
-            Link verified {tool.lastVerifiedAt ? formatDate(tool.lastVerifiedAt) : ""}
-          </span>
-        ) : (
-          <span>Link pending verification</span>
-        )}
-      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <p className="flex items-center gap-1.5">
+          <Link2 className="h-3 w-3" />
+          AllTools is a directory — this link opens the official {tool.name} website.
+          {tool.verified ? (
+            <span className="inline-flex items-center gap-1 text-success">
+              <CheckCircle2 className="h-3 w-3" />
+              Link verified {tool.lastVerifiedAt ? formatDate(tool.lastVerifiedAt) : ""}
+            </span>
+          ) : (
+            <span>Link pending verification</span>
+          )}
+        </p>
+        <FeedbackButton slug={tool.slug} />
+      </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -288,6 +306,21 @@ export default async function ToolPage({ params }: Props) {
               <MetaRow label="Open Source">
                 {tool.openSource ? "Yes" : "No"}
               </MetaRow>
+              {tool.githubStars !== null && (
+                <MetaRow label="GitHub stars">
+                  <a
+                    href={tool.githubUrl ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-warning hover:text-accent"
+                    title="Live data from the GitHub API via the stats refresh job"
+                  >
+                    <Star className="h-3.5 w-3.5 fill-current" />
+                    {tool.githubStars.toLocaleString()}
+                  </a>
+                </MetaRow>
+              )}
+              {tool.githubLicense && <MetaRow label="License">{tool.githubLicense}</MetaRow>}
               <MetaRow label="Self-hostable">
                 {tool.selfHosted ? "Yes" : "No"}
               </MetaRow>
@@ -346,6 +379,8 @@ export default async function ToolPage({ params }: Props) {
           </div>
         </aside>
       </div>
+
+      <RecentlyViewedStrip exclude={tool.slug} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Filters, type BrowserSearchParams } from "@/components/filters";
+import { Filters, SortLinks, type BrowserSearchParams } from "@/components/filters";
 import { EmptyState, Pagination, ResultGrid } from "@/components/result-grid";
 import { parseFilters, searchTools } from "@/lib/search";
 import { getCatalog } from "@/lib/data";
@@ -24,7 +24,7 @@ export default async function ToolsPage({ searchParams }: Props) {
   }
   const filters = parseFilters(raw);
   const page = Number(params.page ?? "1") || 1;
-  const sort = params.sort === "newest" ? "newest" : params.sort === "name" ? "name" : "name";
+  const sort = params.sort === "newest" ? "newest" : "name";
   const result = searchTools({ filters, page, perPage: 24, sort });
   const { categories } = getCatalog();
 
@@ -43,12 +43,15 @@ export default async function ToolsPage({ searchParams }: Props) {
           categories={categories}
         />
         <div className="min-w-0 flex-1">
-          <p className="mb-4 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">
-              {result.total.toLocaleString()}
-            </span>{" "}
-            tools
-          </p>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {result.total.toLocaleString()}
+              </span>{" "}
+              tools
+            </p>
+            <SortLinks params={params} basePath="/tools" active={sort} />
+          </div>
           {result.items.length === 0 ? (
             <EmptyState />
           ) : (

@@ -20,10 +20,13 @@ export default async function AdminSubmissionsPage({
   const error = typeof sp.error === "string" ? sp.error : undefined;
   const errorSlug = typeof sp.slug === "string" ? sp.slug : undefined;
 
-  const all = await db
-    .select()
-    .from(submissions)
-    .orderBy(desc(submissions.createdAt));
+  // Guarded: a broken/absent DB (serverless :memory: fallback) must not 500.
+  let all: (typeof submissions.$inferSelect)[] = [];
+  try {
+    all = await db.select().from(submissions).orderBy(desc(submissions.createdAt));
+  } catch {
+    all = [];
+  }
   const pending = all.filter((s) => s.status === "pending");
   const reviewed = all.filter((s) => s.status !== "pending");
 
@@ -47,6 +50,18 @@ export default async function AdminSubmissionsPage({
         <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           Approval failed: the tool entry could not be saved (e.g. a duplicate
           slug). The submission is still pending — try again.
+        </p>
+      )}
+      {error === "url" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Approval failed: the submitted URL is not a valid http(s) address.
+          Reject this submission instead.
+        </p>
+      )}
+      {error === "duplicate" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Approval failed: a tool with this website URL is already listed.
+          Reject the submission to keep the directory duplicate-free.
         </p>
       )}
 

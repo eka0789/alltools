@@ -1,13 +1,15 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { createHash } from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { submissions, tools } from "@/db/schema";
-import { ADMIN_COOKIE, adminToken, isAdmin } from "@/lib/admin";
+import { submissions, tools, feedback } from "@/db/schema";
+import { ADMIN_COOKIE, adminToken, checkLoginRateLimit, isAdmin } from "@/lib/admin";
+import { safeHttpUrl } from "@/lib/url-check";
 import { getCatalog, invalidateCatalog, refreshCatalogFromDb } from "@/lib/data";
 import { DB_IS_REMOTE } from "@/db/client";
 import { invalidateSearchIndex } from "@/lib/search";
@@ -26,7 +28,12 @@ async function touch() {
   if (DB_IS_REMOTE) await refreshCatalogFromDb();
   revalidatePath("/");
   revalidatePath("/tools");
+  revalidatePath("/categories");
   revalidatePath("/admin/tools");
+  // Detail/category/stack pages run on ISR (revalidate = 120) and self-heal;
+  // the pattern-based revalidation keeps them from lagging behind too.
+  revalidatePath("/tools/[slug]", "page");
+  revalidatePath("/categories/[slug]", "page");
 }
 
 const toolSchema = z.object({
@@ -52,20 +59,26 @@ function commaList(value: FormDataEntryValue | null): string[] {
 function optUrl(value: FormDataEntryValue | null): string | null {
   const s = String(value ?? "").trim();
   if (!s) return null;
-  try {
-    return new URL(s).toString();
-  } catch {
-    return null;
-  }
+  return safeHttpUrl(s);
 }
 
 export async function loginAction(formData: FormData) {
-  const token = String(formData.get("token") ?? "");
-  if (token && token === adminToken()) {
+  const token = adminToken();
+  const provided = String(formData.get("token") ?? "");
+  if (!token) {
+    // No ADMIN_TOKEN configured: fail closed instead of accepting a default.
+    redirect("/admin?error=not_configured");
+  }
+  if (!(await checkLoginRateLimit())) {
+    redirect("/admin?error=rate_limited");
+  }
+  if (provided && provided === token) {
     const store = await cookies();
-    store.set(ADMIN_COOKIE, token, {
+    const digest = createHash("sha256").update(`alltools:${provided}`).digest("hex");
+    store.set(ADMIN_COOKIE, digest, {
       httpOnly: true,
       sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
@@ -107,6 +120,24 @@ export async function saveToolAction(formData: FormData) {
 
   if (!parsed.success || !url || !name || !description || !categoryId) {
     redirect(`/admin/tools${id ? `/${id}` : "/new"}?error=validation`);
+  }
+
+  // A subcategory from another category would place the tool under a chip
+  // that never shows it — validate the pairing, not just the id.
+  const catalog = getCatalog();
+  if (subcategoryId) {
+    const sub = catalog.subcategories.find((s) => s.id === subcategoryId);
+    if (!sub || sub.categoryId !== categoryId) {
+      redirect(`/admin/tools${id ? `/${id}` : "/new"}?error=subcategory`);
+    }
+  }
+
+  // Duplicate website URLs create two listings for the same tool.
+  const dup = [...catalog.byUrl.entries()].find(
+    ([existingUrl, existingId]) => existingUrl === url && existingId !== id,
+  );
+  if (dup) {
+    redirect(`/admin/tools${id ? `/${id}` : "/new"}?error=duplicate`);
   }
 
   const slug = generateUniqueSlug(parsed.data.slug || name, id);
@@ -197,15 +228,24 @@ export async function approveSubmissionAction(formData: FormData) {
 
   const now = Date.now();
 
+  // Defense in depth: the submit form validates, but anything can end up in
+  // the table. Never render a non-http(s) href, never approve a URL that is
+  // already listed.
+  const url = safeHttpUrl(sub.url);
+  if (!url) redirect("/admin/submissions?error=url");
+  if (getCatalog().byUrl.has(url)) {
+    redirect("/admin/submissions?error=duplicate");
+  }
+
   try {
     await db.insert(tools).values({
       name: sub.name,
       slug: generateUniqueSlug(slugify(sub.name)),
-      url: sub.url,
+      url,
       description: sub.description,
       logo: (() => {
         try {
-          return new URL(sub.url).hostname;
+          return new URL(url).hostname;
         } catch {
           return null;
         }
@@ -235,9 +275,31 @@ export async function approveSubmissionAction(formData: FormData) {
 export async function rejectSubmissionAction(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id") ?? 0);
+  // Only pending submissions are actionable — re-rejecting an
+  // already-reviewed row would overwrite the original decision's timestamp.
   await db
     .update(submissions)
     .set({ status: "rejected", reviewedAt: Date.now() })
     .where(eq(submissions.id, id));
   redirect("/admin/submissions?rejected=1");
+}
+
+export async function resolveFeedbackAction(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id") ?? 0);
+  await db
+    .update(feedback)
+    .set({ status: "resolved", resolvedAt: Date.now() })
+    .where(eq(feedback.id, id));
+  revalidatePath("/admin");
+}
+
+export async function dismissFeedbackAction(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id") ?? 0);
+  await db
+    .update(feedback)
+    .set({ status: "dismissed", resolvedAt: Date.now() })
+    .where(eq(feedback.id, id));
+  revalidatePath("/admin");
 }

@@ -6,7 +6,26 @@ export function ThemeToggle() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
+    const raf = requestAnimationFrame(() => {
+      setDark(document.documentElement.classList.contains("dark"));
+    });
+    // Follow OS-level scheme changes while the user hasn't explicitly
+    // picked a side in the toggle (no stored preference).
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => {
+      try {
+        if (localStorage.getItem("alltools-theme")) return;
+      } catch {
+        // private mode — fall through and follow the OS
+      }
+      setDark(e.matches);
+      document.documentElement.classList.toggle("dark", e.matches);
+    };
+    media.addEventListener("change", onChange);
+    return () => {
+      cancelAnimationFrame(raf);
+      media.removeEventListener("change", onChange);
+    };
   }, []);
 
   function toggle() {

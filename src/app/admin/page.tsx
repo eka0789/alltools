@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Plus } from "lucide-react";
-import { isAdmin } from "@/lib/admin";
+import { AlertTriangle, CheckCircle2, Flag, Plus } from "lucide-react";
+import { isAdmin, adminToken } from "@/lib/admin";
 import { getCatalog, needsReviewCount } from "@/lib/data";
 import { formatDate } from "@/lib/slug";
-import { loginAction, logoutAction } from "./actions";
+import {
+  loginAction,
+  logoutAction,
+  resolveFeedbackAction,
+  dismissFeedbackAction,
+} from "./actions";
 import { db } from "@/db/client";
-import { submissions } from "@/db/schema";
+import { submissions, feedback } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 
 export const metadata: Metadata = {
@@ -15,6 +20,12 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
+
+const ERROR_MESSAGES: Record<string, string> = {
+  "1": "Invalid token.",
+  not_configured: "ADMIN_TOKEN is not configured on this deployment — login is disabled.",
+  rate_limited: "Too many attempts. Try again in a few minutes.",
+};
 
 export default async function AdminPage({
   searchParams,
@@ -31,9 +42,15 @@ export default async function AdminPage({
         <p className="mt-1 text-sm text-muted-foreground">
           Enter the admin token (env ADMIN_TOKEN).
         </p>
-        {sp.error && (
+        {!adminToken() && (
           <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-            Invalid token.
+            ADMIN_TOKEN is not set on this server. Set it as an environment
+            variable to enable login — there is no default anymore.
+          </p>
+        )}
+        {typeof sp.error === "string" && (
+          <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+            {ERROR_MESSAGES[sp.error] ?? "Invalid token."}
           </p>
         )}
         <form action={loginAction} className="card mt-5 space-y-4 p-5">
@@ -54,11 +71,28 @@ export default async function AdminPage({
 
   const catalog = getCatalog();
   const needsReview = await needsReviewCount();
-  const pending = await db
-    .select()
-    .from(submissions)
-    .where(eq(submissions.status, "pending"))
-    .orderBy(desc(submissions.createdAt));
+
+  // Guarded: a broken/absent DB (e.g. serverless :memory: fallback) must not
+  // 500 the whole dashboard.
+  let pending: (typeof submissions.$inferSelect)[] = [];
+  let openFeedback: (typeof feedback.$inferSelect)[] = [];
+  if (db) {
+    try {
+      pending = await db
+        .select()
+        .from(submissions)
+        .where(eq(submissions.status, "pending"))
+        .orderBy(desc(submissions.createdAt));
+      openFeedback = await db
+        .select()
+        .from(feedback)
+        .where(eq(feedback.status, "open"))
+        .orderBy(desc(feedback.createdAt))
+        .limit(20);
+    } catch {
+      // tables missing / db unavailable — dashboard stays up
+    }
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -69,7 +103,7 @@ export default async function AdminPage({
         </form>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+      <div className="mt-6 grid gap-4 sm:grid-cols-4">
         <div className="card p-5">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Tools</p>
           <p className="mt-1 text-3xl font-bold">{catalog.total.toLocaleString()}</p>
@@ -93,6 +127,15 @@ export default async function AdminPage({
             Review submissions →
           </Link>
         </div>
+        <div className="card p-5">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Open reports</p>
+          <p className={`mt-1 text-3xl font-bold ${openFeedback.length > 0 ? "text-warning" : ""}`}>
+            {openFeedback.length}
+          </p>
+          <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+            <Flag className="h-3 w-3" /> broken links & edit suggestions
+          </p>
+        </div>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -102,6 +145,48 @@ export default async function AdminPage({
         <Link href="/admin/tools" className="btn-secondary">All tools</Link>
         <Link href="/admin/submissions" className="btn-secondary">Submissions</Link>
       </div>
+
+      {openFeedback.length > 0 && (
+        <div className="card mt-8 p-5">
+          <h2 className="font-semibold">Community reports</h2>
+          <ul className="mt-3 space-y-3 text-sm">
+            {openFeedback.map((f) => (
+              <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
+                <span className="min-w-0">
+                  <span className={`font-medium ${f.type === "broken_link" ? "text-warning" : ""}`}>
+                    {f.type === "broken_link" ? "Broken link" : "Edit suggestion"}
+                  </span>
+                  <span className="ml-2">
+                    <Link href={`/tools/${f.toolSlug}`} className="text-accent hover:underline">
+                      {f.toolSlug}
+                    </Link>
+                  </span>
+                  {f.message && (
+                    <span className="block truncate text-xs text-muted-foreground">“{f.message}”</span>
+                  )}
+                  <span className="block text-[10px] text-muted-foreground/70">
+                    {formatDate(f.createdAt)}
+                  </span>
+                </span>
+                <span className="flex shrink-0 gap-2">
+                  <form action={resolveFeedbackAction}>
+                    <input type="hidden" name="id" value={f.id} />
+                    <button type="submit" className="btn-secondary !px-2.5 !py-1 text-xs">
+                      Resolve
+                    </button>
+                  </form>
+                  <form action={dismissFeedbackAction}>
+                    <input type="hidden" name="id" value={f.id} />
+                    <button type="submit" className="btn-secondary !px-2.5 !py-1 text-xs">
+                      Dismiss
+                    </button>
+                  </form>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {pending.length > 0 && (
         <div className="card mt-8 p-5">
@@ -126,14 +211,14 @@ export default async function AdminPage({
         <h2 className="font-semibold">Link health</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Run <code className="rounded bg-muted px-1.5 py-0.5 text-xs">npm run check-links</code>{" "}
-          to verify every tool URL (HTTP status, redirects, response time).
-          Tools returning 404/410 or domain errors are marked{" "}
+          (locally or via CI — it now works against Turso too), or let the Vercel
+          Cron hit <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/api/cron/check-links</code>{" "}
+          daily. Tools returning 404/410 or domain errors are marked{" "}
           <code className="text-xs">needs_review</code> — never auto-deleted.
         </p>
         <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
           <CheckCircle2 className="h-3.5 w-3.5 text-success" />
           Last runs are recorded per tool in the link_checks table
-          {catalog.recent.length > 0 && <> · data snapshot {formatDate(Date.now())}</>}
         </p>
       </div>
     </div>

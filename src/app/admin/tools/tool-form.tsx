@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCatalog } from "@/lib/data";
 import type { ToolWithMeta } from "@/lib/data";
 import { saveToolAction } from "../actions";
+import { CategorySubcategoryFields } from "./subcategory-select";
 
 const PLATFORMS = ["web", "desktop", "cli", "mobile", "extension"];
 
@@ -47,37 +48,14 @@ export function ToolForm({ tool }: { tool?: ToolWithMeta }) {
         <textarea name="description" required maxLength={500} rows={2} defaultValue={tool?.description} className="input" />
       </Field>
 
-      <div className="grid gap-5 sm:grid-cols-3">
-        <Field label="Category *">
-          <select
-            name="category"
-            required
-            defaultValue={tool?.categoryId ?? ""}
-            className="input"
-          >
-            <option value="" disabled>Select…</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Subcategory">
-          <select
-            name="subcategory"
-            defaultValue={tool?.subcategoryId ?? ""}
-            className="input"
-          >
-            <option value="">None</option>
-            {subcategories.map((s) => {
-              const cat = categories.find((c) => c.id === s.categoryId);
-              return (
-                <option key={s.id} value={s.id}>
-                  {cat?.name} / {s.name}
-                </option>
-              );
-            })}
-          </select>
-        </Field>
+      <CategorySubcategoryFields
+        categories={categories}
+        subcategories={subcategories}
+        initialCategoryId={tool?.categoryId}
+        initialSubcategoryId={tool?.subcategoryId}
+      />
+
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Pricing">
           <select name="pricing" defaultValue={tool?.pricing ?? "free"} className="input">
             <option value="free">Free</option>

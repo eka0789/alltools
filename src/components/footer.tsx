@@ -49,6 +49,8 @@ export function Footer() {
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link href="/ai-chat" className="text-muted-foreground hover:text-foreground">DevDict AI Chat</Link></li>
               <li><Link href="/stacks" className="text-muted-foreground hover:text-foreground">Stack Explorer</Link></li>
+              <li><Link href="/collections" className="text-muted-foreground hover:text-foreground">Collections</Link></li>
+              <li><Link href="/tags" className="text-muted-foreground hover:text-foreground">Browse by Tag</Link></li>
               <li><Link href="/tools" className="text-muted-foreground hover:text-foreground">All Tools</Link></li>
               <li><Link href="/search" className="text-muted-foreground hover:text-foreground">Search</Link></li>
               <li><Link href="/categories" className="text-muted-foreground hover:text-foreground">All Categories</Link></li>
@@ -61,7 +63,9 @@ export function Footer() {
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link href="/submit" className="text-muted-foreground hover:text-foreground">Submit a Tool</Link></li>
               <li><Link href="/about" className="text-muted-foreground hover:text-foreground">About &amp; Data Policy</Link></li>
-              <li><Link href="/admin" className="text-muted-foreground hover:text-foreground">Admin</Link></li>
+              <li><Link href="/favorites" className="text-muted-foreground hover:text-foreground">Your Shortlist</Link></li>
+              <li><Link href="/compare" className="text-muted-foreground hover:text-foreground">Compare Tools</Link></li>
+              <li><a href="/feed.xml" className="text-muted-foreground hover:text-foreground">RSS Feed</a></li>
             </ul>
           </div>
         </div>

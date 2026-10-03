@@ -29,6 +29,10 @@ export function buildHref(
   for (const [k, v] of Object.entries(current)) {
     if (v !== undefined && v !== "") merged[k] = Array.isArray(v) ? v[0] : v;
   }
+  // Changing any filter must reset to page 1 — keeping the old page number
+  // lands users on an empty page of the narrowed result set. Pagination
+  // links pass `page` explicitly in the patch, so they are unaffected.
+  if (patch.page === undefined) delete merged.page;
   for (const [k, v] of Object.entries(patch)) {
     if (v === undefined || v === "") delete merged[k];
     else merged[k] = v;
@@ -117,9 +121,7 @@ export function Filters({
           {(facets.categories.length > 0
             ? facets.categories.map((f) => ({ slug: f.slug, name: f.name, count: f.count }))
             : categories.map((c) => ({ slug: c.slug, name: c.name, count: c.toolCount }))
-          )
-            .slice(0, 12)
-            .map((c) => (
+          ).map((c) => (
               <FilterLink
                 key={c.slug}
                 href={buildHref(params, { category: c.slug, sub: undefined }, basePath)}
@@ -230,10 +232,51 @@ export function activeFilterChips(
   if (filters.pricing) chips.push({ label: `Pricing: ${filters.pricing}`, patch: { pricing: undefined } });
   if (filters.platform) chips.push({ label: `Platform: ${filters.platform}`, patch: { platform: undefined } });
   if (filters.tag) chips.push({ label: `Tag: ${filters.tag}`, patch: { tag: undefined } });
+  // lang/framework arrive from tool-detail deep links; without chips users
+  // could not see (or remove) the filter that silently narrowed the results.
+  if (filters.lang) chips.push({ label: `Language: ${filters.lang}`, patch: { lang: undefined } });
+  if (filters.framework) chips.push({ label: `Framework: ${filters.framework}`, patch: { framework: undefined } });
   if (filters.oss) chips.push({ label: "Open Source", patch: { oss: undefined } });
   if (filters.selfhosted) chips.push({ label: "Self-hostable", patch: { selfhosted: undefined } });
   if (filters.docs) chips.push({ label: "Has docs", patch: { docs: undefined } });
   if (filters.github) chips.push({ label: "Has GitHub", patch: { github: undefined } });
   if (filters.free) chips.push({ label: "Free", patch: { free: undefined } });
   return chips;
+}
+
+const SORTS = [
+  { key: "name", label: "Name A–Z" },
+  { key: "newest", label: "Newest" },
+] as const;
+
+// Sort control — the sort param was honored in the URL but had no UI, so
+// users could enter "newest" via homepage links and never leave it.
+export function SortLinks({
+  params,
+  basePath,
+  active,
+}: {
+  params: BrowserSearchParams;
+  basePath: string;
+  active: string;
+}) {
+  return (
+    <div className="flex items-center gap-1" role="group" aria-label="Sort results">
+      <span className="mr-1 text-xs text-muted-foreground">Sort:</span>
+      {SORTS.map((s) => (
+        <Link
+          key={s.key}
+          href={buildHref(params, { sort: s.key }, basePath)}
+          aria-current={active === s.key ? "true" : undefined}
+          className={`rounded-lg border px-2.5 py-1 text-xs transition-colors ${
+            active === s.key
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {s.label}
+        </Link>
+      ))}
+    </div>
+  );
 }

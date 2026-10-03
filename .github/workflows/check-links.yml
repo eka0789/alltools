@@ -1,0 +1,24 @@
+name: Link health check
+
+on:
+  schedule:
+    # Weekly full sweep, Sundays 03:00 UTC
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Runs against the remote Turso DB, so verified/needs_review state is
+      # written where production reads it.
+      - run: npm run check-links -- --only-unchecked
+        env:
+          ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
+          ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}

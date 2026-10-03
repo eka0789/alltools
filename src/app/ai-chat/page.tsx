@@ -7,7 +7,7 @@ import { Compass, GraduationCap, Layers } from "lucide-react";
 export const metadata: Metadata = {
   title: "AI Chat — DevDict AI",
   description:
-    "Tanya apa saja ke DevDict AI: rekomendasi developer tools, panduan profesi sesuai bahasa pemrograman favoritmu, kamus bahasa pemrograman, dan rekomendasi stack. Jawaban akurat langsung dari katalog AllTools.",
+    "Ask DevDict AI anything: developer tool recommendations, career guidance based on your favorite programming language, a programming language dictionary, and stack suggestions. Accurate answers drawn straight from the AllTools catalog.",
   alternates: { canonical: "/ai-chat" },
 };
 
@@ -17,21 +17,21 @@ export const revalidate = 120;
 const FEATURES = [
   {
     icon: Compass,
-    title: "Rekomendasi Tools Pintar",
-    desc: "Ceritakan kebutuhanmu dengan bahasa sehari-hari — DevDict AI memilihkan tools paling relevan dari katalog, lengkap dengan harga, kategori, dan tautannya.",
-    example: "Rekomendasi tools untuk edit foto",
+    title: "Smart Tool Recommendations",
+    desc: "Describe what you need in plain language — DevDict AI picks the most relevant tools from the catalog, complete with pricing, category, and links.",
+    example: "Recommend tools for photo editing",
   },
   {
     icon: GraduationCap,
-    title: "Panduan Profesi & Karier",
-    desc: "Sebutkan bahasa pemrograman favoritmu, dan dapatkan profil profesi yang cocok — roadmap belajar, skills utama, dan tools yang dipakai di profesi tersebut.",
-    example: "Aku suka Python, cocok profesi apa?",
+    title: "Career & Profession Guidance",
+    desc: "Name your favorite programming language and get matching career profiles — learning roadmaps, core skills, and the tools used in that role.",
+    example: "I like Python, which career fits?",
   },
   {
     icon: Layers,
-    title: "Kamus & Rekomendasi Stack",
-    desc: "Kamus bahasa pemrograman (sejarah, kegunaan, framework) plus rekomendasi stack terbukti untuk web, mobile, backend, data, game, dan DevOps.",
-    example: "Stack untuk bikin aplikasi mobile",
+    title: "Language Dictionary & Stacks",
+    desc: "A programming language dictionary (history, use cases, frameworks) plus proven stack suggestions for web, mobile, backend, data, game, and DevOps.",
+    example: "Stack for building a mobile app",
   },
 ];
 
@@ -50,18 +50,19 @@ export default function AiChatPage() {
           <span className="bg-gradient-to-r from-accent to-accent-hover bg-clip-text text-transparent">
             DevDict AI
           </span>{" "}
-          — Tanya Apa Saja soal Dunia Developer
+          — Ask Anything About the Developer World
         </h1>
         <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Asisten cerdas {total.toLocaleString()} tools developer. Minta rekomendasi tools, gali
-          profesi yang cocok dengan bahasa pemrograman favoritmu, atau tanya kamus bahasa —
-          jawabannya akurat karena diambil langsung dari katalog AllTools.
+          A smart assistant for {total.toLocaleString()} developer tools. Ask for tool
+          recommendations, explore careers that match your favorite language, or query the
+          language dictionary — answers stay accurate because they come straight from the
+          AllTools catalog.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-          <span className="chip">🧰 {total.toLocaleString()} tools terindeks</span>
-          <span className="chip">🗂️ {categories.length} kategori</span>
-          <span className="chip">🌍 16 bahasa pemrograman</span>
-          <span className="chip">🎯 13 profil profesi</span>
+          <span className="chip">🧰 {total.toLocaleString()} tools indexed</span>
+          <span className="chip">🗂️ {categories.length} categories</span>
+          <span className="chip">🌍 26 programming languages</span>
+          <span className="chip">🎯 13 career profiles</span>
         </div>
       </section>
 
@@ -92,7 +93,7 @@ export default function AiChatPage() {
       {/* features */}
       <section className="mt-10">
         <h2 className="text-center text-lg font-semibold tracking-tight">
-          Apa yang bisa DevDict AI bantu?
+          What can DevDict AI help with?
         </h2>
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
           {FEATURES.map((f) => (
@@ -111,11 +112,11 @@ export default function AiChatPage() {
       </section>
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
-        Ingin menjelajah manual? Buka{" "}
+        Prefer browsing manually? Open{" "}
         <Link href="/categories" className="text-accent hover:underline">
           Categories
         </Link>{" "}
-        atau{" "}
+        or the{" "}
         <Link href="/stacks" className="text-accent hover:underline">
           Stack Explorer
         </Link>

@@ -350,6 +350,8 @@ export interface SearchOptions {
   page?: number;
   perPage?: number;
   sort?: "relevance" | "name" | "newest";
+  // Skip facet computation (chat-originated lookups never render them).
+  facets?: boolean;
 }
 
 export interface SearchResult {
@@ -377,9 +379,9 @@ export function searchTools(opts: SearchOptions): SearchResult {
   const intentTags = new Set(activeIntents.flatMap((i) => i.tags ?? []));
   const intentCats = new Set(activeIntents.flatMap((i) => i.categories ?? []));
 
-  let pool: IndexedTool[];
+  let qMatched: IndexedTool[];
   if (!q) {
-    pool = index.filter((item) => passesFilters(item, filters));
+    qMatched = index;
   } else {
     const qTokens = q.split(/\s+/).filter(Boolean);
     const scored: { item: IndexedTool; score: number }[] = [];
@@ -416,8 +418,10 @@ export function searchTools(opts: SearchOptions): SearchResult {
         a.item.nameLower.length - b.item.nameLower.length ||
         a.item.nameLower.localeCompare(b.item.nameLower),
     );
-    pool = scored.map((s) => s.item).filter((item) => passesFilters(item, filters));
+    qMatched = scored.map((s) => s.item);
   }
+
+  let pool: IndexedTool[] = qMatched.filter((item) => passesFilters(item, filters));
 
   const sort = opts.sort ?? (q ? "relevance" : "name");
   if (sort === "name") {
@@ -432,26 +436,23 @@ export function searchTools(opts: SearchOptions): SearchResult {
     pool = pool.slice().sort((a, b) => b.tool.createdAt - a.tool.createdAt);
   }
 
-  // Facets: counts computed on the q-matched pool ignoring the facet's own filter
+  // Facets: counts computed on the q-matched pool (so they reflect what the
+  // query actually found) ignoring the facet's own filter.
   const rest = { ...filters } as Partial<SearchFilters>;
   delete rest.category;
   const catCounts = new Map<string, { name: string; count: number }>();
-  for (const item of index) {
-    if (passesFilters(item, { ...rest, category: undefined })) {
-      const t = item.tool;
-      const cur = catCounts.get(t.categorySlug) ?? { name: t.categoryName, count: 0 };
-      cur.count += 1;
-      catCounts.set(t.categorySlug, cur);
-    }
-  }
-  delete rest.pricing;
   const pricingCounts = new Map<string, number>();
-  for (const item of index) {
-    if (passesFilters(item, { ...rest, pricing: undefined })) {
-      pricingCounts.set(
-        item.tool.pricing,
-        (pricingCounts.get(item.tool.pricing) ?? 0) + 1,
-      );
+  if (opts.facets !== false) {
+    for (const item of qMatched) {
+      const t = item.tool;
+      if (passesFilters(item, { ...rest, category: undefined })) {
+        const cur = catCounts.get(t.categorySlug) ?? { name: t.categoryName, count: 0 };
+        cur.count += 1;
+        catCounts.set(t.categorySlug, cur);
+      }
+      if (passesFilters(item, { ...rest, pricing: undefined })) {
+        pricingCounts.set(t.pricing, (pricingCounts.get(t.pricing) ?? 0) + 1);
+      }
     }
   }
 
