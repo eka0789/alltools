@@ -47,3 +47,4 @@ next-env.d.ts
 src/data/catalog.generated.json
 
 .vercel
+gui-test-screenshots/

@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/tools`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/categories`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/stacks`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${base}/ai-chat`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/submit`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
     ...categories.map((c) => ({

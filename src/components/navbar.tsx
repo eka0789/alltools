@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/categories", label: "Categories" },
   { href: "/search?category=ai", label: "AI Tools" },
   { href: "/stacks", label: "Stacks" },
+  { href: "/ai-chat", label: "AI Chat" },
   { href: "/about", label: "About" },
 ];
 

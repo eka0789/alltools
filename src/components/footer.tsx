@@ -47,6 +47,7 @@ export function Footer() {
               Explore
             </h3>
             <ul className="mt-3 space-y-2 text-sm">
+              <li><Link href="/ai-chat" className="text-muted-foreground hover:text-foreground">DevDict AI Chat</Link></li>
               <li><Link href="/stacks" className="text-muted-foreground hover:text-foreground">Stack Explorer</Link></li>
               <li><Link href="/tools" className="text-muted-foreground hover:text-foreground">All Tools</Link></li>
               <li><Link href="/search" className="text-muted-foreground hover:text-foreground">Search</Link></li>
