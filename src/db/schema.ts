@@ -130,12 +130,16 @@ export const feedback = sqliteTable("feedback", {
   resolvedAt: integer("resolved_at"),
 });
 
-// Aggregate outbound-click counter per tool slug, written by the tracking
+// Aggregate outbound-click counters per tool slug, written by the tracking
 // endpoint when visitors open a tool's website. Seeds never touch this —
-// it is pure runtime signal.
+// it is pure runtime signal. `weeklyClicks` is a lazy 7-day bucket: the
+// click endpoint resets it whenever weekStart is older than 7 days, so
+// "popular this week" needs no cron.
 export const toolClicks = sqliteTable("tool_clicks", {
   slug: text("slug").primaryKey(),
   clicks: integer("clicks").notNull().default(0),
+  weeklyClicks: integer("weekly_clicks").notNull().default(0),
+  weekStart: integer("week_start"), // unix ms when the current 7-day bucket began
   updatedAt: integer("updated_at").notNull(),
 });
 

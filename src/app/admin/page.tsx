@@ -11,7 +11,7 @@ import {
   dismissFeedbackAction,
 } from "./actions";
 import { db } from "@/db/client";
-import { submissions, feedback } from "@/db/schema";
+import { submissions, feedback, toolClicks } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 
 export const metadata: Metadata = {
@@ -76,6 +76,7 @@ export default async function AdminPage({
   // 500 the whole dashboard.
   let pending: (typeof submissions.$inferSelect)[] = [];
   let openFeedback: (typeof feedback.$inferSelect)[] = [];
+  let topClicked: { slug: string; clicks: number; weeklyClicks: number }[] = [];
   if (db) {
     try {
       pending = await db
@@ -89,6 +90,15 @@ export default async function AdminPage({
         .where(eq(feedback.status, "open"))
         .orderBy(desc(feedback.createdAt))
         .limit(20);
+      topClicked = await db
+        .select({
+          slug: toolClicks.slug,
+          clicks: toolClicks.clicks,
+          weeklyClicks: toolClicks.weeklyClicks,
+        })
+        .from(toolClicks)
+        .orderBy(desc(toolClicks.weeklyClicks), desc(toolClicks.clicks))
+        .limit(10);
     } catch {
       // tables missing / db unavailable — dashboard stays up
     }
@@ -145,6 +155,38 @@ export default async function AdminPage({
         <Link href="/admin/tools" className="btn-secondary">All tools</Link>
         <Link href="/admin/submissions" className="btn-secondary">Submissions</Link>
       </div>
+
+      {topClicked.length > 0 && (
+        <div className="card mt-8 p-5">
+          <h2 className="font-semibold">Most opened tools</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Outbound clicks recorded by the tracker — weekly first. This is
+            the popularity signal behind the homepage ranking.
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            {topClicked.map((c, i) => {
+              const tool = catalog.bySlug.get(c.slug);
+              return (
+                <li key={c.slug} className="flex items-center justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0">
+                  <span className="min-w-0">
+                    <span className="mr-2 text-xs text-muted-foreground">{i + 1}.</span>
+                    {tool ? (
+                      <Link href={`/tools/${c.slug}`} className="font-medium hover:text-accent">
+                        {tool.name}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{c.slug}</span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {c.weeklyClicks} this week · {c.clicks} all-time
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {openFeedback.length > 0 && (
         <div className="card mt-8 p-5">

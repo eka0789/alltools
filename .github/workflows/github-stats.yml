@@ -1,0 +1,27 @@
+name: GitHub stats refresh
+
+on:
+  schedule:
+    # Monthly, 1st of the month 04:00 UTC
+    - cron: "0 4 1 * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # --all re-fetches every repo so stars stay current in the DB that
+      # production reads (Turso). The data/github-stats.json mirror written
+      # here is a byproduct — commit the refreshed snapshot from a local
+      # run when you want the cold-start seed to carry it too.
+      - run: node scripts/fetch-github-stats.mjs -- --all
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_STATS_TOKEN }}
+          ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
+          ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}

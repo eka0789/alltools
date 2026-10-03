@@ -1,17 +1,38 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Star } from "lucide-react";
 import type { ToolWithMeta } from "@/lib/data";
 import { ToolLogo } from "./tool-logo";
 import { FavoriteButton } from "./favorite-button";
 import { CompareButton } from "./compare-button";
 import { TrackedOutboundLink } from "./tracked-outbound-link";
 import { PRICING_LABEL, type Pricing } from "@/data/types";
+import { formatCompact } from "@/lib/slug";
 
 const PRICING_STYLE: Record<Pricing, string> = {
   free: "text-success",
   freemium: "text-warning",
   paid: "text-muted-foreground",
 };
+
+// Real GitHub stars (never invented — only rendered when the stats job
+// has populated them).
+export function StarsBadge({
+  stars,
+  className = "",
+}: {
+  stars: number;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-warning ${className}`}
+      title={`${stars.toLocaleString("en-US")} GitHub stars`}
+    >
+      <Star className="h-3 w-3 fill-current" />
+      {formatCompact(stars)}
+    </span>
+  );
+}
 
 export function PricingBadge({ pricing }: { pricing: string }) {
   // Unknown pricing values fall back to their raw text in a neutral style —
@@ -30,6 +51,7 @@ export function ToolCard({ tool }: { tool: ToolWithMeta }) {
       <div className="flex items-start justify-between gap-3">
         <ToolLogo url={tool.url} name={tool.name} size="md" />
         <div className="flex items-center gap-1.5">
+          {tool.githubStars !== null && <StarsBadge stars={tool.githubStars} />}
           <PricingBadge pricing={tool.pricing} />
           <FavoriteButton slug={tool.slug} name={tool.name} />
           <CompareButton slug={tool.slug} name={tool.name} />
@@ -95,6 +117,7 @@ export function ToolCardCompact({ tool }: { tool: ToolWithMeta }) {
           {tool.categoryName}
         </span>
       </span>
+      {tool.githubStars !== null && <StarsBadge stars={tool.githubStars} />}
       <PricingBadge pricing={tool.pricing} />
     </Link>
   );

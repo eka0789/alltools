@@ -24,7 +24,12 @@ export default async function ToolsPage({ searchParams }: Props) {
   }
   const filters = parseFilters(raw);
   const page = Number(params.page ?? "1") || 1;
-  const sort = params.sort === "newest" ? "newest" : "name";
+  const sort =
+    params.sort === "newest"
+      ? "newest"
+      : params.sort === "popular"
+        ? "popular"
+        : "name";
   const result = searchTools({ filters, page, perPage: 24, sort });
   const { categories } = getCatalog();
 

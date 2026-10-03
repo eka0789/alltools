@@ -67,6 +67,7 @@ const COLUMN_MAP = {
   github_stars: "githubStars",
   github_pushed_at: "githubPushedAt",
   github_license: "githubLicense",
+  weekly_clicks: "weeklyClicks",
   home_order: "homeOrder",
   sort_order: "sortOrder",
   tool_count: "toolCount",
@@ -78,7 +79,11 @@ const camelize = (row) =>
 
 const categories = (await store.all("SELECT * FROM categories ORDER BY sort_order")).map(camelize);
 const subcategories = (await store.all("SELECT * FROM subcategories ORDER BY sort_order")).map(camelize);
-const tools = (await store.all("SELECT * FROM tools ORDER BY id")).map(camelize);
+// Left join keeps tools without clicks; the click counters feed the
+// popularity pipeline on cold starts (data.ts merges the rest at runtime).
+const tools = (await store.all(
+  "SELECT t.*, c.clicks, c.weekly_clicks FROM tools t LEFT JOIN tool_clicks c ON c.slug = t.slug ORDER BY t.id",
+)).map(camelize);
 store.close();
 
 const payload = { exportedAt: Date.now(), categories, subcategories, tools };

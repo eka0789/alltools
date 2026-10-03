@@ -1,5 +1,5 @@
 import { db, DB_ACTIVE, DB_IS_REMOTE } from "@/db/client";
-import { categories, subcategories, tools } from "@/db/schema";
+import { categories, subcategories, toolClicks, tools } from "@/db/schema";
 import type { Category, Subcategory, Tool } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import catalogJson from "@/data/catalog.generated.json";
@@ -26,6 +26,10 @@ export type ToolWithMeta = Omit<Tool, ToolJsonField> & {
   categoryIcon: string;
   subcategoryName: string | null;
   subcategorySlug: string | null;
+  // Outbound-click counters from tool_clicks (bundled JSON carries them
+  // too; rows without the fields default to 0).
+  clicks: number;
+  weeklyClicks: number;
 };
 
 export interface Catalog {
@@ -38,6 +42,8 @@ export interface Catalog {
   total: number;
   featured: ToolWithMeta[];
   recent: ToolWithMeta[];
+  // Active tools with real outbound clicks, weekly-first ranking.
+  popular: ToolWithMeta[];
 }
 
 interface RawRow {
@@ -88,6 +94,8 @@ function buildCatalog(
       categoryIcon: (cat?.icon as string) ?? "Box",
       subcategoryName: sub ? (sub.name as string) : null,
       subcategorySlug: sub ? (sub.slug as string) : null,
+      clicks: Number(t.clicks ?? 0),
+      weeklyClicks: Number(t.weeklyClicks ?? 0),
     };
   });
 
@@ -114,6 +122,19 @@ function buildCatalog(
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 8);
 
+  // Popularity pipeline: real outbound clicks, weekly bucket first, then
+  // all-time. Empty until visitors actually click — the homepage hides the
+  // section until there is something honest to show.
+  const popular = toolsWithMeta
+    .filter((t) => t.status === "active" && t.clicks > 0)
+    .sort(
+      (a, b) =>
+        b.weeklyClicks - a.weeklyClicks ||
+        b.clicks - a.clicks ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 8);
+
   return {
     tools: toolsWithMeta,
     bySlug,
@@ -124,6 +145,7 @@ function buildCatalog(
     total: toolsWithMeta.length,
     featured,
     recent,
+    popular,
   };
 }
 
@@ -146,12 +168,37 @@ function catalogFromBundledJson(): Catalog {
   return buildCatalog(j.categories, j.subcategories, j.tools);
 }
 
+// Attach outbound-click counters onto tool rows before catalog building.
+// The click table is separate from tools, so both catalog sources merge it
+// in here (bundled JSON rows already carry the fields from export time).
+function attachClicks(toolRows: RawRow[], clickRows: RawRow[]) {
+  const byslug = new Map<string, { clicks: number; weeklyClicks: number }>();
+  for (const c of clickRows) {
+    byslug.set(String(c.slug), {
+      clicks: Number(c.clicks ?? 0),
+      weeklyClicks: Number(c.weeklyClicks ?? 0),
+    });
+  }
+  for (const t of toolRows) {
+    const c = byslug.get(String(t.slug));
+    t.clicks = c?.clicks ?? 0;
+    t.weeklyClicks = c?.weeklyClicks ?? 0;
+  }
+}
+
 // Rebuild the in-memory catalog from the database. Awaited by admin
 // mutations so the next rendered page already reflects them.
 export async function refreshCatalogFromDb(): Promise<void> {
   const catRows = (await db.select().from(categories)) as unknown as RawRow[];
   const subRows = (await db.select().from(subcategories)) as unknown as RawRow[];
   const toolRows = (await db.select().from(tools)) as unknown as RawRow[];
+  let clickRows: RawRow[] = [];
+  try {
+    clickRows = (await db.select().from(toolClicks)) as unknown as RawRow[];
+  } catch {
+    // click table missing on a stale remote schema — popularity stays 0
+  }
+  attachClicks(toolRows, clickRows);
   cache = buildCatalog(catRows, subRows, toolRows);
   cacheAt = Date.now();
   const { invalidateSearchIndex } = await import("./search");
@@ -196,6 +243,13 @@ export function getCatalog(): Catalog {
       const catRows = db.select().from(categories).all() as unknown as RawRow[];
       const subRows = db.select().from(subcategories).all() as unknown as RawRow[];
       const toolRows = db.select().from(tools).all() as unknown as RawRow[];
+      let clickRows: RawRow[] = [];
+      try {
+        clickRows = db.select().from(toolClicks).all() as unknown as RawRow[];
+      } catch {
+        // click table missing on a stale local schema — popularity stays 0
+      }
+      attachClicks(toolRows, clickRows);
       cache = buildCatalog(catRows, subRows, toolRows);
       cacheAt = Date.now();
       return cache;

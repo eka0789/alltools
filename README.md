@@ -13,7 +13,8 @@ developers to the best existing tools on the internet, with one search.
   matching, and task-based natural-language queries ("test REST API",
   "convert JSON to TypeScript", "inspect PostgreSQL"). Reachable everywhere
   via the navbar search button or **Ctrl/Cmd+K** command palette.
-- **Trending Open Source** section on the homepage, built from an editorial `trending` tag on genuinely popular OSS.
+- **Trending Open Source** section on the homepage, ranked by real GitHub stars.
+- **Popularity pipeline**: outbound clicks on "Open Website" are tracked per tool (all-time + a lazy 7-day bucket) and power the homepage **Popular on AllTools** section plus a **Popular** sort on /tools and /search. Hidden until real click data exists — never faked.
 - **Stack Explorer** — pick your stack (Next.js, Laravel, Flutter…) and get a
   personalized toolbox grouped by workflow stage.
 - **Curated Collections** (`/collections`) — starter packs ("Frontend Starter
@@ -168,7 +169,26 @@ GITHUB_TOKEN=… node scripts/fetch-github-stats.mjs -- --all  # refresh everyth
 Fetches stars / last-push / license for tools with a GitHub URL via the
 GitHub API, writes them into the `tools` table and mirrors a snapshot to
 `data/github-stats.json` (committed, merged at seed time). Schedule it in
-CI (monthly is plenty) to keep stars fresh.
+CI (monthly is plenty) to keep stars fresh — `.github/workflows/
+github-stats.yml` runs `--all` against Turso on the 1st of every month
+(set the `GH_STATS_TOKEN` repo secret).
+
+## Popularity Pipeline
+
+1. Visitors click **Open Website** → `POST /api/track-click` (rate limited,
+   slug-validated) upserts `tool_clicks`: `clicks` (all-time) and
+   `weeklyClicks` (lazy 7-day bucket — the endpoint resets it whenever
+   `week_start` ages past 7 days, so no cron is needed).
+2. The catalog builder merges the counters into every tool
+   (`clicks`, `weeklyClicks`), including the bundled cold-start JSON
+   (export-catalog LEFT JOINs `tool_clicks`).
+3. Consumers: homepage **Popular on AllTools** (weekly-first ranking,
+   hidden below 4 tools with clicks), **Trending Open Source** (ranked by
+   real GitHub stars), and `?sort=popular` on /tools and /search.
+4. Optional monthly GitHub-stars refresh via CI keeps the star ranking
+   current (see GitHub Stats Enrichment above).
+
+Admin dashboard → "Most opened tools" shows the raw ranking for operators.
 
 ## Data Model (Drizzle, `src/db/schema.ts`)
 

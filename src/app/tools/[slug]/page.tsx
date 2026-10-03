@@ -25,7 +25,7 @@ import { TrackedOutboundLink } from "@/components/tracked-outbound-link";
 import { RecentlyViewedStrip, RecentlyViewedTracker } from "@/components/recently-viewed";
 import { getToolBySlug, getCatalog } from "@/lib/data";
 import { PLATFORM_LABEL, type Platform } from "@/data/types";
-import { formatDate } from "@/lib/slug";
+import { formatCompact, formatDate, formatNumberExact } from "@/lib/slug";
 
 export const revalidate = 120;
 
@@ -313,10 +313,10 @@ export default async function ToolPage({ params }: Props) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-warning hover:text-accent"
-                    title="Live data from the GitHub API via the stats refresh job"
+                    title={`${formatNumberExact(tool.githubStars)} GitHub stars — live data from the GitHub API via the stats refresh job`}
                   >
                     <Star className="h-3.5 w-3.5 fill-current" />
-                    {tool.githubStars.toLocaleString()}
+                    {formatCompact(tool.githubStars)}
                   </a>
                 </MetaRow>
               )}

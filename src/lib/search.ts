@@ -349,7 +349,7 @@ export interface SearchOptions {
   filters?: SearchFilters;
   page?: number;
   perPage?: number;
-  sort?: "relevance" | "name" | "newest";
+  sort?: "relevance" | "name" | "newest" | "popular";
   // Skip facet computation (chat-originated lookups never render them).
   facets?: boolean;
 }
@@ -434,6 +434,18 @@ export function searchTools(opts: SearchOptions): SearchResult {
       );
   } else if (sort === "newest") {
     pool = pool.slice().sort((a, b) => b.tool.createdAt - a.tool.createdAt);
+  } else if (sort === "popular") {
+    // Real outbound clicks: weekly bucket first, then all-time, then
+    // editorial featured — never alphabetical filler on top.
+    pool = pool
+      .slice()
+      .sort(
+        (a, b) =>
+          b.tool.weeklyClicks - a.tool.weeklyClicks ||
+          b.tool.clicks - a.tool.clicks ||
+          Number(b.tool.featured) - Number(a.tool.featured) ||
+          a.nameLower.localeCompare(b.nameLower),
+      );
   }
 
   // Facets: counts computed on the q-matched pool (so they reflect what the

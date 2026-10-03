@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db, DB_ACTIVE } from "@/db/client";
 import { toolClicks } from "@/db/schema";
-import { getCatalog } from "@/lib/data";
+import { getCatalog, invalidateCatalog } from "@/lib/data";
+import { invalidateSearchIndex } from "@/lib/search";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -32,18 +33,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // All-time counter + a lazy 7-day bucket: whenever week_start is older
+  // than 7 days the weekly count restarts at 1. No cron needed for
+  // "popular this week" to decay.
+  const now = Date.now();
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const weekExpired = now - WEEK_MS;
+
   try {
     await db
       .insert(toolClicks)
-      .values({ slug, clicks: 1, updatedAt: Date.now() })
+      .values({ slug, clicks: 1, weeklyClicks: 1, weekStart: now, updatedAt: now })
       .onConflictDoUpdate({
         target: toolClicks.slug,
-        set: { clicks: sql`${toolClicks.clicks} + 1`, updatedAt: Date.now() },
+        set: {
+          clicks: sql`${toolClicks.clicks} + 1`,
+          weeklyClicks: sql`CASE WHEN ${toolClicks.weekStart} IS NULL OR ${toolClicks.weekStart} < ${weekExpired} THEN 1 ELSE ${toolClicks.weeklyClicks} + 1 END`,
+          weekStart: sql`CASE WHEN ${toolClicks.weekStart} IS NULL OR ${toolClicks.weekStart} < ${weekExpired} THEN ${now} ELSE ${toolClicks.weekStart} END`,
+          updatedAt: now,
+        },
       });
   } catch (err) {
     console.error("[track-click] failed:", err);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
+
+  // Local mode caches the catalog forever — invalidate so the homepage's
+  // popular section reflects the click on the next render. Remote mode
+  // refreshes on its 30s TTL instead.
+  invalidateCatalog();
+  invalidateSearchIndex();
 
   return NextResponse.json({ ok: true });
 }

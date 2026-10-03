@@ -245,6 +245,7 @@ export function activeFilterChips(
 }
 
 const SORTS = [
+  { key: "popular", label: "Popular" },
   { key: "name", label: "Name A–Z" },
   { key: "newest", label: "Newest" },
 ] as const;

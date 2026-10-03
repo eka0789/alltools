@@ -21,3 +21,16 @@ export function formatDate(ms: number): string {
     day: "numeric",
   });
 }
+
+// Locale pinned to en-US everywhere: toLocaleString() without a locale
+// differs between server and browser and trips hydration mismatches.
+export function formatCompact(n: number): string {
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(n);
+}
+
+export function formatNumberExact(n: number): string {
+  return new Intl.NumberFormat("en-US").format(n);
+}

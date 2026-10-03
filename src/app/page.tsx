@@ -56,15 +56,21 @@ function SectionHeading({
 }
 
 export default function HomePage() {
-  const { featured, categories, recent, tools, total } = getCatalog();
+  const { featured, categories, recent, tools, total, popular } = getCatalog();
   const homeCats = categories
     .filter((c) => c.homeOrder !== null)
     .sort((a, b) => (a.homeOrder ?? 0) - (b.homeOrder ?? 0));
+  // Trending ranked by real GitHub stars (fallback: catalog order for
+  // repos the stats job hasn't covered yet) — not synthetic dates.
   const trending = tools
     .filter(
       (t) => t.status === "active" && t.openSource && t.tags.includes("trending"),
     )
-    .sort((a, b) => b.createdAt - a.createdAt)
+    .sort(
+      (a, b) =>
+        (b.githubStars ?? 0) - (a.githubStars ?? 0) ||
+        b.createdAt - a.createdAt,
+    )
     .slice(0, 8);
 
   return (
@@ -105,9 +111,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Popular Developer Tools */}
+      {/* Popular on AllTools — real outbound clicks; hidden until there is
+          honest click data, so a fresh deployment doesn't fake it. */}
+      {popular.length >= 4 && (
+        <section className="mx-auto max-w-6xl px-4 pt-12">
+          <SectionHeading
+            title="Popular on AllTools"
+            href="/tools?sort=popular"
+            linkLabel="See all popular"
+          />
+          <p className="-mt-3 mb-4 text-xs text-muted-foreground">
+            Ranked by the tools visitors actually open — weekly first.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {popular.map((tool) => (
+              <ToolCardCompact key={tool.slug} tool={tool} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Editor's Picks (editorial featured flag — not a ranking) */}
       <section className="mx-auto max-w-6xl px-4 py-12">
-        <SectionHeading title="Popular Developer Tools" href="/tools" />
+        <SectionHeading title="Editor's Picks" href="/tools" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {featured.slice(0, 8).map((tool) => (
             <ToolCard key={tool.slug} tool={tool} />
