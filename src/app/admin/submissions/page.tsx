@@ -9,8 +9,16 @@ import { formatDate } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminSubmissionsPage() {
+export default async function AdminSubmissionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   if (!(await isAdmin())) redirect("/admin");
+
+  const sp = await searchParams;
+  const error = typeof sp.error === "string" ? sp.error : undefined;
+  const errorSlug = typeof sp.slug === "string" ? sp.slug : undefined;
 
   const all = await db
     .select()
@@ -26,6 +34,21 @@ export default async function AdminSubmissionsPage() {
         Review community submissions before publishing. Approving creates the
         tool entry as unverified; run the link checker afterwards.
       </p>
+
+      {error === "category" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Approval failed: category{errorSlug ? ` "${errorSlug}"` : ""} no
+          longer exists, so the tool was <strong>not</strong> published. The
+          submission is still pending — re-create the category and approve
+          again, or reject this submission.
+        </p>
+      )}
+      {error === "save" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Approval failed: the tool entry could not be saved (e.g. a duplicate
+          slug). The submission is still pending — try again.
+        </p>
+      )}
 
       <h2 className="mt-8 text-lg font-semibold">
         Pending <span className="text-sm font-normal text-muted-foreground">({pending.length})</span>

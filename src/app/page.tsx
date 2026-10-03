@@ -6,7 +6,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { getCatalog } from "@/lib/data";
 import { STACKS } from "@/lib/stacks";
 
-export const revalidate = 300;
+export const revalidate = 120;
 
 const POPULAR_SEARCHES = ["JSON", "API", "Regex", "Docker", "Git", "AI", "SQL"];
 

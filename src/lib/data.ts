@@ -125,7 +125,13 @@ function buildCatalog(
 }
 
 let cache: Catalog | null = null;
-let rehydrateStarted = false;
+// When the cached catalog was built (0 = invalid). Remote mode refreshes the
+// cache in the background once it is older than CATALOG_TTL_MS — without this,
+// a serverless instance would serve its first DB snapshot forever unless the
+// mutation happened to run on that same instance.
+let cacheAt = 0;
+let refreshInFlight = false;
+const CATALOG_TTL_MS = 30_000;
 
 function catalogFromBundledJson(): Catalog {
   // Serverless fallback: the catalog JSON is bundled at build time.
@@ -144,6 +150,7 @@ export async function refreshCatalogFromDb(): Promise<void> {
   const subRows = (await db.select().from(subcategories)) as unknown as RawRow[];
   const toolRows = (await db.select().from(tools)) as unknown as RawRow[];
   cache = buildCatalog(catRows, subRows, toolRows);
+  cacheAt = Date.now();
   const { invalidateSearchIndex } = await import("./search");
   invalidateSearchIndex();
 }
@@ -152,19 +159,42 @@ async function rehydrateCatalogFromDb(): Promise<void> {
   try {
     await refreshCatalogFromDb();
   } catch {
-    // Remote DB unreachable right now — keep the bundled snapshot.
+    // Remote DB unreachable right now — keep the current snapshot and let
+    // the TTL schedule the next attempt.
+    cacheAt = Date.now();
+  } finally {
+    refreshInFlight = false;
   }
 }
 
+function kickCatalogRefresh() {
+  if (refreshInFlight) return;
+  refreshInFlight = true;
+  // Stamp now so concurrent renders don't pile up more refresh attempts
+  // while this one is in flight (or right after a failure).
+  cacheAt = Date.now();
+  void rehydrateCatalogFromDb();
+}
+
 export function getCatalog(): Catalog {
+  // Remote DB: getCatalog is synchronous and queries cannot await, so serve
+  // the current snapshot (bundled JSON on a cold instance) and swap in the
+  // database-backed catalog in the background, refreshed every TTL.
+  if (DB_IS_REMOTE) {
+    if (!cache) cache = catalogFromBundledJson();
+    if (Date.now() - cacheAt >= CATALOG_TTL_MS) kickCatalogRefresh();
+    return cache;
+  }
+
   if (cache) return cache;
 
-  if (DB_ACTIVE && !DB_IS_REMOTE) {
+  if (DB_ACTIVE) {
     try {
       const catRows = db.select().from(categories).all() as unknown as RawRow[];
       const subRows = db.select().from(subcategories).all() as unknown as RawRow[];
       const toolRows = db.select().from(tools).all() as unknown as RawRow[];
       cache = buildCatalog(catRows, subRows, toolRows);
+      cacheAt = Date.now();
       return cache;
     } catch {
       // broken/unavailable db file → fall through to bundled JSON
@@ -172,17 +202,12 @@ export function getCatalog(): Catalog {
   }
 
   cache = catalogFromBundledJson();
-  // Remote DB: the sync function cannot await, so serve the bundled snapshot
-  // immediately and swap in the database-backed catalog once it resolves.
-  if (DB_IS_REMOTE && !rehydrateStarted) {
-    rehydrateStarted = true;
-    void rehydrateCatalogFromDb();
-  }
   return cache;
 }
 
 export function invalidateCatalog() {
   cache = null;
+  cacheAt = 0;
 }
 
 export function getToolBySlug(slug: string): ToolWithMeta | null {

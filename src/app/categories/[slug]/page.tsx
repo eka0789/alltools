@@ -6,7 +6,7 @@ import { EmptyState, ResultGrid } from "@/components/result-grid";
 import { searchTools } from "@/lib/search";
 import { getCatalog } from "@/lib/data";
 
-export const revalidate = 300;
+export const revalidate = 120;
 
 interface Props {
   params: Promise<{ slug: string }>;

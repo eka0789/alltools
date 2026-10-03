@@ -182,14 +182,22 @@ export async function toggleFeaturedAction(formData: FormData) {
 export async function approveSubmissionAction(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id") ?? 0);
-  const all = await db.select().from(submissions).all();
-  const sub = all.find((s) => s.id === id);
+  const sub = await db
+    .select()
+    .from(submissions)
+    .where(eq(submissions.id, id))
+    .get();
   if (!sub || sub.status !== "pending") redirect("/admin/submissions");
 
+  // The submission's category must resolve to a real category — approving
+  // without one would silently drop the tool from the directory, so leave
+  // the submission pending and surface the problem instead.
   const cat = getCatalog().categories.find((c) => c.slug === sub.categorySlug);
+  if (!cat) redirect(`/admin/submissions?error=category&slug=${sub.categorySlug}`);
+
   const now = Date.now();
 
-  if (cat) {
+  try {
     await db.insert(tools).values({
       name: sub.name,
       slug: generateUniqueSlug(slugify(sub.name)),
@@ -211,6 +219,9 @@ export async function approveSubmissionAction(formData: FormData) {
       updatedAt: now,
       verified: false,
     });
+  } catch {
+    // Most likely a duplicate slug raced in on another serverless instance.
+    redirect("/admin/submissions?error=save");
   }
 
   await db

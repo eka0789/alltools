@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/categories" },
 };
 
+// Category tool counts follow catalog mutations (approvals, edits).
+export const revalidate = 120;
+
 export default function CategoriesPage() {
   const { categories } = getCatalog();
   return (

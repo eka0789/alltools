@@ -5,7 +5,7 @@ import { ToolCardCompact } from "@/components/tool-card";
 import { getCatalog } from "@/lib/data";
 import { matchStack, STACKS } from "@/lib/stacks";
 
-export const revalidate = 300;
+export const revalidate = 120;
 
 interface Props {
   params: Promise<{ slug: string }>;

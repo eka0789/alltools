@@ -156,6 +156,7 @@ Live: https://alldevtools.vercel.app
 
 - `vercel-build` script (`scripts/prepare-build.mjs`) pushes the schema, seeds a **local** SQLite file, exports `src/data/catalog.generated.json`, and bundles it into the server code — the build never touches the live database.
 - **Production uses Turso (libSQL)**: `ALLTOOLS_DB_URL` + `ALLTOOLS_DB_AUTH_TOKEN` point at `libsql://alltools-eka0789.aws-ap-south-1.turso.io` (Mumbai), so `/submit`, admin CRUD and submission review persist across deploys. Reads fall back to the bundled JSON if the remote DB is unreachable.
+- **Catalog freshness**: each serverless instance serves the catalog from memory and refreshes it from the DB in the background at most every 30 s (`CATALOG_TTL_MS` in `src/lib/data.ts`), so approved submissions and admin edits appear on public pages within ~1–2 minutes (ISR `revalidate = 120`) without a redeploy. Admin mutations additionally refresh the catalog synchronously on the instance that ran them.
 - Re-seed the remote database after changing the seed data: `ALLTOOLS_DB_URL=… ALLTOOLS_DB_AUTH_TOKEN=… npm run db:seed -- --reset` — wipes and reseeds the catalog tables (community submissions are preserved).
 - Environment vars on Vercel: `ADMIN_TOKEN`, `NEXT_PUBLIC_SITE_URL`, `ALLTOOLS_DB_URL`, `ALLTOOLS_DB_AUTH_TOKEN`.
 

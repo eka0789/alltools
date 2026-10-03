@@ -21,7 +21,7 @@ import { getToolBySlug, getCatalog } from "@/lib/data";
 import { PLATFORM_LABEL, type Platform } from "@/data/types";
 import { formatDate } from "@/lib/slug";
 
-export const revalidate = 300;
+export const revalidate = 120;
 
 interface Props {
   params: Promise<{ slug: string }>;

@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/about" },
 };
 
+// Shows the live tool/category totals from the catalog.
+export const revalidate = 120;
+
 export default function AboutPage() {
   const { total, categories } = getCatalog();
 
