@@ -41,7 +41,8 @@ yarn-error.log*
 next-env.d.ts
 
 # local sqlite database (build output; seed files in src/data/ ARE tracked)
-/data/
+/data/*
+!/data/.gitkeep
 
 # generated at build time by scripts/export-catalog.mjs
 src/data/catalog.generated.json

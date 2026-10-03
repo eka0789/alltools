@@ -7,6 +7,11 @@
  * fallback path in src/lib/data.ts.
  */
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+
+// Ensure the local database directory exists so sqlite/drizzle can create the file.
+fs.mkdirSync(path.resolve("data"), { recursive: true });
 
 const env = {
   ...process.env,
