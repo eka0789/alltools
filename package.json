@@ -11,7 +11,7 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/db/seed.ts",
     "check-links": "node scripts/check-links.mjs",
-    "vercel-build": "node scripts/prepare-build.mjs"
+    "vercel-build": "npx drizzle-kit push --force && npx tsx src/db/seed.ts --reset && node scripts/prepare-build.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
