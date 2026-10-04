@@ -1,0 +1,49 @@
+name: Update Production DB
+
+# Pushes the Drizzle schema to Turso and reseeds the catalog from
+# src/data/**. Same mechanism the operator would run locally with
+# ALLTOOLS_DB_URL/ALLTOOLS_DB_AUTH_TOKEN — just from CI, where the
+# secrets live.
+#
+# Reseed wipes tools/categories/tags/link_checks but PRESERVES community
+# submissions, feedback and tool_clicks (see src/db/seed.ts). After a
+# reseed every link is "pending verification" again — run the Link Health
+# Checker workflow (or wait for the daily Vercel cron) to refresh badges.
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_seed:
+        description: "Schema push only (skip wipe+reseed)"
+        type: boolean
+        default: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate seed data
+        run: npm run validate
+      - name: Push Drizzle schema to Turso
+        env:
+          ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
+          ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}
+        run: npm run db:push
+      - name: Reseed catalog
+        if: ${{ !inputs.skip_seed }}
+        env:
+          ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
+          ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}
+        run: npm run db:seed -- --reset
+      - name: Refresh link badges (first 400)
+        if: ${{ !inputs.skip_seed }}
+        env:
+          ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
+          ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}
+        run: npm run check-links -- --limit 400
