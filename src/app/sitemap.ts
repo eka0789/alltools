@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getCatalog } from "@/lib/data";
 import { STACKS } from "@/lib/stacks";
 import { COLLECTIONS } from "@/data/collections";
+import { GLOSSARY } from "@/data/glossary";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/tools`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/categories`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/collections`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${base}/glossary`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${base}/whats-new`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
     { url: `${base}/tags`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/stacks`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/ai-chat`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
@@ -28,6 +31,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.7,
+    })),
+    ...GLOSSARY.map((t) => ({
+      url: `${base}/glossary/${t.slug}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
     })),
     ...categories.map((c) => ({
       url: `${base}/categories/${c.slug}`,

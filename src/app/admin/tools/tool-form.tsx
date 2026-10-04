@@ -74,6 +74,10 @@ export function ToolForm({ tool }: { tool?: ToolWithMeta }) {
         </Field>
       </div>
 
+      <Field label="Install command" hint="Official one-liner shown with a copy button, e.g. npm install express. Leave empty when none exists.">
+        <input name="installCommand" defaultValue={tool?.installCommand ?? ""} className="input" />
+      </Field>
+
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Tags" hint="Comma separated, lowercase.">
           <input name="tags" defaultValue={tool?.tags.join(", ")} className="input" />

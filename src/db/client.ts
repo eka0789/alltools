@@ -70,6 +70,9 @@ function openDb(): { db: SqliteDb; active: boolean; remote: boolean } {
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
     const dbFile = new Database(dbPath);
     dbFile.pragma("journal_mode = WAL");
+    // Enforce FK constraints (off by default in SQLite): no orphaned
+    // link_checks rows when a tool is deleted.
+    dbFile.pragma("foreign_keys = ON");
     return { db: drizzleBetterSqlite(dbFile, { schema }), active: true, remote: false };
   } catch {
     return {

@@ -4,6 +4,7 @@ import { DATA_TOOLS } from "./data";
 import { INFRA_TOOLS } from "./infra";
 import { CREATIVE_TOOLS } from "./creative";
 import { EXPANSION_TOOLS } from "./expansion";
+import { COVERAGE_TOOLS } from "./coverage";
 import type { SeedTool } from "../types";
 
 export const ALL_SEED_TOOLS: SeedTool[] = [
@@ -13,4 +14,5 @@ export const ALL_SEED_TOOLS: SeedTool[] = [
   ...INFRA_TOOLS,
   ...CREATIVE_TOOLS,
   ...EXPANSION_TOOLS,
+  ...COVERAGE_TOOLS,
 ];

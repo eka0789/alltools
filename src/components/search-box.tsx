@@ -161,6 +161,11 @@ export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchB
           role="combobox"
           aria-expanded={open}
           aria-controls="search-dropdown"
+          aria-activedescendant={
+            open && highlight >= 0 && results[highlight]
+              ? `search-opt-${results[highlight].slug}`
+              : undefined
+          }
         />
         {big && (
           <button type="button" onClick={() => query.trim() && go(query.trim())} className="btn-primary shrink-0">
@@ -184,7 +189,12 @@ export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchB
             <>
             <ul>
             {results.map((r, i) => (
-              <li key={r.slug} role="option" aria-selected={i === highlight}>
+              <li
+                key={r.slug}
+                role="option"
+                id={`search-opt-${r.slug}`}
+                aria-selected={i === highlight}
+              >
                 <button
                   type="button"
                   onClick={() => {

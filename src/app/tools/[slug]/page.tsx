@@ -22,6 +22,7 @@ import { FavoriteButton } from "@/components/favorite-button";
 import { CompareButton } from "@/components/compare-button";
 import { FeedbackButton } from "@/components/feedback-button";
 import { TrackedOutboundLink } from "@/components/tracked-outbound-link";
+import { CopyButton } from "@/components/copy-button";
 import { RecentlyViewedStrip, RecentlyViewedTracker } from "@/components/recently-viewed";
 import { getToolBySlug, getCatalog } from "@/lib/data";
 import { PLATFORM_LABEL, type Platform } from "@/data/types";
@@ -217,6 +218,25 @@ export default async function ToolPage({ params }: Props) {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          {/* Installation */}
+          {tool.installCommand && (
+            <section className="card p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Get started
+              </h2>
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted px-3.5 py-2.5">
+                <code className="min-w-0 overflow-x-auto whitespace-pre text-sm">
+                  <span className="select-none text-muted-foreground">$ </span>
+                  {tool.installCommand}
+                </code>
+                <CopyButton text={tool.installCommand} label="command" />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Official install command — always check the documentation for your platform.
+              </p>
+            </section>
+          )}
+
           {/* Useful for */}
           {tool.useCases.length > 0 && (
             <section className="card p-5">

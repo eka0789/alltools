@@ -1,6 +1,7 @@
 import type { ToolWithMeta } from "@/lib/data";
 import { getCatalog } from "@/lib/data";
 import { searchTools } from "@/lib/search";
+import { GLOSSARY, type GlossaryTerm } from "@/data/glossary";
 import { CAREERS, LANGUAGES, type CareerProfile, type LanguageProfile } from "./knowledge";
 import { welcomeReply } from "./welcome";
 import type { ChatHistoryTurn, ChatLang, ChatLink, ChatResponse, ChatToolRef } from "./types";
@@ -825,6 +826,60 @@ function fallbackReply(text: string, topicQuery: string, rl: ChatLang): ChatResp
   };
 }
 
+// ── Glossary lookups ────────────────────────────────────────────────────
+// "apa itu ORM", "what is SSR" → answer from the developer glossary, with
+// its linked tools. Longest term wins so "SQL Injection" beats "API" when
+// both appear.
+
+const GLOSSARY_MATCHERS = GLOSSARY.map((term) => ({
+  term,
+  re: new RegExp(`(?<![\\w#+])(${esc(term.term)})(?![\\w+#])`, "i"),
+})).sort((a, b) => b.term.term.length - a.term.term.length);
+
+function findGlossaryTerm(text: string): GlossaryTerm | undefined {
+  const questionish =
+    /\b(apa itu|apa sih|maksud dari|maksudnya|jelaskan|explain|what is|what's|define|definition|istilah)\b/i.test(
+      text,
+    ) || /\?\s*$/.test(text);
+  if (!questionish) return undefined;
+  for (const { term, re } of GLOSSARY_MATCHERS) {
+    if (re.test(text)) return term;
+  }
+  return undefined;
+}
+
+function glossaryReply(term: GlossaryTerm, rl: ChatLang): ChatResponse {
+  const related = (term.relatedTerms ?? [])
+    .map((s) => GLOSSARY.find((g) => g.slug === s))
+    .filter((g): g is GlossaryTerm => !!g);
+  const tools = (term.relatedTools ?? [])
+    .map((slug) => getCatalog().bySlug.get(slug))
+    .filter((t): t is ToolWithMeta => !!t && t.status !== "deprecated")
+    .slice(0, 4)
+    .map(toToolRef);
+  const reply = [
+    `**${term.term}** — ${term.short}`,
+    term.definition,
+    ...(term.example ? [`Contoh: \`${term.example}\``] : []),
+    rl === "id"
+      ? "Definisi lengkap ada di glossary — cek tautan di bawah. 👇"
+      : "The full entry lives in the glossary — see the link below. 👇",
+  ].join("\n\n");
+  return {
+    intent: "glossary",
+    responseLang: rl,
+    reply,
+    tools,
+    chips: [
+      ...related.slice(0, 2).map((g) => (rl === "id" ? `Apa itu ${g.term}?` : `What is ${g.term}?`)),
+      ...(tools.length > 0
+        ? [rl === "id" ? "Rekomendasi tools" : "Recommend me tools"]
+        : []),
+    ],
+    links: [{ label: `Buka di glossary: ${term.term}`, href: `/glossary/${term.slug}` }],
+  };
+}
+
 // ── Main entry ──────────────────────────────────────────────────────────
 
 export function respond(message: string, history: ChatHistoryTurn[] = []): ChatResponse {
@@ -888,6 +943,15 @@ export function respond(message: string, history: ChatHistoryTurn[] = []): ChatR
   ) {
     const lang = langBySlug(effectiveLangs[0]);
     if (lang) return languageReply(lang, rl);
+  }
+
+  // 5.5) Glossary lookup — "apa itu ORM", "what is SSR". After the language
+  //    dictionary (languages have their own deeper profiles) and before the
+  //    tool recommender, which would otherwise turn a definition question
+  //    into a search.
+  if (!RE.recommend.test(text) && !RE.career.test(text)) {
+    const term = findGlossaryTerm(text);
+    if (term) return glossaryReply(term, rl);
   }
 
   // 6) Tool recommendation (with language/career personalization)

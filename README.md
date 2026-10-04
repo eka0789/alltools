@@ -7,7 +7,7 @@ AllTools is **not** a collection of re-implemented utilities. It is a
 **discovery engine and directory**: it collects, categorizes, and points
 developers to the best existing tools on the internet, with one search.
 
-- **656 curated tools** across **26 categories** — every entry has a real,
+- **656+ curated tools** across **27 categories** — every entry has a real,
   official URL.
 - **Search-first**: fuzzy matching, typo tolerance, synonyms, tag/category
   matching, and task-based natural-language queries ("test REST API",
@@ -20,6 +20,24 @@ developers to the best existing tools on the internet, with one search.
 - **Curated Collections** (`/collections`) — starter packs ("Frontend Starter
   Pack", "AI & LLM Toolkit"…) drawn entirely from the catalog.
 - **Tag browser** (`/tags`) — every catalog tag with live counts.
+- **Developer Glossary** (`/glossary`) — plain-English definitions of the
+  terms developers keep meeting (REST, ORM, ACID, SSR, XSS, …), each with
+  related terms and links into the catalog. DevDict AI answers definition
+  questions ("apa itu ORM") from the same dataset.
+- **Install commands** — official one-liners (`npx create-next-app@latest`,
+  `brew install gh`, …) on tool detail pages with a copy button, stored in
+  `src/data/install-commands.ts` and validated against the catalog.
+- **What's New** (`/whats-new`) — the newest catalog additions.
+- **Search analytics** — anonymous query log (no IPs, no sessions) powering
+  trending-search chips on /search and a "top queries + zero-result queries"
+  section in the admin dashboard: the cheapest curation roadmap there is.
+- **Compare tray** — a floating pill shows your current compare selection on
+  every page (hidden on /compare itself).
+- **PWA** — installable (`manifest.webmanifest`, icons, shortcuts) with a
+  conservative service worker: network-first pages with an offline notice,
+  cache-first for content-hashed static assets. `/admin` and `/api` bypass it.
+- **Favorites export/import** — move your locally-stored shortlist between
+  browsers as JSON, no account.
 - **Tool detail pages** (`/tools/[slug]`) with use cases, alternatives,
   related tools, platforms, pricing, docs and GitHub links, real GitHub
   stars/license (fetched by `scripts/fetch-github-stats.mjs`), a
@@ -117,6 +135,9 @@ Open http://localhost:3000 (or your chosen port).
 /favorites               Your locally-saved shortlist + recently viewed
 /compare                 Compare up to 4 tools side by side
 /submit                  Submit a tool (pending review)
+/glossary                Developer glossary (terms in plain English)
+/glossary/[slug]         One term (DefinedTerm JSON-LD)
+/whats-new               Newest catalog additions
 /about                   About & data policy
 /admin                   Admin dashboard (token login)
 /api/search?q=           JSON autocomplete endpoint
@@ -128,6 +149,18 @@ Open http://localhost:3000 (or your chosen port).
 /feed.xml                RSS feed of newest tools
 /sitemap.xml /robots.txt
 ```
+
+## Data Validation
+
+```bash
+npm run validate   # fail loudly on broken references
+```
+
+`scripts/validate-data.ts` checks that collections, alternatives/related
+slugs, install-command keys and glossary references all resolve, that URLs
+and slugs are unique (normalized), and prints coverage stats. It runs in CI
+(`.github/workflows/validate-data.yml`) so a renamed tool can never
+silently drop cards at render time again.
 
 ## Link Health Checker
 
@@ -193,7 +226,8 @@ Admin dashboard → "Most opened tools" shows the raw ranking for operators.
 ## Data Model (Drizzle, `src/db/schema.ts`)
 
 - `categories` / `subcategories` — taxonomy (icon, homepage order)
-- `tools` — the Tool entity: name, slug, url, description, logo, category,
+- `tools` — the Tool entity: name, slug, url, description, logo, install
+  command, category,
   subcategory, tags, pricing, openSource, selfHosted, githubUrl,
   documentationUrl, platforms, languages, frameworks, useCases,
   alternatives, relatedTools, status, verified, lastVerifiedAt, popularity,
@@ -201,6 +235,8 @@ Admin dashboard → "Most opened tools" shows the raw ranking for operators.
 - `tags` — normalized tag list (derived from tool tags at seed time)
 - `submissions` — community submissions (`pending | approved | rejected`)
 - `linkChecks` — one health-check row per run per tool
+- `searchQueries` — anonymous search log (query + result count + timestamp);
+  powers trending searches and the admin zero-results report
 
 **v1 note:** `tags`, `alternatives`, `relatedTools`, `platforms`,
 `languages`, `frameworks` and `useCases` are stored as JSON columns and

@@ -113,7 +113,7 @@ export const CATEGORIES: SeedCategory[] = [
   {
     slug: "security",
     name: "Security",
-    description: "Defensive utilities: hashing, SSL, headers, dependency and secret scanning.",
+    description: "Defensive and offensive tooling: hashing, SSL, headers, dependency scanning and penetration testing.",
     icon: "ShieldCheck",
     home: true,
     subs: [
@@ -123,6 +123,7 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "secret-scanning", name: "Secret Scanning" },
       { slug: "passwords-ids", name: "Passwords & IDs" },
       { slug: "reference", name: "Reference & Standards" },
+      { slug: "pentesting", name: "Penetration Testing" },
     ],
   },
   {
@@ -284,6 +285,15 @@ export const CATEGORIES: SeedCategory[] = [
     ],
   },
   {
+    slug: "game-dev",
+    name: "Game Development",
+    description: "Game engines, visual scripting and the tooling behind 2D/3D titles.",
+    icon: "Gamepad2",
+    subs: [
+      { slug: "game-engines", name: "Game Engines" },
+    ],
+  },
+  {
     slug: "docs",
     name: "Documentation & Learning",
     description: "References, cheatsheets, courses, practice platforms and communities.",
@@ -318,6 +328,7 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "text-tools", name: "Text & Diff" },
       { slug: "minifiers", name: "Minifiers" },
       { slug: "notes", name: "Notes & Docs Apps" },
+      { slug: "launcher-automation", name: "Launchers & Automation" },
     ],
   },
 ];

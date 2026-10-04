@@ -30,6 +30,7 @@ export type ToolWithMeta = Omit<Tool, ToolJsonField> & {
   // too; rows without the fields default to 0).
   clicks: number;
   weeklyClicks: number;
+  weekStart: number | null;
 };
 
 export interface Catalog {
@@ -67,6 +68,19 @@ export function getToolPlatforms(tool: ToolWithMeta | RawRow): string[] {
   return parseJsonArray(tool.platforms);
 }
 
+// Canonical form for duplicate-URL detection: case-insensitive host, no
+// trailing slash. Without this, `https://a.com` and `https://a.com/` pass
+// the admin dup check and land as two tools.
+export function normalizeUrlKey(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, "");
+  try {
+    const u = new URL(trimmed);
+    return `${u.protocol}//${u.hostname.toLowerCase()}${u.port ? `:${u.port}` : ""}${u.pathname}${u.search}`;
+  } catch {
+    return trimmed.toLowerCase();
+  }
+}
+
 // Shared row → meta mapping, used for both the SQLite source and the
 // statically-imported catalog JSON (serverless fallback).
 function buildCatalog(
@@ -96,6 +110,7 @@ function buildCatalog(
       subcategorySlug: sub ? (sub.slug as string) : null,
       clicks: Number(t.clicks ?? 0),
       weeklyClicks: Number(t.weeklyClicks ?? 0),
+      weekStart: Number(t.weekStart ?? 0) || null,
     };
   });
 
@@ -111,7 +126,7 @@ function buildCatalog(
 
   const bySlug = new Map(toolsWithMeta.map((t) => [t.slug, t]));
   const byId = new Map(toolsWithMeta.map((t) => [t.id, t]));
-  const byUrl = new Map(toolsWithMeta.map((t) => [t.url, t.id]));
+  const byUrl = new Map(toolsWithMeta.map((t) => [normalizeUrlKey(t.url), t.id]));
 
   const featured = toolsWithMeta
     .filter((t) => t.featured && t.status === "active")
@@ -265,6 +280,38 @@ export function getCatalog(): Catalog {
 export function invalidateCatalog() {
   cache = null;
   cacheAt = 0;
+}
+
+// Bump the click counters on the already-cached catalog in place and
+// re-rank the popular section. A tracked click previously invalidated the
+// whole catalog + search index — a full rebuild per click — and in remote
+// mode dropped the cache back to the stale bundled JSON until the refresh
+// landed (visible counter rollback). Returns false when there is no cache
+// (remote cold start): the next TTL refresh picks the row up anyway.
+export function applyClickToCache(slug: string): boolean {
+  if (!cache) return false;
+  const tool = cache.bySlug.get(slug);
+  if (!tool) return false;
+  const now = Date.now();
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  if (tool.weekStart && tool.weekStart < now - WEEK_MS) {
+    tool.weekStart = now;
+    tool.weeklyClicks = 1;
+  } else {
+    tool.weeklyClicks += 1;
+  }
+  tool.weekStart = tool.weekStart ?? now;
+  tool.clicks += 1;
+  cache.popular = cache.tools
+    .filter((t) => t.status === "active" && t.clicks > 0)
+    .sort(
+      (a, b) =>
+        b.weeklyClicks - a.weeklyClicks ||
+        b.clicks - a.clicks ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 8);
+  return true;
 }
 
 export function getToolBySlug(slug: string): ToolWithMeta | null {

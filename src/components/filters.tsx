@@ -46,6 +46,7 @@ const PLATFORMS = [
   { key: "desktop", label: "Desktop" },
   { key: "cli", label: "CLI" },
   { key: "mobile", label: "Mobile" },
+  { key: "extension", label: "Extension" },
 ];
 
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {

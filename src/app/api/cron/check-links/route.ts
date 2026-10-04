@@ -3,6 +3,7 @@ import { db, DB_ACTIVE } from "@/db/client";
 import { linkChecks, tools } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { isPrivateHost } from "@/lib/url-check";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,10 +48,30 @@ export async function POST(req: NextRequest) {
   let ok = 0;
   let review = 0;
   let transient = 0;
-  const now = Date.now();
 
   await Promise.all(
     targets.map(async (tool) => {
+      const started = Date.now(); // per-check: batch timing must not leak in
+      // SSRF guard: never fetch private-network hosts from approved URLs.
+      let privateHost = false;
+      try {
+        privateHost = isPrivateHost(new URL(tool.url).hostname);
+      } catch {
+        privateHost = true;
+      }
+      if (privateHost) {
+        await db.insert(linkChecks).values({
+          toolId: tool.id,
+          url: tool.url,
+          httpStatus: null,
+          ok: false,
+          responseTimeMs: 0,
+          error: "blocked_private_host",
+          checkedAt: Date.now(),
+        });
+        transient += 1;
+        return;
+      }
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
       let httpStatus: number | null = null;
@@ -80,7 +101,7 @@ export async function POST(req: NextRequest) {
         url: tool.url,
         httpStatus,
         ok: success,
-        responseTimeMs: Date.now() - now,
+        responseTimeMs: Date.now() - started,
         error,
         checkedAt: Date.now(),
       });

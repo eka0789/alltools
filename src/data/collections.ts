@@ -20,7 +20,7 @@ export const COLLECTIONS: Collection[] = [
       "The core toolkit for a frontend developer in 2026: a framework, styling, quality gates, and deployment — proven choices rather than hype.",
     emoji: "🎨",
     tools: [
-      "nextjs", "react", "vite", "typescript", "tailwindcss", "storybook",
+      "next-js", "react", "vite", "typescript", "tailwind-css", "storybook",
       "vitest", "playwright", "eslint", "prettier", "vercel", "figma",
     ],
   },
@@ -71,7 +71,7 @@ export const COLLECTIONS: Collection[] = [
     emoji: "📊",
     tools: [
       "jupyter", "pandas", "postgresql", "pgadmin", "tableplus", "dbeaver",
-      "metabase", "airflow", "dagster", "dbt", "meilisearch", "typesense",
+      "metabase", "apache-airflow", "dagster", "dbt", "meilisearch", "typesense",
     ],
   },
   {
@@ -82,7 +82,7 @@ export const COLLECTIONS: Collection[] = [
       "Terminals, notes, diagrams, and the little utilities experienced developers refuse to work without.",
     emoji: "🧰",
     tools: [
-      "vscode", "warp", "iterm2", "windows-terminal", "tmux", "zellij",
+      "vs-code", "warp", "iterm2", "windows-terminal", "tmux", "zellij",
       "neovim", "obsidian", "notion", "excalidraw", "raycast", "git",
       "gitkraken", "pnpm",
     ],

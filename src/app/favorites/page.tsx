@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRef, useState } from "react";
 import { Heart, X } from "lucide-react";
-import { useFavorites, useRecentlyViewed } from "@/lib/client-store";
+import { useFavorites, useRecentlyViewed, setFavorites, FAVORITES_LIMIT } from "@/lib/client-store";
 import { useBulkTools, type BulkTool } from "@/lib/use-bulk-tools";
 import { ToolLogo } from "@/components/tool-logo";
 import { PricingBadge } from "@/components/tool-card";
@@ -32,6 +33,46 @@ export default function FavoritesPage() {
   const ordered = favorites
     .map((slug) => tools.find((t) => t.slug === slug))
     .filter((t): t is BulkTool => !!t);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  // Shortlists are device-local by design — export/import is the
+  // no-account way to move them between browsers or back them up.
+  function exportFavorites() {
+    const blob = new Blob(
+      [JSON.stringify({ app: "alltools", version: 1, favorites }, null, 2)],
+      { type: "application/json" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "alltools-favorites.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importFavorites(file: File) {
+    try {
+      const data: unknown = JSON.parse(await file.text());
+      const list = Array.isArray(data)
+        ? data
+        : data && typeof data === "object" && Array.isArray((data as { favorites?: unknown }).favorites)
+          ? (data as { favorites: unknown[] }).favorites
+          : null;
+      if (!list) {
+        setImportMsg("That file doesn't look like an AllTools favorites export.");
+        return;
+      }
+      const imported = list.filter((s): s is string => typeof s === "string");
+      const merged = [...new Set([...favorites, ...imported])].slice(0, FAVORITES_LIMIT);
+      setFavorites(merged);
+      setImportMsg(
+        `Imported ${imported.length} entr${imported.length === 1 ? "y" : "ies"} — shortlist now holds ${merged.length}.`,
+      );
+    } catch {
+      setImportMsg("Couldn't read that file.");
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -46,16 +87,48 @@ export default function FavoritesPage() {
           </p>
         </div>
         {favorites.length > 0 && (
-          <button
-            type="button"
-            onClick={() => favorites.forEach(toggle)}
-            className="btn-secondary !py-1.5 text-xs"
-          >
-            <X className="h-3 w-3" />
-            Clear all
-          </button>
+          <div className="flex shrink-0 flex-wrap justify-end gap-2">
+            <button type="button" onClick={exportFavorites} className="btn-secondary !py-1.5 text-xs">
+              Export
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              className="btn-secondary !py-1.5 text-xs"
+            >
+              Import
+            </button>
+            <button
+              type="button"
+              onClick={() => favorites.forEach(toggle)}
+              className="btn-secondary !py-1.5 text-xs"
+            >
+              <X className="h-3 w-3" />
+              Clear all
+            </button>
+          </div>
         )}
       </header>
+
+      {importMsg && (
+        <p
+          role="status"
+          className="mt-3 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground"
+        >
+          {importMsg}
+        </p>
+      )}
+      <input
+        ref={fileInput}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void importFavorites(file);
+          e.target.value = "";
+        }}
+      />
 
       <div className="mt-8 space-y-3">
         {favorites.length === 0 ? (

@@ -35,9 +35,13 @@ function write(key: string, value: string[]) {
 }
 
 function useStoredList(key: string): string[] {
-  const [list, setList] = useState<string[]>(() => read(key));
+  // Start empty so server and client render identical markup (reading
+  // localStorage in the initializer caused hydration mismatches). The real
+  // value lands right after mount via the effect below.
+  const [list, setList] = useState<string[]>([]);
   useEffect(() => {
     const sync = () => setList(read(key));
+    sync();
     window.addEventListener(STORE_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
@@ -58,6 +62,13 @@ export function useFavorites(): [string[], (slug: string) => void] {
     write(FAVORITES_KEY, next);
   };
   return [list, toggle];
+}
+
+// Bulk replace (import/export). Invalid entries are dropped; the result is
+// deduplicated and capped like every other write.
+export function setFavorites(slugs: string[]) {
+  const clean = [...new Set(slugs.filter((s) => typeof s === "string" && s.length <= 200))];
+  write(FAVORITES_KEY, clean.slice(0, FAVORITES_LIMIT));
 }
 
 export function useCompare(): [string[], (slug: string) => void] {

@@ -13,6 +13,7 @@ import {
 import { db } from "@/db/client";
 import { submissions, feedback, toolClicks } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
+import { trendingQueries, noResultQueries } from "@/lib/search-analytics";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -77,6 +78,8 @@ export default async function AdminPage({
   let pending: (typeof submissions.$inferSelect)[] = [];
   let openFeedback: (typeof feedback.$inferSelect)[] = [];
   let topClicked: { slug: string; clicks: number; weeklyClicks: number }[] = [];
+  let topSearches: { query: string; hits: number }[] = [];
+  let zeroResult: { query: string; hits: number }[] = [];
   if (db) {
     try {
       pending = await db
@@ -99,6 +102,8 @@ export default async function AdminPage({
         .from(toolClicks)
         .orderBy(desc(toolClicks.weeklyClicks), desc(toolClicks.clicks))
         .limit(10);
+      topSearches = await trendingQueries(30, 10);
+      zeroResult = await noResultQueries(30, 10);
     } catch {
       // tables missing / db unavailable — dashboard stays up
     }
@@ -155,6 +160,60 @@ export default async function AdminPage({
         <Link href="/admin/tools" className="btn-secondary">All tools</Link>
         <Link href="/admin/submissions" className="btn-secondary">Submissions</Link>
       </div>
+
+      {(topSearches.length > 0 || zeroResult.length > 0) && (
+        <div className="card mt-8 p-5">
+          <h2 className="font-semibold">Search analytics (30 days)</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Anonymous query log from /search. Zero-result queries are the
+            cheapest curation roadmap — they show what users wanted and
+            couldn&apos;t find.
+          </p>
+          <div className="mt-4 grid gap-6 sm:grid-cols-2">
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Top queries
+              </h3>
+              {topSearches.length === 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">No searches yet.</p>
+              ) : (
+                <ul className="mt-2 space-y-1.5 text-sm">
+                  {topSearches.map((s) => (
+                    <li key={s.query} className="flex items-center justify-between gap-3">
+                      <Link
+                        href={`/search?q=${encodeURIComponent(s.query)}`}
+                        className="min-w-0 truncate hover:text-accent"
+                      >
+                        {s.query}
+                      </Link>
+                      <span className="shrink-0 text-xs text-muted-foreground">{s.hits}×</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Zero results — curation opportunities
+              </h3>
+              {zeroResult.length === 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Nothing so far — every search found something.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-1.5 text-sm">
+                  {zeroResult.map((s) => (
+                    <li key={s.query} className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 truncate text-warning">{s.query}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{s.hits}×</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {topClicked.length > 0 && (
         <div className="card mt-8 p-5">

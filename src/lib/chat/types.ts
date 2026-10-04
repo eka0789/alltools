@@ -9,6 +9,7 @@ export type ChatIntent =
   | "recommend"
   | "stack"
   | "language"
+  | "glossary"
   | "fallback";
 
 export interface ChatToolRef {

@@ -7,10 +7,10 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { submissions, tools, feedback } from "@/db/schema";
-import { ADMIN_COOKIE, adminToken, checkLoginRateLimit, isAdmin } from "@/lib/admin";
+import { submissions, tools, feedback, linkChecks } from "@/db/schema";
+import { ADMIN_COOKIE, adminToken, checkLoginRateLimit, isAdmin, safeEqual } from "@/lib/admin";
 import { safeHttpUrl } from "@/lib/url-check";
-import { getCatalog, invalidateCatalog, refreshCatalogFromDb } from "@/lib/data";
+import { getCatalog, invalidateCatalog, refreshCatalogFromDb, normalizeUrlKey } from "@/lib/data";
 import { DB_IS_REMOTE } from "@/db/client";
 import { invalidateSearchIndex } from "@/lib/search";
 import { generateUniqueSlug } from "@/lib/tools-service";
@@ -72,7 +72,7 @@ export async function loginAction(formData: FormData) {
   if (!(await checkLoginRateLimit())) {
     redirect("/admin?error=rate_limited");
   }
-  if (provided && provided === token) {
+  if (provided && safeEqual(provided, token)) {
     const store = await cookies();
     const digest = createHash("sha256").update(`alltools:${provided}`).digest("hex");
     store.set(ADMIN_COOKIE, digest, {
@@ -116,6 +116,7 @@ export async function saveToolAction(formData: FormData) {
     status: String(formData.get("status") ?? "active"),
     githubUrl: optUrl(formData.get("githubUrl")),
     documentationUrl: optUrl(formData.get("documentationUrl")),
+    installCommand: String(formData.get("installCommand") ?? "").trim().slice(0, 300) || null,
   });
 
   if (!parsed.success || !url || !name || !description || !categoryId) {
@@ -134,7 +135,7 @@ export async function saveToolAction(formData: FormData) {
 
   // Duplicate website URLs create two listings for the same tool.
   const dup = [...catalog.byUrl.entries()].find(
-    ([existingUrl, existingId]) => existingUrl === url && existingId !== id,
+    ([existingUrl, existingId]) => existingUrl === normalizeUrlKey(url) && existingId !== id,
   );
   if (dup) {
     redirect(`/admin/tools${id ? `/${id}` : "/new"}?error=duplicate`);
@@ -160,6 +161,7 @@ export async function saveToolAction(formData: FormData) {
     selfHosted: formData.get("selfHosted") === "on",
     githubUrl: optUrl(formData.get("githubUrl")),
     documentationUrl: optUrl(formData.get("documentationUrl")),
+    installCommand: String(formData.get("installCommand") ?? "").trim().slice(0, 300) || null,
     platforms: JSON.stringify(platforms),
     languages: JSON.stringify(commaList(formData.get("languages"))),
     frameworks: JSON.stringify(commaList(formData.get("frameworks"))),
@@ -191,6 +193,8 @@ export async function deleteToolAction(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id") ?? 0);
   if (id) {
+    // link_checks rows reference the tool (FK enforced locally) — clear them first
+    await db.delete(linkChecks).where(eq(linkChecks.toolId, id));
     await db.delete(tools).where(eq(tools.id, id));
     await touch();
   }

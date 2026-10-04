@@ -48,6 +48,8 @@ export function Footer() {
             </h3>
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link href="/ai-chat" className="text-muted-foreground hover:text-foreground">DevDict AI Chat</Link></li>
+              <li><Link href="/glossary" className="text-muted-foreground hover:text-foreground">Developer Glossary</Link></li>
+              <li><Link href="/whats-new" className="text-muted-foreground hover:text-foreground">What&apos;s New</Link></li>
               <li><Link href="/stacks" className="text-muted-foreground hover:text-foreground">Stack Explorer</Link></li>
               <li><Link href="/collections" className="text-muted-foreground hover:text-foreground">Collections</Link></li>
               <li><Link href="/tags" className="text-muted-foreground hover:text-foreground">Browse by Tag</Link></li>

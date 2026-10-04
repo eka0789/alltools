@@ -57,18 +57,3 @@ export function CompareButton({
     </button>
   );
 }
-
-export function CompareTrayLink() {
-  const [compare] = useCompare();
-  if (compare.length === 0) return null;
-  return (
-    <Link
-      href="/compare"
-      className="chip !border-accent/40 !bg-accent-soft !text-accent"
-      aria-label={`Compare ${compare.length} selected tools`}
-    >
-      <Scale className="mr-1 inline h-3 w-3" />
-      {compare.length} to compare
-    </Link>
-  );
-}

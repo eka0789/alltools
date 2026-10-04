@@ -26,6 +26,34 @@ const CONCURRENCY = 6;
 const TIMEOUT_MS = 12000;
 const UA = "AllToolsLinkChecker/1.0 (+directory link verification)";
 
+// SSRF guard: approved URLs must never send our crawler at private
+// networks or cloud metadata endpoints. Literal-host check — DNS rebinding
+// is out of scope (CI runs away from private networks).
+export function isPrivateHost(hostname) {
+  const host = String(hostname).toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) return true;
+  if (host === "metadata.google.internal" || host === "169.254.169.254") return true;
+  if (host.includes(":")) {
+    if (host === "::1" || host === "::") return true;
+    if (/^fe[89ab]/.test(host)) return true;
+    if (host.startsWith("fc") || host.startsWith("fd")) return true;
+    if (host.startsWith("::ffff:")) return isPrivateHost(host.slice(7));
+    return false;
+  }
+  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    if (a >= 224) return true;
+  }
+  return false;
+}
+
 // Tiny adapter so the checker body stays storage-agnostic. better-sqlite3 is
 // synchronous; libSQL async — the async surface covers both.
 let store;
@@ -92,6 +120,24 @@ async function checkTool(tool) {
   let httpStatus = null;
   let ok = false;
   let error = null;
+
+  // Never fetch private hosts — record and move on (treated as transient:
+  // a bad entry lands here only via admin approval, which should review it).
+  let blocked = false;
+  try {
+    blocked = isPrivateHost(new URL(tool.url).hostname);
+  } catch {
+    blocked = true;
+  }
+  if (blocked) {
+    await store.run(
+      `INSERT INTO link_checks (tool_id, url, http_status, ok, response_time_ms, error, checked_at)
+       VALUES (?, ?, NULL, 0, 0, 'blocked_private_host', ?)`,
+      [Number(tool.id), tool.url, Date.now()],
+    );
+    stats.transient += 1;
+    return `  ~ ${tool.slug} → blocked (private host, not fetched)`;
+  }
 
   const attempt = async (method, ua) => {
     const controller = new AbortController();

@@ -23,6 +23,7 @@ function safeEqual(a: string, b: string): boolean {
   const bb = Buffer.from(b, "utf8");
   return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
+export { safeEqual };
 
 export async function isAdmin(): Promise<boolean> {
   const token = adminToken();

@@ -2,6 +2,7 @@ import { db, DB_IS_REMOTE } from "./client";
 import { categories, subcategories, tags, tools, linkChecks } from "./schema";
 import { CATEGORIES } from "../data/categories";
 import { ALL_SEED_TOOLS } from "../data/tools";
+import { INSTALL_COMMANDS } from "../data/install-commands";
 import type { Pricing } from "../data/types";
 import { slugify } from "../lib/slug";
 import { readFileSync } from "node:fs";
@@ -148,6 +149,7 @@ async function main() {
         url: t.u,
         description: t.d,
         logo: new URL(t.u).hostname,
+        installCommand: t.install ?? INSTALL_COMMANDS[slug] ?? null,
         categoryId: catId,
         subcategoryId: subId,
         tags: JSON.stringify(entryTags),

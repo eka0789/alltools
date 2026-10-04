@@ -10,6 +10,7 @@ import { useFavorites } from "@/lib/client-store";
 
 const LINKS = [
   { href: "/categories", label: "Categories" },
+  { href: "/glossary", label: "Glossary" },
   { href: "/collections", label: "Collections" },
   { href: "/search?category=ai", label: "AI Tools" },
   { href: "/stacks", label: "Stacks" },

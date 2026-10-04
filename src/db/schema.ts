@@ -45,6 +45,7 @@ export const tools = sqliteTable(
     url: text("url").notNull(),
     description: text("description").notNull(),
     logo: text("logo"), // domain used to resolve a favicon
+    installCommand: text("install_command"), // official one-liner, shown with a copy button
     categoryId: integer("category_id")
       .notNull()
       .references(() => categories.id),
@@ -142,6 +143,24 @@ export const toolClicks = sqliteTable("tool_clicks", {
   weekStart: integer("week_start"), // unix ms when the current 7-day bucket began
   updatedAt: integer("updated_at").notNull(),
 });
+
+// Anonymous search-query log. Powers trending searches and — more
+// importantly — shows which queries return zero results, which is the
+// cheapest curation signal a directory can have. No IPs, no sessions,
+// only the normalized query text, its result count and a timestamp.
+export const searchQueries = sqliteTable(
+  "search_queries",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    query: text("query").notNull(), // trimmed, lowercased, max 100 chars
+    resultCount: integer("result_count").notNull().default(0),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    index("search_queries_created_idx").on(t.createdAt),
+    index("search_queries_query_idx").on(t.query),
+  ],
+);
 
 export type Tool = typeof tools.$inferSelect;
 export type NewTool = typeof tools.$inferInsert;

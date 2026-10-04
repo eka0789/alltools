@@ -29,6 +29,7 @@ export interface SeedTool {
   alt?: string[]; // alternative tool slugs
   rel?: string[]; // related tool slugs
   feat?: boolean; // featured on homepage
+  install?: string; // official install/getting-started command (verifiable)
 }
 
 export const PRICING_LABEL: Record<Pricing, string> = {

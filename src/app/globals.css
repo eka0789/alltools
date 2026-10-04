@@ -15,8 +15,8 @@
   --accent-foreground: #ffffff;
   --accent-soft: #eef2ff;
   --ring: #6366f1;
-  --success: #16a34a;
-  --warning: #d97706;
+  --success: #15803d;
+  --warning: #b45309; /* ≥4.5:1 on white for small text (WCAG AA) */
 }
 
 .dark {
@@ -208,4 +208,16 @@ body {
 .chat-scroll::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 9999px;
+}
+
+/* Respect users who opt out of motion (chat widget, badges, loaders). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

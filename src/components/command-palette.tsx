@@ -13,10 +13,12 @@ interface QuickResult {
 
 const QUICK_LINKS = [
   { href: "/tools", label: "All tools", hint: "Browse the full directory" },
-  { href: "/categories", label: "Categories", hint: "26 topic areas" },
+  { href: "/categories", label: "Categories", hint: "Browse by topic" },
+  { href: "/glossary", label: "Glossary", hint: "Terms in plain English" },
   { href: "/collections", label: "Collections", hint: "Curated starter packs" },
   { href: "/tags", label: "Tags", hint: "Thematic groupings" },
   { href: "/stacks", label: "Stacks", hint: "Pick your stack" },
+  { href: "/whats-new", label: "What's new", hint: "Latest catalog additions" },
   { href: "/ai-chat", label: "DevDict AI", hint: "Ask the assistant" },
   { href: "/favorites", label: "Your shortlist", hint: "Saved tools" },
   { href: "/compare", label: "Compare", hint: "Side-by-side" },
@@ -71,6 +73,31 @@ export function CommandPalette() {
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
+
+  // aria-modal without a focus trap leaves the background tabbable; trap Tab
+  // inside the dialog and restore focus to the trigger on close.
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    return () => previouslyFocused?.focus?.();
+  }, [open]);
+
+  const trapTab = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab" || !dialogRef.current) return;
+    const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
+      'button, input, [href], [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   // Debounced search — results carry their query so display is always
   // consistent with the current input without sync setState.
@@ -144,6 +171,7 @@ export function CommandPalette() {
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
+        onKeyDown={trapTab}
         className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
       >
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
@@ -159,6 +187,7 @@ export function CommandPalette() {
             role="combobox"
             aria-expanded
             aria-controls="palette-list"
+            aria-activedescendant={totalItems > 0 ? `palette-opt-${highlight}` : undefined}
           />
           <kbd className="hidden rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:block">
             Esc
@@ -176,6 +205,7 @@ export function CommandPalette() {
                   key={l.href}
                   type="button"
                   role="option"
+                  id={`palette-opt-${i}`}
                   aria-selected={i === highlight}
                   onMouseEnter={() => setHighlight(i)}
                   onClick={() => go(l.href)}
@@ -205,6 +235,7 @@ export function CommandPalette() {
                   key={r.slug}
                   type="button"
                   role="option"
+                  id={`palette-opt-${i}`}
                   aria-selected={i === highlight}
                   onMouseEnter={() => setHighlight(i)}
                   onClick={() => go(`/tools/${r.slug}`)}

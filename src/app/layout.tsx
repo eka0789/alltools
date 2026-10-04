@@ -3,6 +3,8 @@ import "./globals.css";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { ChatWidget } from "@/components/chat/chat-widget";
+import { CompareTray } from "@/components/compare-tray";
+import { ServiceWorkerRegistration } from "@/components/sw-register";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -14,6 +16,10 @@ export const metadata: Metadata = {
   },
   description:
     "Search hundreds of curated developer tools, resources, services, documentation and AI tools. One search for every developer need.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
   keywords: [
     "developer tools",
     "dev tools directory",
@@ -65,7 +71,9 @@ export default function RootLayout({
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
+        <CompareTray />
         <ChatWidget />
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

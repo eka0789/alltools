@@ -11,6 +11,7 @@ import {
 import { EmptyState, Pagination, ResultGrid } from "@/components/result-grid";
 import { parseFilters, searchTools } from "@/lib/search";
 import { getCatalog } from "@/lib/data";
+import { logSearchQuery, trendingQueries } from "@/lib/search-analytics";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -54,6 +55,11 @@ export default async function SearchPage({ searchParams }: Props) {
   const result = searchTools({ q, filters, page, perPage: 24, sort });
   const { categories } = getCatalog();
 
+  // Anonymous query log: only intentional searches (this page), never
+  // autocomplete keystrokes. Best-effort — failures are swallowed.
+  if (q) await logSearchQuery(q, result.total);
+  const trending = q || Object.keys(filters).length > 0 ? [] : await trendingQueries();
+
   const chips = activeFilterChips(filters);
 
   return (
@@ -61,6 +67,25 @@ export default async function SearchPage({ searchParams }: Props) {
       <div className="mx-auto max-w-2xl">
         <SearchBox size="lg" initialQuery={q} autoFocus />
       </div>
+
+      {trending.length > 0 && (
+        <section className="mx-auto mt-4 max-w-2xl" aria-label="Trending searches">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Trending searches
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {trending.map((t) => (
+              <Link
+                key={t.query}
+                href={`/search?q=${encodeURIComponent(t.query)}`}
+                className="tag-badge hover:text-accent"
+              >
+                {t.query}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mt-8 flex flex-col gap-6 lg:flex-row">
         <Filters

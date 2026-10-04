@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db, DB_ACTIVE } from "@/db/client";
 import { toolClicks } from "@/db/schema";
-import { getCatalog, invalidateCatalog } from "@/lib/data";
-import { invalidateSearchIndex } from "@/lib/search";
+import { getCatalog, applyClickToCache } from "@/lib/data";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -58,11 +57,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 
-  // Local mode caches the catalog forever — invalidate so the homepage's
-  // popular section reflects the click on the next render. Remote mode
-  // refreshes on its 30s TTL instead.
-  invalidateCatalog();
-  invalidateSearchIndex();
+  // Bump the counters on the in-memory catalog in place (no full rebuild +
+  // search reindex per click, and no stale-snapshot rollback in remote
+  // mode). If the cache doesn't exist yet (remote cold start), the next
+  // TTL refresh reads the row we just wrote.
+  applyClickToCache(slug);
 
   return NextResponse.json({ ok: true });
 }

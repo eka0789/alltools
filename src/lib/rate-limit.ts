@@ -30,6 +30,12 @@ export function rateLimit(
 }
 
 export function clientIp(req: Request): string {
+  // Trust model: on Vercel, x-vercel-forwarded-for-ip and x-forwarded-for are
+  // set at the edge and client-supplied values are discarded — safe to use.
+  // On hosts without an edge proxy a client could spoof either header, so
+  // rate limits there are best-effort (as documented in the README).
+  const vercel = req.headers.get("x-vercel-forwarded-for-ip");
+  if (vercel) return vercel.split(",")[0].trim();
   const fwd = req.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0].trim();
   return req.headers.get("x-real-ip") ?? "unknown";

@@ -59,6 +59,7 @@ const COLUMN_MAP = {
   self_hosted: "selfHosted",
   github_url: "githubUrl",
   documentation_url: "documentationUrl",
+  install_command: "installCommand",
   use_cases: "useCases",
   related_tools: "relatedTools",
   last_verified_at: "lastVerifiedAt",
