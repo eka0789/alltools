@@ -261,6 +261,29 @@ Preferred: use **/admin → Add tool** (or /submit then approve). Bulk edits
 can be made in `src/data/tools/*.ts` followed by
 `npm run db:seed -- --reset` (development only — it wipes tool rows).
 
+## Updating the Production Database
+
+Schema + catalog changes reach Turso in one of two ways:
+
+1. **From your machine** (when you have the credentials):
+
+   ```bash
+   ALLTOOLS_DB_URL=… ALLTOOLS_DB_AUTH_TOKEN=… npm run db:push        # schema
+   ALLTOOLS_DB_URL=… ALLTOOLS_DB_AUTH_TOKEN=… npm run db:seed -- --reset   # catalog
+   ```
+
+2. **From CI** — the **Update Production DB** workflow
+   (`.github/workflows/update-db.yml`, `workflow_dispatch`) pushes the
+   schema, reseeds the catalog and refreshes the first 400 link badges.
+   It requires the `ALLTOOLS_DB_URL` and `ALLTOOLS_DB_AUTH_TOKEN` secrets
+   on the GitHub repo (Settings → Secrets and variables → Actions).
+   Without them the job silently runs against a throwaway local file.
+
+A reseed wipes tools/categories/tags/link_checks but **preserves**
+community submissions, feedback and outbound-click counters. After a
+reseed every link is "pending verification" until the checker (Vercel
+cron or the CI sweep) re-verifies them.
+
 ## Deployment (Vercel)
 
 Live: https://alldevtools.vercel.app
