@@ -27,6 +27,8 @@ const TRENDING_SLUGS = new Set([
   // references wave (trending OSS)
   "nushell", "yazi", "firecrawl", "jan", "logto", "polar",
   "crawlee", "temporal", "helicone", "tabby",
+  // domains wave
+  "cal-com", "prefect", "esphome", "create-t3-app",
 ]);
 
 const reset = process.argv.includes("--reset");

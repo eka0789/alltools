@@ -57,6 +57,7 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "tunneling", name: "Tunneling & Debugging" },
       { slug: "email", name: "Email" },
       { slug: "payments", name: "Payments" },
+      { slug: "scheduling", name: "Scheduling & Booking" },
     ],
   },
   {
@@ -170,6 +171,18 @@ export const CATEGORIES: SeedCategory[] = [
     ],
   },
   {
+    slug: "web3",
+    name: "Web3 & Blockchain",
+    description: "Smart contract tooling, web3 libraries, wallets and node infrastructure.",
+    icon: "Coins",
+    home: true,
+    subs: [
+      { slug: "smart-contracts", name: "Smart Contracts" },
+      { slug: "libraries", name: "Web3 Libraries" },
+      { slug: "infrastructure", name: "Wallets & Infrastructure" },
+    ],
+  },
+  {
     slug: "ai",
     name: "AI for Developers",
     description: "AI coding assistants, models, agent frameworks, MCP and vector databases.",
@@ -239,6 +252,7 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "favicons-og", name: "Favicons & Social Images" },
       { slug: "screenshots", name: "Screenshots" },
       { slug: "stock-media", name: "Stock & Placeholders" },
+      { slug: "audio-video", name: "Audio & Video" },
     ],
   },
   {
@@ -303,6 +317,17 @@ export const CATEGORIES: SeedCategory[] = [
     ],
   },
   {
+    slug: "iot",
+    name: "IoT & Embedded",
+    description: "Firmware platforms, board tooling and simulators for embedded development.",
+    icon: "Cpu",
+    subs: [
+      { slug: "platforms", name: "Development Platforms" },
+      { slug: "simulators", name: "Simulators" },
+      { slug: "firmware", name: "Firmware" },
+    ],
+  },
+  {
     slug: "docs",
     name: "Documentation & Learning",
     description: "References, cheatsheets, courses, practice platforms and communities.",
@@ -313,6 +338,17 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "interactive-learning", name: "Courses & Tutorials" },
       { slug: "practice", name: "Practice & Challenges" },
       { slug: "communities", name: "Communities" },
+    ],
+  },
+  {
+    slug: "starters",
+    name: "Project Starters",
+    description: "Boilerplates, scaffolds and architecture templates to launch a codebase right.",
+    icon: "Rocket",
+    home: true,
+    subs: [
+      { slug: "fullstack", name: "Full-stack Boilerplates" },
+      { slug: "patterns", name: "Architecture & Patterns" },
     ],
   },
   {
