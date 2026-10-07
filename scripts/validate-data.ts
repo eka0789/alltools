@@ -8,6 +8,7 @@ import { CATEGORIES } from "../src/data/categories";
 import { COLLECTIONS } from "../src/data/collections";
 import { INSTALL_COMMANDS } from "../src/data/install-commands";
 import { GLOSSARY } from "../src/data/glossary";
+import { EDITORIAL } from "../src/data/editorial";
 import { slugify } from "../src/lib/slug";
 
 let errors = 0;
@@ -89,6 +90,17 @@ for (const [slug, cmd] of Object.entries(INSTALL_COMMANDS)) {
   if (!bySlug.has(slug)) fail(`install command key "${slug}" does not match any tool slug`);
   if (typeof cmd !== "string" || cmd.length < 3 || cmd.length > 300) {
     fail(`install command for "${slug}" is malformed`);
+  }
+}
+
+// ── Editorial pros/cons ──────────────────────────────────────────────────
+for (const [slug, entry] of Object.entries(EDITORIAL)) {
+  if (!bySlug.has(slug)) fail(`editorial key "${slug}" does not match any tool slug`);
+  if (!entry.pros?.length || !entry.cons?.length) {
+    fail(`editorial "${slug}" needs at least one pro and one con`);
+  }
+  if ((entry.pros?.length ?? 0) > 5 || (entry.cons?.length ?? 0) > 5) {
+    fail(`editorial "${slug}": max 5 pros / 5 cons`);
   }
 }
 

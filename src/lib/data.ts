@@ -10,6 +10,8 @@ type ToolJsonField =
   | "languages"
   | "frameworks"
   | "useCases"
+  | "pros"
+  | "cons"
   | "alternatives"
   | "relatedTools";
 
@@ -19,6 +21,8 @@ export type ToolWithMeta = Omit<Tool, ToolJsonField> & {
   languages: string[];
   frameworks: string[];
   useCases: string[];
+  pros: string[];
+  cons: string[];
   alternatives: string[];
   relatedTools: string[];
   categoryName: string;
@@ -101,6 +105,8 @@ function buildCatalog(
       languages: parseJsonArray(t.languages),
       frameworks: parseJsonArray(t.frameworks),
       useCases: parseJsonArray(t.useCases),
+      pros: parseJsonArray(t.pros),
+      cons: parseJsonArray(t.cons),
       alternatives: parseJsonArray(t.alternatives),
       relatedTools: parseJsonArray(t.relatedTools),
       categoryName: (cat?.name as string) ?? "Uncategorized",

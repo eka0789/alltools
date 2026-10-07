@@ -61,6 +61,8 @@ const COLUMN_MAP = {
   documentation_url: "documentationUrl",
   install_command: "installCommand",
   use_cases: "useCases",
+  pros: "pros",
+  cons: "cons",
   related_tools: "relatedTools",
   last_verified_at: "lastVerifiedAt",
   created_at: "createdAt",

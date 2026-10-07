@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ToolCardCompact } from "@/components/tool-card";
 import { getCatalog } from "@/lib/data";
 import { matchStack, STACKS } from "@/lib/stacks";
+import { ExportMarkdown } from "@/components/export-markdown";
 
 export const revalidate = 120;
 
@@ -43,6 +44,16 @@ export default async function StackPage({ params }: Props) {
   pool.sort((a, b) => Number(b.featured) - Number(a.featured));
 
   const sections = matchStack(stack.tokens, pool, 10);
+  const exportItems = sections.flatMap((section) =>
+    section.tools
+      .map((t) => {
+        const full = getCatalog().bySlug.get(t.slug);
+        return full
+          ? { name: full.name, url: full.url, installCommand: full.installCommand }
+          : null;
+      })
+      .filter((t): t is NonNullable<typeof t> => !!t),
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -54,13 +65,25 @@ export default async function StackPage({ params }: Props) {
         <span className="text-foreground">{stack.name}</span>
       </nav>
 
-      <h1 className="text-2xl font-bold tracking-tight">
-        {stack.name} Stack Toolbox
-      </h1>
-      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-        {stack.description} Tools below are matched from the AllTools directory
-        by tags, languages and frameworks.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {stack.name} Stack Toolbox
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            {stack.description} Tools below are matched from the AllTools directory
+            by tags, languages and frameworks.
+          </p>
+        </div>
+        {exportItems.length > 0 && (
+          <ExportMarkdown
+            title={`${stack.name} Stack`}
+            tagline={stack.description}
+            basePath={`/stacks/${stack.slug}`}
+            items={exportItems}
+          />
+        )}
+      </div>
 
       {sections.length === 0 ? (
         <p className="mt-8 text-sm text-muted-foreground">

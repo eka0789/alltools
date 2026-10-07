@@ -3,6 +3,7 @@ import { categories, subcategories, tags, tools, linkChecks } from "./schema";
 import { CATEGORIES } from "../data/categories";
 import { ALL_SEED_TOOLS } from "../data/tools";
 import { INSTALL_COMMANDS } from "../data/install-commands";
+import { EDITORIAL } from "../data/editorial";
 import type { Pricing } from "../data/types";
 import { slugify } from "../lib/slug";
 import { readFileSync } from "node:fs";
@@ -167,6 +168,8 @@ async function main() {
         languages: JSON.stringify(t.langs ?? []),
         frameworks: JSON.stringify(t.fw ?? []),
         useCases: JSON.stringify(t.use ?? []),
+        pros: JSON.stringify(EDITORIAL[slug]?.pros ?? t.pros ?? []),
+        cons: JSON.stringify(EDITORIAL[slug]?.cons ?? t.cons ?? []),
         alternatives: JSON.stringify(pick(t.alt)),
         relatedTools: JSON.stringify(pick(t.rel)),
         featured: !!t.feat,

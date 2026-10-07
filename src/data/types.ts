@@ -30,6 +30,8 @@ export interface SeedTool {
   rel?: string[]; // related tool slugs
   feat?: boolean; // featured on homepage
   install?: string; // official install/getting-started command (verifiable)
+  pros?: string[]; // editorial strengths (top tools)
+  cons?: string[]; // editorial trade-offs / when NOT to use
 }
 
 export const PRICING_LABEL: Record<Pricing, string> = {

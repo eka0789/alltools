@@ -43,6 +43,19 @@ developers to the best existing tools on the internet, with one search.
   stars/license (fetched by `scripts/fetch-github-stats.mjs`), a
   "Report an issue" affordance (broken link / edit suggestion) that lands in
   the admin queue, and dynamic per-tool OpenGraph images.
+- **Decision aids** — "Strengths & trade-offs" (honest pros/cons) on the most
+  popular tools, plus a maintenance signal from real GitHub push dates:
+  *Actively maintained* (< 6 mo), *Last push N mo ago*, *Maintenance uncertain*.
+- **Public JSON API** (`/api/v1/*`) — the catalog as data: tools, search,
+  categories. Free, CORS-enabled, no key. Documented at `/developers`.
+- **MCP server** (`/api/mcp`) — lets Claude Desktop, Cursor, Cline and other
+  MCP clients search the catalog and define glossary terms from the IDE.
+- **Accounts & cross-device sync** — passwordless magic-link sign-in (Resend);
+  signed-in users sync favorites and compare across devices. Local-first.
+- **Weekly digest** — double-opt-in newsletter (form on /whats-new) sent by a
+  Monday cron: most-opened tools of the week plus fresh additions.
+- **Markdown export** — any collection or stack page copies/downloads as a
+  shareable Markdown list with attribution.
 - **Your shortlist** (`/favorites`) and **recently viewed** — saved locally,
   no account. **Compare** (`/compare`) — up to 4 tools side by side.
 - **RSS feed** at `/feed.xml` for the newest catalog entries.
@@ -109,6 +122,8 @@ Open http://localhost:3000 (or your chosen port).
 | `LLM_API_KEY` / `OPENAI_API_KEY` | —             | Optional: enables LLM-polished DevDict replies (OpenAI-compatible); without it the rule-based engine answers |
 | `LLM_BASE_URL`         | `https://api.openai.com/v1` | Optional LLM endpoint override |
 | `LLM_MODEL`            | `gpt-4o-mini`           | Optional LLM model override |
+| `RESEND_API_KEY`       | —                       | Optional: enables passwordless sign-in links and the weekly digest email. Without it, login fails closed in production and the subscribe form is hidden |
+| `RESEND_FROM`          | `AllTools <onboarding@resend.dev>` | From address (use a domain verified in Resend for real sends) |
 
 > Set a strong `ADMIN_TOKEN` before deploying. The admin dashboard is
 > noindex and excluded from `robots.txt`, and login fails closed when the
@@ -137,7 +152,11 @@ Open http://localhost:3000 (or your chosen port).
 /submit                  Submit a tool (pending review)
 /glossary                Developer glossary (terms in plain English)
 /glossary/[slug]         One term (DefinedTerm JSON-LD)
-/whats-new               Newest catalog additions
+/whats-new               Newest catalog additions (+ weekly digest signup)
+/developers              Public API & MCP server documentation
+/login                   Passwordless sign-in (sync favorites across devices)
+/api/v1/*                Public JSON API (tools, search, categories)
+/api/mcp                 MCP server endpoint (JSON-RPC 2.0)
 /about                   About & data policy
 /admin                   Admin dashboard (token login)
 /api/search?q=           JSON autocomplete endpoint

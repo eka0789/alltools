@@ -105,6 +105,15 @@ export function ToolForm({ tool }: { tool?: ToolWithMeta }) {
         </Field>
       </div>
 
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Pros (strengths)" hint="One per line, max 5. Honest decision aids.">
+          <textarea name="pros" rows={4} defaultValue={tool?.pros?.join("\n") ?? ""} className="input" />
+        </Field>
+        <Field label="Cons (trade-offs)" hint="One per line, max 5. Include when NOT to use it.">
+          <textarea name="cons" rows={4} defaultValue={tool?.cons?.join("\n") ?? ""} className="input" />
+        </Field>
+      </div>
+
       <Field label="Platforms">
         <div className="flex flex-wrap gap-4">
           {PLATFORMS.map((p) => (

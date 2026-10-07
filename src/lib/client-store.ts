@@ -14,7 +14,9 @@ export const FAVORITES_LIMIT = 100;
 export const COMPARE_LIMIT = 4;
 export const RECENT_LIMIT = 12;
 
-function read(key: string): string[] {
+// Internal reader, exported for the account-sync layer (server lists merge
+// into whatever is currently stored client-side).
+export function read(key: string): string[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(key);
@@ -69,6 +71,13 @@ export function useFavorites(): [string[], (slug: string) => void] {
 export function setFavorites(slugs: string[]) {
   const clean = [...new Set(slugs.filter((s) => typeof s === "string" && s.length <= 200))];
   write(FAVORITES_KEY, clean.slice(0, FAVORITES_LIMIT));
+}
+
+// Bulk replace for the compare list (account sync). Keeps insertion order,
+// deduplicates, respects the 4-tool cap.
+export function setCompare(slugs: string[]) {
+  const clean = [...new Set(slugs.filter((s) => typeof s === "string" && s.length <= 200))];
+  write(COMPARE_KEY, clean.slice(0, COMPARE_LIMIT));
 }
 
 export function useCompare(): [string[], (slug: string) => void] {

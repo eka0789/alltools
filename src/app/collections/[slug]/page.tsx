@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { COLLECTIONS } from "@/data/collections";
 import { getCatalog } from "@/lib/data";
 import { ResultGrid } from "@/components/result-grid";
+import { ExportMarkdown } from "@/components/export-markdown";
 
 export const revalidate = 120;
 
@@ -60,10 +61,22 @@ export default async function CollectionPage({ params }: Props) {
       </header>
 
       <div className="mt-8">
-        <p className="mb-4 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{tools.length}</span> tools in
-          this collection
-        </p>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{tools.length}</span> tools in
+            this collection
+          </p>
+          <ExportMarkdown
+            title={`${collection.emoji} ${collection.title}`}
+            tagline={`${collection.tagline} — ${collection.description}`}
+            basePath={`/collections/${collection.slug}`}
+            items={tools.map((t) => ({
+              name: t.name,
+              url: t.url,
+              installCommand: t.installCommand,
+            }))}
+          />
+        </div>
         <ResultGrid tools={tools} />
       </div>
 

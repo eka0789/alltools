@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Heart, Search } from "lucide-react";
+import { Heart, Search, UserRound } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { CommandPalette } from "./command-palette";
 import { useFavorites } from "@/lib/client-store";
@@ -85,6 +85,14 @@ export function Navbar() {
                   {favorites.length > 9 ? "9+" : favorites.length}
                 </span>
               )}
+            </Link>
+            <Link
+              href="/login"
+              aria-label="Sign in to sync your shortlist"
+              title="Sign in to sync your shortlist"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-accent hover:text-accent"
+            >
+              <UserRound className="h-3.5 w-3.5" />
             </Link>
             <ThemeToggle />
             <Link href="/submit" className="btn-primary hidden sm:inline-flex">

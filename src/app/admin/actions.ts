@@ -171,6 +171,20 @@ export async function saveToolAction(formData: FormData) {
         .map((s) => s.trim())
         .filter(Boolean),
     ),
+    pros: JSON.stringify(
+      String(formData.get("pros") ?? "")
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 5),
+    ),
+    cons: JSON.stringify(
+      String(formData.get("cons") ?? "")
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 5),
+    ),
     alternatives: JSON.stringify(commaList(formData.get("alternatives"))),
     relatedTools: JSON.stringify(commaList(formData.get("relatedTools"))),
     status: parsed.data.status,

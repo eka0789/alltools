@@ -65,6 +65,9 @@ export const tools = sqliteTable(
     languages: text("languages").notNull().default("[]"),
     frameworks: text("frameworks").notNull().default("[]"),
     useCases: text("use_cases").notNull().default("[]"),
+    // Editorial decision aid: honest strengths and trade-offs (top tools).
+    pros: text("pros").notNull().default("[]"),
+    cons: text("cons").notNull().default("[]"),
     alternatives: text("alternatives").notNull().default("[]"), // tool slugs
     relatedTools: text("related_tools").notNull().default("[]"), // tool slugs
     status: text("status").notNull().default("active"), // active | needs_review | deprecated
@@ -162,6 +165,62 @@ export const searchQueries = sqliteTable(
   ],
 );
 
+// ── Accounts (passwordless, email magic-link) ───────────────────────────
+// Favorites/compare sync across devices. No passwords are stored anywhere:
+// a magic link proves email ownership, sessions are opaque random tokens
+// whose sha256 digests live in the DB (mirroring the admin cookie pattern).
+
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(), // sha256 of the cookie token
+    createdAt: integer("created_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+  },
+  (t) => [index("sessions_user_idx").on(t.userId)],
+);
+
+// Single-use magic-link tokens (sha256 hashed, 15-minute TTL).
+export const authTokens = sqliteTable("auth_tokens", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: integer("created_at").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  usedAt: integer("used_at"),
+});
+
+// Everything a signed-in user syncs, one row per user (JSON columns keep
+// the shape flexible — the client owns ordering and caps).
+export const userLists = sqliteTable("user_lists", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  favorites: text("favorites").notNull().default("[]"), // JSON string[]
+  compare: text("compare").notNull().default("[]"), // JSON string[]
+  updatedAt: integer("updated_at").notNull(),
+});
+
+// ── Newsletter (double opt-in, Resend delivery) ─────────────────────────
+export const subscribers = sqliteTable("subscribers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  tokenHash: text("token_hash").notNull().unique(), // confirm + unsubscribe link token
+  confirmedAt: integer("confirmed_at"),
+  unsubscribedAt: integer("unsubscribed_at"),
+  createdAt: integer("created_at").notNull(),
+});
+
 export type Tool = typeof tools.$inferSelect;
 export type NewTool = typeof tools.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -170,3 +229,9 @@ export type Submission = typeof submissions.$inferSelect;
 export type LinkCheck = typeof linkChecks.$inferSelect;
 export type Feedback = typeof feedback.$inferSelect;
 export type ToolClick = typeof toolClicks.$inferSelect;
+export type SearchQuery = typeof searchQueries.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type Session = typeof sessions.$inferSelect;
+export type AuthToken = typeof authTokens.$inferSelect;
+export type UserList = typeof userLists.$inferSelect;
+export type Subscriber = typeof subscribers.$inferSelect;

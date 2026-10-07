@@ -22,6 +22,14 @@ export function formatDate(ms: number): string {
   });
 }
 
+// Whole months elapsed since `ms` (clamped at 0). Coarse on purpose — used
+// for the maintenance-freshness signal, not precise scheduling.
+export function monthsSince(ms: number, now: number): number {
+  if (!ms || ms > now) return 0;
+  const MONTH_MS = 30.44 * 24 * 60 * 60 * 1000;
+  return Math.floor((now - ms) / MONTH_MS);
+}
+
 // Locale pinned to en-US everywhere: toLocaleString() without a locale
 // differs between server and browser and trips hydration mismatches.
 export function formatCompact(n: number): string {

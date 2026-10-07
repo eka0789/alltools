@@ -5,9 +5,16 @@ import {
   ArrowUpRight,
   BookOpen,
   CheckCircle2,
+  GitCommitHorizontal,
   Link2,
   Star,
+  TriangleAlert,
 } from "lucide-react";
+
+// Frozen at module load — the maintenance badge is a coarse (6/12-month)
+// signal, so a per-instance timestamp is plenty accurate and keeps render
+// pure for the compiler lint.
+const MAINTENANCE_NOW = Date.now();
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -26,7 +33,7 @@ import { CopyButton } from "@/components/copy-button";
 import { RecentlyViewedStrip, RecentlyViewedTracker } from "@/components/recently-viewed";
 import { getToolBySlug, getCatalog } from "@/lib/data";
 import { PLATFORM_LABEL, type Platform } from "@/data/types";
-import { formatCompact, formatDate, formatNumberExact } from "@/lib/slug";
+import { formatCompact, formatDate, formatNumberExact, monthsSince } from "@/lib/slug";
 
 export const revalidate = 120;
 
@@ -254,6 +261,52 @@ export default async function ToolPage({ params }: Props) {
             </section>
           )}
 
+          {/* Strengths & trade-offs — the decision aid */}
+          {(tool.pros.length > 0 || tool.cons.length > 0) && (
+            <section className="card p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Strengths &amp; trade-offs
+              </h2>
+              <div className="mt-3 grid gap-6 sm:grid-cols-2">
+                {tool.pros.length > 0 && (
+                  <div>
+                    <h3 className="flex items-center gap-1.5 text-xs font-semibold text-success">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Where it shines
+                    </h3>
+                    <ul className="mt-2 space-y-2">
+                      {tool.pros.map((p) => (
+                        <li key={p} className="flex items-start gap-2 text-sm">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success/80" />
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {tool.cons.length > 0 && (
+                  <div>
+                    <h3 className="flex items-center gap-1.5 text-xs font-semibold text-warning">
+                      <TriangleAlert className="h-3.5 w-3.5" />
+                      Watch out for
+                    </h3>
+                    <ul className="mt-2 space-y-2">
+                      {tool.cons.map((c) => (
+                        <li key={c} className="flex items-start gap-2 text-sm">
+                          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning/80" />
+                          {c}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+                Editorial assessment — verify against your own requirements before committing.
+              </p>
+            </section>
+          )}
+
           {/* Alternatives */}
           {alternatives.length > 0 && (
             <section>
@@ -341,6 +394,42 @@ export default async function ToolPage({ params }: Props) {
                 </MetaRow>
               )}
               {tool.githubLicense && <MetaRow label="License">{tool.githubLicense}</MetaRow>}
+              {tool.githubPushedAt !== null && (
+                <MetaRow label="Maintenance">
+                  {(() => {
+                    const months = monthsSince(tool.githubPushedAt, MAINTENANCE_NOW);
+                    const label = formatDate(tool.githubPushedAt);
+                    if (months < 6) {
+                      return (
+                        <span
+                          className="inline-flex items-center gap-1 text-success"
+                          title={`Last code push ${label}`}
+                        >
+                          <GitCommitHorizontal className="h-3.5 w-3.5" />
+                          Actively maintained
+                        </span>
+                      );
+                    }
+                    if (months < 12) {
+                      return (
+                        <span className="inline-flex items-center gap-1" title={`Last code push ${label}`}>
+                          <GitCommitHorizontal className="h-3.5 w-3.5" />
+                          Last push {months} mo ago
+                        </span>
+                      );
+                    }
+                    return (
+                      <span
+                        className="inline-flex items-center gap-1 text-warning"
+                        title={`Last code push ${label} — verify the project is still maintained`}
+                      >
+                        <TriangleAlert className="h-3.5 w-3.5" />
+                        Maintenance uncertain
+                      </span>
+                    );
+                  })()}
+                </MetaRow>
+              )}
               <MetaRow label="Self-hostable">
                 {tool.selfHosted ? "Yes" : "No"}
               </MetaRow>
