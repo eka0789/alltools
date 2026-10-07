@@ -7,7 +7,7 @@ AllTools is **not** a collection of re-implemented utilities. It is a
 **discovery engine and directory**: it collects, categorizes, and points
 developers to the best existing tools on the internet, with one search.
 
-- **656+ curated tools** across **27 categories** — every entry has a real,
+- **739 curated tools** across **27 categories** (109 subcategories) — every entry has a real,
   official URL.
 - **Search-first**: fuzzy matching, typo tolerance, synonyms, tag/category
   matching, and task-based natural-language queries ("test REST API",

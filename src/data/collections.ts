@@ -87,4 +87,18 @@ export const COLLECTIONS: Collection[] = [
       "gitkraken", "pnpm",
     ],
   },
+  {
+    slug: "ui-design-toolkit",
+    title: "UI & Design Toolkit",
+    tagline: "Components, icons, charts and inspiration for beautiful interfaces",
+    description:
+      "The frontend polish stack: headless primitives and component libraries, icon and illustration sources, charting, typography, and galleries to steal taste from.",
+    emoji: "🧩",
+    tools: [
+      "shadcn-ui", "radix-ui", "headless-ui", "react-aria", "tailwind-css",
+      "daisyui", "flowbite", "lucide-icons", "tabler-icons", "framer-motion",
+      "recharts", "tanstack-table", "storybook", "figma", "google-fonts",
+      "mobbin",
+    ],
+  },
 ];

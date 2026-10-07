@@ -23,6 +23,8 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "animation", name: "Animation" },
       { slug: "build-tools", name: "Build & Lint" },
       { slug: "state-forms", name: "State & Forms" },
+      { slug: "data-viz", name: "Data Viz & Charts" },
+      { slug: "3d-web", name: "3D & WebGL" },
       { slug: "desktop-apps", name: "Desktop Apps" },
     ],
   },
@@ -189,6 +191,9 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "design-tools", name: "Design Tools" },
       { slug: "whiteboard", name: "Whiteboards & Diagrams" },
       { slug: "design-systems", name: "Design Systems" },
+      { slug: "inspiration", name: "Inspiration & Galleries" },
+      { slug: "illustrations", name: "Illustrations & Assets" },
+      { slug: "typography", name: "Typography & Fonts" },
     ],
   },
   {
@@ -281,6 +286,7 @@ export const CATEGORIES: SeedCategory[] = [
     subs: [
       { slug: "cross-platform", name: "Cross-Platform" },
       { slug: "native-mobile", name: "Native" },
+      { slug: "mobile-ui", name: "Mobile UI Libraries" },
       { slug: "mobile-services", name: "Mobile Backend & Services" },
     ],
   },

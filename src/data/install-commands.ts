@@ -172,4 +172,18 @@ export const INSTALL_COMMANDS: Record<string, string> = {
   semgrep: "pip install semgrep",
   nmap: "brew install nmap",
   "owasp-zap": "brew install --cask zaproxy",
+
+  // ── UI & component libraries ──────────────────────────────────────────
+  "headless-ui": "npm install @headlessui/react",
+  "react-aria": "npm install react-aria",
+  "base-ui": "npm install @base-ui-components/react",
+  "ark-ui": "npm install @ark-ui/react",
+  vuetify: "npm install vuetify",
+  primevue: "npm install primevue",
+  "element-plus": "npm install element-plus",
+  "naive-ui": "npm install naive-ui",
+  "shadcn-svelte": "npx shadcn-svelte@latest init",
+  bulma: "npm install bulma",
+  "framer-motion": "npm install framer-motion",
+  daisyui: "npm install -D daisyui",
 };
