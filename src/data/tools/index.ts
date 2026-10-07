@@ -6,6 +6,7 @@ import { CREATIVE_TOOLS } from "./creative";
 import { EXPANSION_TOOLS } from "./expansion";
 import { COVERAGE_TOOLS } from "./coverage";
 import { UI_UX_TOOLS } from "./ui-ux";
+import { REFS_TOOLS } from "./refs";
 import type { SeedTool } from "../types";
 
 export const ALL_SEED_TOOLS: SeedTool[] = [
@@ -17,4 +18,5 @@ export const ALL_SEED_TOOLS: SeedTool[] = [
   ...EXPANSION_TOOLS,
   ...COVERAGE_TOOLS,
   ...UI_UX_TOOLS,
+  ...REFS_TOOLS,
 ];

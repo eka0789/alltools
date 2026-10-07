@@ -24,6 +24,9 @@ const TRENDING_SLUGS = new Set([
   "llama-cpp", "comfyui", "stable-diffusion-webui", "whisper",
   "gemini-cli", "codex-cli", "goose", "plausible", "umami", "signoz",
   "polars", "nx",
+  // references wave (trending OSS)
+  "nushell", "yazi", "firecrawl", "jan", "logto", "polar",
+  "crawlee", "temporal", "helicone", "tabby",
 ]);
 
 const reset = process.argv.includes("--reset");

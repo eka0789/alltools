@@ -23,6 +23,7 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "animation", name: "Animation" },
       { slug: "build-tools", name: "Build & Lint" },
       { slug: "state-forms", name: "State & Forms" },
+      { slug: "i18n", name: "Internationalization" },
       { slug: "data-viz", name: "Data Viz & Charts" },
       { slug: "3d-web", name: "3D & WebGL" },
       { slug: "desktop-apps", name: "Desktop Apps" },
@@ -152,6 +153,7 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "iac", name: "Infrastructure as Code" },
       { slug: "web-servers", name: "Web Servers & Proxies" },
       { slug: "ci-cd", name: "CI/CD" },
+      { slug: "feature-flags", name: "Feature Flags" },
     ],
   },
   {
@@ -206,6 +208,7 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "notebooks", name: "Notebooks & Data Science" },
       { slug: "bi", name: "Dashboards & BI" },
       { slug: "pipelines", name: "Pipelines & ETL" },
+      { slug: "scraping", name: "Web Scraping" },
     ],
   },
   {
@@ -322,6 +325,7 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "terminals-shells", name: "Terminals & Shells" },
       { slug: "cli-tools", name: "CLI Tools" },
       { slug: "package-managers", name: "Package Managers" },
+      { slug: "browser-devtools", name: "Browser DevTools" },
     ],
   },
   {
@@ -335,6 +339,7 @@ export const CATEGORIES: SeedCategory[] = [
       { slug: "minifiers", name: "Minifiers" },
       { slug: "notes", name: "Notes & Docs Apps" },
       { slug: "launcher-automation", name: "Launchers & Automation" },
+      { slug: "offline-toolkit", name: "Offline Toolkits" },
     ],
   },
 ];
