@@ -56,6 +56,33 @@ async function main() {
 
   console.log("Seeding AllTools database...");
 
+  // Tools created via the admin panel (slugs outside the seed set) are
+  // captured before the wipe and re-inserted after — `--reset` replaces the
+  // curated catalog, it must never destroy admin content.
+  const seedSlugs = new Set(ALL_SEED_TOOLS.map((t) => t.slug ?? slugify(t.n)));
+  let preserved: {
+    row: typeof tools.$inferSelect;
+    categorySlug: string | null;
+    subSlug: string | null;
+  }[] = [];
+  if (reset) {
+    const cats = await db.select().from(categories);
+    const subs = await db.select().from(subcategories);
+    const catSlugById = new Map(cats.map((c) => [c.id, c.slug]));
+    const subById = new Map(subs.map((s) => [s.id, s]));
+    const all = await db.select().from(tools);
+    preserved = all
+      .filter((t) => !seedSlugs.has(t.slug))
+      .map((t) => ({
+        row: t,
+        categorySlug: catSlugById.get(t.categoryId) ?? null,
+        subSlug: t.subcategoryId ? subById.get(t.subcategoryId)?.slug ?? null : null,
+      }));
+    if (preserved.length > 0) {
+      console.log(`  preserving ${preserved.length} admin-created tool(s)…`);
+    }
+  }
+
   await db.delete(linkChecks);
   await db.delete(tools);
   await db.delete(subcategories);
@@ -180,6 +207,37 @@ async function main() {
         updatedAt: createdAt,
       });
     inserted += 1;
+  }
+
+  // Re-insert admin-created tools with freshly resolved taxonomy ids.
+  for (const p of preserved) {
+    const newCatId = p.categorySlug ? catIdBySlug.get(p.categorySlug) : undefined;
+    if (!newCatId) {
+      console.warn(`  skipping "${p.row.name}" — its category no longer exists`);
+      continue;
+    }
+    const newSubId = p.subSlug
+      ? subIdBySlug.get(`${p.categorySlug}/${p.subSlug}`) ?? null
+      : null;
+    const { id: _id, categoryId: _cat, subcategoryId: _sub, ...rest } = p.row;
+    try {
+      const orphanTags: unknown = JSON.parse(rest.tags);
+      if (Array.isArray(orphanTags)) {
+        for (const tag of orphanTags) {
+          if (typeof tag === "string") tagSet.set(slugify(tag), tag);
+        }
+      }
+    } catch {
+      // malformed tags — leave the tags table as-is
+    }
+    try {
+      await db.insert(tools).values({ ...rest, categoryId: newCatId, subcategoryId: newSubId });
+      console.log(`  ✓ preserved "${p.row.name}"`);
+    } catch (err) {
+      console.warn(
+        `  could not preserve "${p.row.name}": ${err instanceof Error ? err.message : err}`,
+      );
+    }
   }
 
   for (const [slug, name] of tagSet) {
