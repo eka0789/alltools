@@ -716,4 +716,694 @@ export const EDITORIAL: Record<string, EditorialEntry> = {
       "Spec still evolving — transports and auth patterns shift",
     ],
   },
+
+  // ── Depth pass: frontend & build tooling ─────────────────────────────
+  bootstrap: {
+    pros: [
+      "Largest ready-made component + utility catalog of any CSS framework",
+      "Massive ecosystem of themes, templates and answers — a decade of Stack Overflow",
+      "Predictable class API stays stable across major versions",
+    ],
+    cons: [
+      "Default look is instantly recognizable — sites need heavy theming to escape it",
+      "Utility classes now overlap with Tailwind while shipping more opinionated components",
+      "Pulling in full Bootstrap for one or two components is overkill",
+    ],
+  },
+  storybook: {
+    pros: [
+      "Component workbench: build and review states in isolation from the app",
+      "Industry-standard for design systems — addons for a11y, docs and visual tests",
+      "Stories double as living documentation for designers and QA",
+    ],
+    cons: [
+      "Heavy setup and maintenance for small projects — config, addons and upgrades add up",
+      "Stories drift from reality unless updating them is part of the team workflow",
+      "Start-up cost slows simple apps more than it helps them",
+    ],
+  },
+  vite: {
+    pros: [
+      "Instant dev server via native ESM — no bundling while coding",
+      "One tool covers React, Vue, Svelte and vanilla with sane defaults",
+      "Huge plugin ecosystem; most frameworks made it their default",
+    ],
+    cons: [
+      "Dev and production pipelines differ — rare bundler-specific bugs appear only in prod builds",
+      "Custom build setups (module federation, exotic loaders) still favor webpack",
+    ],
+  },
+  webpack: {
+    pros: [
+      "Handles almost any build scenario — loaders and plugins for everything",
+      "Mature code-splitting, chunking and caching knobs for complex apps",
+      "Decades of Stack Overflow answers for every conceivable error",
+    ],
+    cons: [
+      "Slow dev builds and painful config compared to Vite/esbuild-era tools",
+      "Configuration is notoriously hard to reason about and upgrade",
+      "New projects rarely have a reason to choose it over Vite anymore",
+    ],
+  },
+  redux: {
+    pros: [
+      "Predictable single store with time-travel debugging and strict patterns",
+      "RTK (Redux Toolkit) removes most of the old boilerplate pain",
+      "Enormous middleware ecosystem and team familiarity",
+    ],
+    cons: [
+      "Heavy mental overhead for small-to-medium apps — most don't need a global store",
+      "RTK Query competes with TanStack/SWR, splitting the data-fetching story",
+    ],
+  },
+  zustand: {
+    pros: [
+      "Tiny API — a store is one function, no providers or actions boilerplate",
+      "Selective subscriptions avoid re-render storms by default",
+      "Works outside React (setters callable from plain TS code)",
+    ],
+    cons: [
+      "No built-in devtools story as rich as Redux's",
+      "Freedom means teams can still tangle themselves without conventions",
+    ],
+  },
+  jotai: {
+    pros: [
+      "Atomic model: state composes bottom-up with automatic dependency tracking",
+      "Excellent for derived/async state — atoms chain naturally",
+      "Very small bundle and minimal API surface",
+    ],
+    cons: [
+      "Atom sprawl is easy — the global state picture is harder to see than in a store",
+      "Fewer learning resources than Redux/Zustand",
+    ],
+  },
+  htmx: {
+    pros: [
+      "Dynamic UIs from plain HTML attributes — no JS build step required",
+      "Pairs perfectly with server-rendered stacks (Django, Rails, Go)",
+      "Tiny (~14 kB) and CSP-friendly",
+    ],
+    cons: [
+      "Complex interactions quickly become attribute soup across templates",
+      "Debugging and optimistic UI are harder than in a real SPA framework",
+      "Ecosystem is small — you rebuild patterns other frameworks ship",
+    ],
+  },
+  "react-hook-form": {
+    pros: [
+      "Uncontrolled-by-default design keeps forms fast and re-renders minimal",
+      "First-class validation via zod/yup resolvers",
+      "Small API covers forms of any complexity without state gymnastics",
+    ],
+    cons: [
+      "Controlled-component integration (MUI, headless selects) needs Controller boilerplate",
+      "Dynamic nested field arrays get verbose fast",
+    ],
+  },
+  solidjs: {
+    pros: [
+      "True fine-grained reactivity — no VDOM, no re-render costs",
+      "Familiar JSX syntax with best-in-class raw performance",
+      "Signals model influenced the current React/Svelte direction",
+    ],
+    cons: [
+      "Much smaller ecosystem — libraries and jobs are scarce vs React",
+      "Differences from React hooks (no re-runs) trip up experienced React devs",
+    ],
+  },
+  "framer-motion": {
+    pros: [
+      "Declarative animations with layout animation and gesture support few libraries match",
+      "Spring physics and orchestration (stagger, variants) out of the box",
+      "Now maintained as Motion, with vanilla JS support",
+    ],
+    cons: [
+      "Bundle weight is real for simple fade-ins",
+      "Advanced orchestrations have a learning curve of their own",
+    ],
+  },
+  "alpine-js": {
+    pros: [
+      "Reactive sprinkles in HTML — dropdowns, tabs, modals without a build step",
+      "Perfect for server-rendered apps needing light interactivity",
+      "~15 kB, readable, zero tooling",
+    ],
+    cons: [
+      "Not an SPA framework — routing, global state and big apps are out of scope",
+      "Logic-in-markup gets messy past small components",
+    ],
+  },
+  gsap: {
+    pros: [
+      "Most powerful animation timeline engine on the web — scroll, SVG, scrubbing",
+      "Rock-solid cross-browser consistency, battle-tested for years",
+      "Now fully free including premium plugins (ScrollTrigger, SplitText)",
+    ],
+    cons: [
+      "Imperative API — you manage cleanup and lifecycle in React/Vue yourself",
+      "Overkill when CSS transitions or a small library would do",
+    ],
+  },
+  "simple-icons": {
+    pros: [
+      "3,000+ brand SVG icons in one consistent, searchable set",
+      "Multiple consumption paths: npm, CDN, React package",
+    ],
+    cons: [
+      "Monochrome only — brand colors need manual styling",
+      "Brand takedowns occasionally remove icons between versions",
+    ],
+  },
+  "lucide-icons": {
+    pros: [
+      "Clean, consistent icon set with first-class React/Vue/Svelte packages",
+      "Tree-shakeable — you ship only the icons you import",
+      "Fork of Feather, actively maintained with frequent additions",
+    ],
+    cons: [
+      "Stroke style doesn't fit every brand; no filled variants for many glyphs",
+    ],
+  },
+  heroicons: {
+    pros: [
+      "Tailwind's official icon set — visual match for Tailwind UI patterns",
+      "Solid + outline variants for every icon, MIT licensed",
+    ],
+    cons: [
+      "Smaller catalog than Lucide/Phosphor — niche icons often missing",
+    ],
+  },
+  "phosphor-icons": {
+    pros: [
+      "Six weights (thin → fill) per glyph — rare flexibility for one icon family",
+      "Large catalog (9,000+) with official React, Vue, Flutter and CSS packages",
+    ],
+    cons: [
+      "Multi-weight bundles can pull extra KB if you import the whole family",
+    ],
+  },
+
+  // ── Depth pass: backend, docs & git ──────────────────────────────────
+  "node-js": {
+    pros: [
+      "One language across the whole stack — the default JS runtime for a reason",
+      "npm is the largest package registry in existence",
+      "Decades of production hardening; runs everywhere from FaaS to embedded",
+    ],
+    cons: [
+      "Single-threaded model needs workers/clusters for CPU-bound work",
+      "Callback/Promise mix and legacy APIs make older codebases messy",
+      "Dependency sprawl — a naive install pulls hundreds of packages",
+    ],
+  },
+  flask: {
+    pros: [
+      "Minimal core — you see and control the whole app",
+      "Enormous extension catalog (SQLAlchemy, WTForms, auth) lets you compose your stack",
+      "The easiest Python framework for learning web fundamentals",
+    ],
+    cons: [
+      "Bigger apps need self-imposed structure — no batteries included",
+      "Async support feels bolted on compared to FastAPI/Litestar",
+      "No built-in validation/schema layer; you wire serialization yourself",
+    ],
+  },
+  spring: {
+    pros: [
+      "The Java enterprise ecosystem: data, security, batch, cloud — all first-party modules",
+      "Spring Boot's opinionated starters make production services quick to stand up",
+      "Unmatched integration surface (Kafka, JDBC, observability, OAuth)",
+    ],
+    cons: [
+      "Heavier startup and memory footprint than Go/Node equivalents",
+      "Magic (proxies, autoconfiguration) obscures what actually runs",
+      "Steep learning curve for the full framework surface",
+    ],
+  },
+  grpc: {
+    pros: [
+      "Contract-first protobuf schemas with generated, type-safe clients",
+      "HTTP/2 streaming (unary, server/client/bidirectional) built in",
+      "Far more efficient than JSON REST for internal service-to-service calls",
+    ],
+    cons: [
+      "Binary payloads are unreadable without tooling — browser support needs gRPC-Web/Connect",
+      "Proto evolution discipline (field numbers, deprecation) is a real maintenance cost",
+    ],
+  },
+  fastify: {
+    pros: [
+      "Among the fastest mainstream Node frameworks — low overhead per request",
+      "JSON-schema-first validation with serialization baked in",
+      "Clean plugin architecture with encapsulated contexts",
+    ],
+    cons: [
+      "Smaller ecosystem than Express — some middleware needs adapters",
+      "Schema-first style is an adjustment if you just want a quick route",
+    ],
+  },
+  symfony: {
+    pros: [
+      "Mature, modular PHP framework — use the full stack or just individual components",
+      "Laravel borrows from it; Symfony components power many other projects",
+      "Best-in-class long-term-support releases for enterprises",
+    ],
+    cons: [
+      "Verbose configuration (YAML/PHP) compared to Laravel's ergonomics",
+      "Smaller hiring pool and community buzz than Laravel",
+    ],
+  },
+  phoenix: {
+    pros: [
+      "Elixir/Erlang VM: massive concurrency with tiny, predictable latencies",
+      "LiveView ships rich realtime UIs without writing JavaScript",
+      "Channels/Presence make WebSocket-heavy apps trivial",
+    ],
+    cons: [
+      "Elixir is a niche language — hiring and library availability lag mainstream stacks",
+      "Fewer turnkey packages; you often write what Rails/Django include",
+    ],
+  },
+  freecodecamp: {
+    pros: [
+      "Completely free, structured curriculum from HTML to full-stack projects",
+      "Certifications and portfolio projects give beginners something concrete to show",
+      "Huge community and forum for when you're stuck",
+    ],
+    cons: [
+      "Curriculum depth thins out beyond intermediate topics",
+      "Project-driven style won't suit learners who want theory first",
+    ],
+  },
+  "roadmap-sh": {
+    pros: [
+      "Best visual maps of what to learn (frontend, backend, DevOps, AI) and in what order",
+      "Community-maintained, regularly updated with current industry expectations",
+      "Great for spotting your knowledge gaps quickly",
+    ],
+    cons: [
+      "A map, not a course — links out to scattered resources of varying quality",
+      "Roadmaps can encourage checkbox-learning over building things",
+    ],
+  },
+  devdocs: {
+    pros: [
+      "200+ official docs (MDN, languages, frameworks) in one fast, offline-capable UI",
+      "Instant fuzzy search across all enabled docs at once",
+      "Free, open source, and fully usable offline after one download",
+    ],
+    cons: [
+      "Doc versions must be selected manually — stale selections mislead",
+      "No community content (Stack Overflow-style answers) — pure reference",
+    ],
+  },
+  devhints: {
+    pros: [
+      "Cheat-sheet density is excellent — one page refreshes a whole tool",
+      "Zero-friction: search, read, go",
+    ],
+    cons: [
+      "Coverage and freshness vary by sheet; some lag modern versions",
+      "Community-edited depth is thinner than official docs",
+    ],
+  },
+  "quickref-me": {
+    pros: [
+      "Clean, modern cheat sheets for languages, tools and Linux commands",
+      "Consistent formatting makes scanning fast",
+    ],
+    cons: [
+      "Shallow — a reminder, not a tutorial",
+      "Catalog skews toward popular topics",
+    ],
+  },
+  "the-odin-project": {
+    pros: [
+      "Free, opinionated full-stack path (Ruby or JS) built around real projects",
+      "Forces you to research like a working developer instead of following videos",
+      "Active Discord community with code review culture",
+    ],
+    cons: [
+      "Demanding — much slower than tutorial-following, by design",
+      "Curriculum focuses on web; mobile/data paths are out of scope",
+    ],
+  },
+  husky: {
+    pros: [
+      "Makes git hooks trivial to install and share with the whole team",
+      "Pairs with lint-staged to keep pre-commit checks fast",
+    ],
+    cons: [
+      "Hooks only run locally — CI must enforce the same checks separately",
+      "Version upgrades have historically changed install steps",
+    ],
+  },
+  "learn-git-branching": {
+    pros: [
+      "The best mental-model builder for branches, rebases and cherry-picks",
+      "Visualizes every command's effect immediately",
+    ],
+    cons: [
+      "A sandbox — doesn't teach workflows (PRs, conflicts on real remotes)",
+    ],
+  },
+  commitlint: {
+    pros: [
+      "Enforces Conventional Commits, keeping history machine-readable for changelogs and semver",
+      "Integrates with husky and CI the same way",
+    ],
+    cons: [
+      "Convention policing annoys teams who never bought into Conventional Commits",
+      "Extra config to maintain for marginal benefit on small projects",
+    ],
+  },
+  "pre-commit": {
+    pros: [
+      "One YAML pins hooks (format, lint, secrets) across every contributor's machine",
+      "Huge registry of ready-made hooks across languages",
+    ],
+    cons: [
+      "Python-based runner in polyglot repos — a JS-only team may prefer husky",
+      "Hook environments download/update and can slow first runs",
+    ],
+  },
+  "git-lfs": {
+    pros: [
+      "Keeps large binaries out of repo history — clones stay small",
+      "Transparent once installed: normal git commands just work",
+    ],
+    cons: [
+      "Every collaborator and CI runner must install LFS or files are broken pointers",
+      "Hosting quotas/bandwidth limits on GitHub bite at scale",
+    ],
+  },
+
+  // ── Depth pass: platforms, AI services & cloud ───────────────────────
+  chatgpt: {
+    pros: [
+      "The most capable general-purpose assistant for most everyday tasks",
+      "Voice, vision, file analysis and custom GPTs in one place",
+      "Free tier is genuinely usable for casual needs",
+    ],
+    cons: [
+      "Answers still need verification for facts, citations and current events",
+      "Usage caps and model gating on cheaper plans shift frequently",
+      "Privacy settings need review before pasting proprietary code",
+    ],
+  },
+  claude: {
+    pros: [
+      "Strongest long-document comprehension — book-length context handled well",
+      "Best-in-class code understanding and writing quality in side-by-side comparisons",
+      "Artifacts make iterating on code/drafts feel interactive",
+    ],
+    cons: [
+      "Usage limits on paid plans are hit earlier than competitors",
+      "Multimodal (voice/image) surface is thinner than ChatGPT's",
+    ],
+  },
+  git: {
+    pros: [
+      "The version-control standard — every other tool assumes it",
+      "Branching and offline work are unmatched",
+      "Portable skill: identical from CLI to IDEs to GUIs",
+    ],
+    cons: [
+      "Recovery scenarios (rebase gone wrong, detached HEAD) are famously unfriendly",
+      "The index/staging model takes real time to internalize",
+    ],
+  },
+  github: {
+    pros: [
+      "Where open source lives — PRs, issues, Actions and Packages in one place",
+      "Copilot, security alerts and project boards integrate without setup",
+      "Marketplace and API make it the automation hub for most teams",
+    ],
+    cons: [
+      "UI slows down on very large repos and long PR threads",
+      "Advanced features (Codespaces, larger runners) get expensive per seat",
+    ],
+  },
+  notion: {
+    pros: [
+      "Docs, databases and wikis blend freely — one workspace per team",
+      "Relational databases and views are genuinely powerful",
+      "Good free tier for personal knowledge management",
+    ],
+    cons: [
+      "Slow on large workspaces; offline mode is weak",
+      "Search and structure degrade without disciplined conventions",
+      "Export/lock-in: leaving Notion with years of nested content hurts",
+    ],
+  },
+  canva: {
+    pros: [
+      "Anyone can produce presentable social/brand assets in minutes",
+      "Brand kits and team templates keep output consistent",
+      "Massive template and stock library included",
+    ],
+    cons: [
+      "Not a precision tool — complex vector/editing tasks hit limits fast",
+      "Best features (background remover, brand kit) sit behind Pro",
+    ],
+  },
+  "intellij-idea": {
+    pros: [
+      "Deepest JVM code intelligence: refactoring and inspections are best-in-class",
+      "Everything included — profiler, debugger, DB tools, Spring support",
+    ],
+    cons: [
+      "Heavy on RAM and startup time",
+      "Ultimate features (framework support) require a paid subscription",
+    ],
+  },
+  "visual-studio": {
+    pros: [
+      "The complete .NET/Windows development experience — debugger and profiler are superb",
+      "First-class support for legacy + modern Microsoft stacks",
+    ],
+    cons: [
+      "Windows-centric; macOS parity lags",
+      "Large install and slower UI than VS Code",
+    ],
+  },
+  xcode: {
+    pros: [
+      "The only real path to iOS/macOS SDKs, simulators and App Store submission",
+      "SwiftUI previews make UI iteration fast",
+    ],
+    cons: [
+      "Mac-only and huge (tens of GB)",
+      "Infamous for indexing bugs, signing errors and slow upgrades",
+    ],
+  },
+  "android-studio": {
+    pros: [
+      "Official Android IDE — emulator, profilers and layout inspection included",
+      "IntelliJ foundation gives strong Kotlin/Java intelligence",
+    ],
+    cons: [
+      "Heavy: RAM-hungry emulator plus slow first-run setup",
+      "Gradle sync/upgrades consume real dev time",
+    ],
+  },
+  obsidian: {
+    pros: [
+      "Your notes are plain Markdown files on disk — no lock-in",
+      "Backlinks, graph view and 2,000+ community plugins",
+      "Free for personal use; sync across devices is local or paid",
+    ],
+    cons: [
+      "Plugin quality varies; heavy setups become fragile",
+      "Real-time collaboration is essentially absent",
+    ],
+  },
+  perplexity: {
+    pros: [
+      "Answers with cited sources — research questions come with receipts",
+      "Focus modes (academic, Reddit) target searches well",
+    ],
+    cons: [
+      "Long-form writing and coding are weaker than general assistants",
+      "Deep research quality depends heavily on what's indexed",
+    ],
+  },
+  "hugging-face": {
+    pros: [
+      "The GitHub of ML: models, datasets and Spaces demos in one hub",
+      "Transformers library is the default for working with open models",
+      "Generous free hosting for demos via Spaces",
+    ],
+    cons: [
+      "Model quality varies wildly — cards must be read carefully",
+      "Inference pricing on the Hub adds up vs self-hosting at scale",
+    ],
+  },
+  jupyter: {
+    pros: [
+      "The standard interactive environment for data work — code, plots and notes together",
+      "Kernels for dozens of languages; Colab/VS Code interop is trivial",
+      "Notebooks are the lingua franca of data science sharing",
+    ],
+    cons: [
+      "Hidden notebook state (out-of-order cells) causes irreproducible results",
+      "Poor fit for production code — notebooks need refactoring into modules",
+    ],
+  },
+  kaggle: {
+    pros: [
+      "Free GPU/TPU notebooks and thousands of real datasets",
+      "Competitions are the fastest way to pressure-test ML skills",
+      "Community notebooks teach practical techniques",
+    ],
+    cons: [
+      "Competition metrics reward tricks over production-ready practice",
+      "Session limits (GPU hours, runtime) constrain serious training",
+    ],
+  },
+  firebase: {
+    pros: [
+      "Fastest path to a working app: auth, Firestore, hosting and analytics out of the box",
+      "Realtime sync and offline mode are production-grade",
+      "Generous free Spark tier for side projects",
+    ],
+    cons: [
+      "Firestore pricing (per-read) explodes with naive query patterns",
+      "Query limits and vendor lock-in hurt complex data models",
+      "Local emulation/CI story is clunkier than Supabase/Postgres stacks",
+    ],
+  },
+  aws: {
+    pros: [
+      "The widest service catalog — anything is buildable, mature tooling everywhere",
+      "Free tier and credits make experimentation cheap at first",
+      "Employability: AWS experience is the industry default",
+    ],
+    cons: [
+      "Billing complexity is notorious — surprise invoices need vigilance",
+      "IAM and service sprawl punish small teams that just need 'a server + DB'",
+    ],
+  },
+  "google-cloud": {
+    pros: [
+      "Best-in-class data stack: BigQuery, Spanner and Pub/Sub",
+      "GKE is the most mature managed Kubernetes",
+      "Sustained-use discounts beat AWS pricing on steady workloads",
+    ],
+    cons: [
+      "Third in mindshare — fewer turnkey integrations and tutorials than AWS",
+      "Console/service organization churns more often",
+    ],
+  },
+  netlify: {
+    pros: [
+      "The Jamstack original: git-push deploys, preview URLs, forms and functions",
+      "Zero-config for most static generators and frontend frameworks",
+      "Generous free tier for personal sites",
+    ],
+    cons: [
+      "Function invocation and bandwidth costs grow fast on real traffic",
+      "Backend-heavy needs outgrow it quickly — pair with a real API host",
+    ],
+  },
+  railway: {
+    pros: [
+      "Deploy full-stack services + databases from a repo in minutes",
+      "Usage-based pricing that's honest for hobby-to-midsize projects",
+      "Preview environments and templates are excellent",
+    ],
+    cons: [
+      "No permanent free tier — sleeping projects still cost something",
+      "Infra knobs (networking, compliance) are limited vs AWS/GCP",
+    ],
+  },
+  render: {
+    pros: [
+      "Heroku-style simplicity with modern pricing: autoscaling, cron, background workers",
+      "Free static hosting plus managed Postgres/Redis in one place",
+      "Zero-downtime deploys from git are painless",
+    ],
+    cons: [
+      "Free services spin down (cold starts of ~50s)",
+      "Fewer regions and enterprise features than big clouds",
+    ],
+  },
+  "fly-io": {
+    pros: [
+      "Runs real containers close to users via regions worldwide",
+      "Full VMs/instances — no serverless cold-start surprises",
+      "Great for Postgres-backed apps needing geo-distribution",
+    ],
+    cons: [
+      "Requires ops comfort (fly.toml, certs, scaling) unlike PaaS rivals",
+      "Past reliability incidents make teams keep a fallback",
+    ],
+  },
+  "openai-api": {
+    pros: [
+      "Frontier model quality with the most polished developer platform",
+      "Structured outputs, function calling and embeddings cover most product needs",
+      "De-facto standard — SDK patterns copy across the industry",
+    ],
+    cons: [
+      "Costs at scale require real rate/caching design",
+      "Rate limits and model deprecations churn faster than teams would like",
+    ],
+  },
+  "anthropic-api": {
+    pros: [
+      "Claude models excel at code, long-context and agentic tasks",
+      "Prompt caching cuts cost dramatically for repeated context",
+      "MCP emerged here — best tool-use ecosystem story",
+    ],
+    cons: [
+      "Fewer turnkey vertical features than OpenAI's platform",
+      "Rate limits for new orgs start conservative",
+    ],
+  },
+  openrouter: {
+    pros: [
+      "One API key and one schema reach hundreds of models (OpenAI, Anthropic, open weights)",
+      "Easy per-model price/latency comparison and fallback routing",
+      "Great for avoiding vendor lock-in at the model layer",
+    ],
+    cons: [
+      "Adds a small markup and an extra hop vs calling providers directly",
+      "Provider-side features (caching, beta endpoints) can lag the original APIs",
+    ],
+  },
+  v0: {
+    pros: [
+      "Fastest way from prompt to shippable React + Tailwind + shadcn/ui code",
+      "Generated UIs use real components, not throwaway mockups",
+      "Iterative chat editing keeps momentum on frontend work",
+    ],
+    cons: [
+      "Complex state/logic still needs a human engineer",
+      "Credits constrain heavy iteration on paid tiers",
+    ],
+  },
+  "bolt-new": {
+    pros: [
+      "Full-stack app generation with in-browser runtime — prompt to running app",
+      "Deploys and env wiring handled inside the tool",
+      "Supports more stacks than pure-UI generators",
+    ],
+    cons: [
+      "Token burn is fast on iterative debugging",
+      "Architecture decisions by AI need review before real production use",
+    ],
+  },
+  replit: {
+    pros: [
+      "Zero-setup IDE + hosting — the lowest friction to run code anywhere",
+      "Collaboration and deploy from the same tab",
+      "Agent mode scaffolds simple apps end-to-end",
+    ],
+    cons: [
+      "Performance and pricing on compute tiers bite for serious workloads",
+      "Not a substitute for a configured local toolchain on large projects",
+    ],
+  },
 };

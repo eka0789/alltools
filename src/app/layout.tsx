@@ -6,6 +6,7 @@ import { ChatWidget } from "@/components/chat/chat-widget";
 import { CompareTray } from "@/components/compare-tray";
 import { ServiceWorkerRegistration } from "@/components/sw-register";
 import { AccountSync } from "@/components/account-sync";
+import { Analytics } from "@/components/analytics";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -75,6 +76,7 @@ export default function RootLayout({
         <ChatWidget />
         <AccountSync />
         <ServiceWorkerRegistration />
+        <Analytics />
       </body>
     </html>
   );

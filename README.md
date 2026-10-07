@@ -124,6 +124,11 @@ Open http://localhost:3000 (or your chosen port).
 | `LLM_MODEL`            | `gpt-4o-mini`           | Optional LLM model override |
 | `RESEND_API_KEY`       | —                       | Optional: enables passwordless sign-in links and the weekly digest email. Without it, login fails closed in production and the subscribe form is hidden |
 | `RESEND_FROM`          | `AllTools <onboarding@resend.dev>` | From address (use a domain verified in Resend for real sends) |
+| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | —             | Optional: enables Plausible analytics (cookie-free pageview + outbound-link tracking) |
+| `NEXT_PUBLIC_UMAMI_SCRIPT_URL` | —             | Optional: enables Umami analytics (self-hosted script URL) |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | —             | Umami website ID — both Umami vars required together |
+| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | —   | Optional: enables Sentry error tracking (server + client; the `NEXT_PUBLIC_` one covers the browser) |
+| `SENTRY_AUTH_TOKEN`    | —                       | Optional: uploads sourcemaps during build (also set `SENTRY_ORG` + `SENTRY_PROJECT`) |
 
 > Set a strong `ADMIN_TOKEN` before deploying. The admin dashboard is
 > noindex and excluded from `robots.txt`, and login fails closed when the

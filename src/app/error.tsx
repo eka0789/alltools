@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 
 // Root error boundary. Note: Next 16 error boundaries expose `retry`
 // (formerly `reset`).
@@ -11,6 +12,15 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
+  // Route errors also surface in Sentry via instrumentation's
+  // onRequestError for server-side throws; this covers client-side ones.
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return;
+    import("@sentry/nextjs").then(({ captureException }) =>
+      captureException(error),
+    );
+  }, [error]);
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-24 text-center">
       <h1 className="text-3xl font-bold tracking-tight">Something went wrong</h1>
