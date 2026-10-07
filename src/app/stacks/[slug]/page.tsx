@@ -20,6 +20,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${stack.name} Stack Tools`,
     description: `The essential developer toolbox for a ${stack.name} stack: ${stack.description}`,
     alternates: { canonical: `/stacks/${stack.slug}` },
+    openGraph: {
+      title: `${stack.name} Stack — AllTools`,
+      description: `The essential developer toolbox for a ${stack.name} stack: ${stack.description}`,
+      url: `/stacks/${stack.slug}`,
+    },
   };
 }
 

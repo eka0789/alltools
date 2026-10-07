@@ -38,11 +38,10 @@ export const metadata: Metadata = {
       "Everything developers need, in one place. Search hundreds of curated tools, resources and AI services.",
     url: siteUrl,
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "AllTools — The Developer Dictionary",
-    description: "Everything developers need, in one place.",
-  },
+  // No twitter.title/description here: X cards fall back to the per-page
+  // og:title/og:description, so tool/category/glossary cards get specific
+  // copy instead of this root default everywhere.
+  twitter: { card: "summary_large_image" },
   alternates: { canonical: "/" },
 };
 
