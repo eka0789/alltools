@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Heart, Search, UserRound } from "lucide-react";
@@ -20,10 +21,15 @@ const LINKS = [
 
 function Wordmark() {
   return (
-    <Link href="/" className="flex items-center gap-2">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent font-mono text-[13px] font-bold text-accent-foreground">
-        A
-      </span>
+    <Link href="/" className="flex items-center gap-2.5">
+      <Image
+        src="/logo.png"
+        alt="AllTools Logo"
+        width={36}
+        height={25}
+        priority
+        className="h-7 w-auto object-contain"
+      />
       <span className="text-[15px] font-semibold tracking-tight">
         AllTools
       </span>

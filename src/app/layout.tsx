@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     "Search hundreds of curated developer tools, resources, services, documentation and AI tools. One search for every developer need.",
   manifest: "/manifest.webmanifest",
   icons: {
+    icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
   keywords: [

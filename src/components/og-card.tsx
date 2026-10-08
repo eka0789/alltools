@@ -1,4 +1,5 @@
 import React from "react";
+import { BRAND_LOGO_DATA_URI } from "@/lib/brand-logo-data";
 
 // Shared layout for generated Open Graph cards (1200×630, dark theme).
 // Satori renders a strict flexbox subset: every container div needs
@@ -26,22 +27,14 @@ function titleSize(title: string): number {
 export function OgBrand({ tagline }: { tagline: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-      <div
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: 14,
-          background: "#6366f1",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 30,
-          fontWeight: 700,
-          color: "#fff",
-        }}
-      >
-        A
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={BRAND_LOGO_DATA_URI}
+        width={56}
+        height={38}
+        style={{ objectFit: "contain" }}
+        alt="AllTools Logo"
+      />
       <div style={{ fontSize: 26, fontWeight: 600, color: COLORS.muted }}>
         {tagline}
       </div>

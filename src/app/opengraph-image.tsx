@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { BRAND_LOGO_DATA_URI } from "@/lib/brand-logo-data";
 
 export const alt = "AllTools — The Developer Dictionary";
 export const size = { width: 1200, height: 630 };
@@ -22,22 +23,14 @@ export default function RootOgImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 18,
-              background: "#6366f1",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 40,
-              fontWeight: 700,
-              color: "#fff",
-            }}
-          >
-            A
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={BRAND_LOGO_DATA_URI}
+            width={104}
+            height={72}
+            style={{ objectFit: "contain" }}
+            alt="AllTools Logo"
+          />
           <div style={{ fontSize: 56, fontWeight: 800 }}>AllTools</div>
         </div>
         <div style={{ fontSize: 34, color: "#818cf8", fontWeight: 600 }}>

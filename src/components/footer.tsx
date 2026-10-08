@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getCatalog } from "@/lib/data";
 
 export function Footer() {
@@ -10,10 +11,14 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent font-mono text-[11px] font-bold text-accent-foreground">
-                A
-              </span>
+            <div className="flex items-center gap-2.5">
+              <Image
+                src="/logo.png"
+                alt="AllTools Logo"
+                width={32}
+                height={22}
+                className="h-6 w-auto object-contain"
+              />
               <span className="text-sm font-semibold">AllTools</span>
             </div>
             <p className="mt-3 max-w-xs text-xs leading-relaxed text-muted-foreground">
