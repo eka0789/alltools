@@ -21,7 +21,7 @@ jobs:
           ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
           ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}
         run: |
-          cat > /tmp/debug.mjs <<'EOF'
+          cat > debug.tmp.mjs <<'EOF'
           import { createClient } from "@libsql/client";
           const url = process.env.ALLTOOLS_DB_URL + (process.env.ALLTOOLS_DB_AUTH_TOKEN ? "?authToken=" + process.env.ALLTOOLS_DB_AUTH_TOKEN : "");
           const db = createClient({ url });
@@ -42,4 +42,5 @@ jobs:
             }
           }
           EOF
-          node /tmp/debug.mjs
+          node debug.tmp.mjs
+          rm -f debug.tmp.mjs
