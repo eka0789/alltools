@@ -6,6 +6,7 @@ import { orders } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { getProduct } from "@/lib/products";
 import { createDokuPayment, dokuConfig, dokuConfigured, dokuSimulationAllowed } from "@/lib/doku";
+import { siteUrl } from "@/lib/email";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
       amount: product.priceIdr,
       customer: { name: user.email.split("@")[0], email: user.email },
       lineItems: [{ name: product.name, price: product.priceIdr, quantity: 1 }],
+      callbackUrl: `${siteUrl()}/checkout/${invoice}`,
     });
     if (result.ok && result.paymentUrl) {
       await db

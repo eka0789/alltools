@@ -140,14 +140,55 @@ describe("deploy config generator", () => {
   });
 });
 
-// Signature helper sanity: the digest scheme we implement must round-trip.
-describe("doku signature math", () => {
-  it("hmac over clientId+requestId+ts+target+sha256(body) is deterministic", () => {
-    const secret = "SK-test";
-    const raw = JSON.stringify({ a: 1 });
-    const digest = createHash("sha256").update(raw).digest("hex");
-    const sts = `CID${"rid-1"}2024-01-01T10:00:00+07:00/checkout/v1/payment${digest}`;
-    const sig = createHmac("sha256", secret).update(sts).digest("base64");
-    expect(sig.length).toBeGreaterThan(20);
+// Signature scheme (format resmi DOKU non-SNAP): stringToSign = baris
+// "Name:value" di-join "\n" (tanpa trailing newline), Digest = base64 sha256
+// body (hanya POST), header Signature: HMACSHA256=<base64>.
+import { verifyDokuSignature } from "@/lib/doku";
+
+function sign(config: { secretKey: string }, sts: string): string {
+  return createHmac("sha256", config.secretKey).update(sts).digest("base64");
+}
+
+describe("doku signature verification", () => {
+  const config = { clientId: "CID", secretKey: "SK-test", baseUrl: "https://api-sandbox.doku.com" };
+  const raw = JSON.stringify({ order: { invoice_number: "AK-1", amount: 1 } });
+  const digest = createHash("sha256").update(raw).digest("base64");
+  const sts =
+    `Client-Id:CID\nRequest-Id:rid-1\nRequest-Timestamp:2026-10-28T10:00:00Z\nRequest-Target:/api/payments/doku/notify\nDigest:${digest}`;
+  const sig = sign(config, sts);
+
+  it("accepts a correctly signed notification", () => {
+    const ok = verifyDokuSignature(
+      config,
+      {
+        "client-id": "CID",
+        "request-id": "rid-1",
+        "request-timestamp": "2026-10-28T10:00:00Z",
+        signature: `HMACSHA256=${sig}`,
+      },
+      "/api/payments/doku/notify",
+      raw,
+    );
+    expect(ok).toBe(true);
+  });
+
+  it("rejects a tampered body", () => {
+    const ok = verifyDokuSignature(
+      config,
+      {
+        "client-id": "CID",
+        "request-id": "rid-1",
+        "request-timestamp": "2026-10-28T10:00:00Z",
+        signature: `HMACSHA256=${sig}`,
+      },
+      "/api/payments/doku/notify",
+      JSON.stringify({ order: { invoice_number: "AK-1", amount: 999999 } }),
+    );
+    expect(ok).toBe(false);
+  });
+
+  it("rejects missing headers", () => {
+    const ok = verifyDokuSignature(config, { signature: `HMACSHA256=${sig}` }, "/x", raw);
+    expect(ok).toBe(false);
   });
 });

@@ -45,7 +45,9 @@ export function BuyButton({
       setError(
         data.error === "payment-not-configured"
           ? "Pembayaran belum dikonfigurasi. Hubungi admin."
-          : "Gagal membuat pesanan. Coba lagi.",
+          : data.error
+            ? `Gagal membuat pesanan (${data.error}). Coba lagi.`
+            : "Gagal membuat pesanan. Coba lagi.",
       );
     } catch {
       setError("Gagal terhubung. Coba lagi.");
