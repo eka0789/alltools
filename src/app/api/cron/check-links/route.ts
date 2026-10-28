@@ -125,7 +125,18 @@ export async function POST(req: NextRequest) {
     }),
   );
 
-  return NextResponse.json({ checked: targets.length, ok, review, transient });
+  // Ekor cron: rekonsiliasi order pending via DOKU Status API (webhook bisa
+  // hilang). Dijalankan harian di sini karena Hobby plan hanya mengizinkan
+  // 2 cron job — lihat src/lib/reconcile.ts.
+  let reconcile: { checked: number; paid: number; expired: number; stillPending: number; skipped?: string } | null = null;
+  try {
+    const { reconcilePendingOrders } = await import("@/lib/reconcile");
+    reconcile = await reconcilePendingOrders(25);
+  } catch {
+    reconcile = null;
+  }
+
+  return NextResponse.json({ checked: targets.length, ok, review, transient, reconcile });
 }
 
 // Vercel Cron mengirim GET — alias ke handler yang sama (sebelumnya hanya
