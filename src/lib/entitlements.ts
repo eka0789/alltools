@@ -29,21 +29,27 @@ export interface UserAccess {
 export async function getUserAccess(userId: number | null): Promise<UserAccess> {
   const empty: UserAccess = { tier: "anon", hasLifetime: false, templateIds: [], teamIds: [] };
   if (!userId) return empty;
-  const rows = await db
-    .select({ productId: entitlements.productId, teamId: entitlements.teamId })
-    .from(entitlements)
-    .where(and(eq(entitlements.userId, userId), isNull(entitlements.revokedAt)));
-  const hasLifetime = rows.some((r) => r.productId === "pro_all");
-  const templateIds = rows
-    .filter((r) => r.productId.startsWith("tpl:") && r.productId !== "pro_all")
-    .map((r) => r.productId);
-  const teamIds = [...new Set(rows.map((r) => r.teamId).filter((id): id is number => id !== null))];
-  return {
-    tier: hasLifetime || teamIds.length > 0 ? "pro" : "free",
-    hasLifetime,
-    templateIds,
-    teamIds,
-  };
+  try {
+    const rows = await db
+      .select({ productId: entitlements.productId, teamId: entitlements.teamId })
+      .from(entitlements)
+      .where(and(eq(entitlements.userId, userId), isNull(entitlements.revokedAt)));
+    const hasLifetime = rows.some((r) => r.productId === "pro_all");
+    const templateIds = rows
+      .filter((r) => r.productId.startsWith("tpl:") && r.productId !== "pro_all")
+      .map((r) => r.productId);
+    const teamIds = [...new Set(rows.map((r) => r.teamId).filter((id): id is number => id !== null))];
+    return {
+      tier: hasLifetime || teamIds.length > 0 ? "pro" : "free",
+      hasLifetime,
+      templateIds,
+      teamIds,
+    };
+  } catch {
+    // Tabel entitlements belum ada (migrasi belum jalan) — degradasi ke free
+    // alih-alih crash halaman publik.
+    return { ...empty, tier: "free" };
+  }
 }
 
 // Akses template premium: milik langsung ATAU lifetime ATAU tim.

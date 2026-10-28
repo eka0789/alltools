@@ -18,17 +18,26 @@ export async function countUsage24h(opts: { userId?: number; anonId?: string }):
       ? and(eq(aiUsage.anonId, opts.anonId), isNull(aiUsage.userId), gte(aiUsage.createdAt, since))
       : null;
   if (!where) return 0;
-  const rows = await db.select({ id: aiUsage.id }).from(aiUsage).where(where);
-  return rows.length;
+  try {
+    const rows = await db.select({ id: aiUsage.id }).from(aiUsage).where(where);
+    return rows.length;
+  } catch {
+    // Tabel ai_usage belum ada → biarkan lewat (limit 0 tak memblokir UX).
+    return 0;
+  }
 }
 
 export async function recordUsage(opts: { userId?: number; anonId?: string; kind?: string }): Promise<void> {
-  await db.insert(aiUsage).values({
-    userId: opts.userId ?? null,
-    anonId: opts.userId ? null : (opts.anonId ?? null),
-    kind: opts.kind ?? "review",
-    createdAt: Date.now(),
-  });
+  try {
+    await db.insert(aiUsage).values({
+      userId: opts.userId ?? null,
+      anonId: opts.userId ? null : (opts.anonId ?? null),
+      kind: opts.kind ?? "review",
+      createdAt: Date.now(),
+    });
+  } catch {
+    // Tabel belum ada — kuota gagal tercatat, tapi review tetap terkirim.
+  }
 }
 
 export interface QuotaCheck {
