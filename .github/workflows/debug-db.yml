@@ -1,0 +1,45 @@
+name: Debug Pro Tables
+
+# TEMPORARY diagnostic: list tables and test order insert against production
+# Turso. Delete after use.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Inspect tables + test order insert
+        env:
+          ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
+          ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}
+        run: |
+          cat > /tmp/debug.mjs <<'EOF'
+          import { createClient } from "@libsql/client";
+          const url = process.env.ALLTOOLS_DB_URL + (process.env.ALLTOOLS_DB_AUTH_TOKEN ? "?authToken=" + process.env.ALLTOOLS_DB_AUTH_TOKEN : "");
+          const db = createClient({ url });
+          const tables = await db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+          console.log("TABLES:", tables.rows.map(r => r.name).join(", "));
+          // Cari user existing
+          const users = await db.execute("SELECT id, email FROM users LIMIT 3");
+          console.log("USERS_SAMPLE:", JSON.stringify(users.rows));
+          if (users.rows.length > 0) {
+            const uid = users.rows[0].id;
+            try {
+              const ins = await db.execute({ sql: "INSERT INTO orders (invoice_no, user_id, product_id, amount, status, provider, created_at, updated_at) VALUES (?, ?, ?, ?, 'pending', 'debug', ?, ?)", args: ["DEBUG-" + Date.now(), uid, "pro_lifetime", 299000, Date.now(), Date.now()] });
+              console.log("INSERT_OK lastInsertRowid=", ins.lastInsertRowid);
+              await db.execute({ sql: "DELETE FROM orders WHERE invoice_no LIKE 'DEBUG-%'", args: [] });
+              console.log("CLEANUP_OK");
+            } catch (e) {
+              console.log("INSERT_FAIL:", e.message);
+            }
+          }
+          EOF
+          node /tmp/debug.mjs
