@@ -1,0 +1,33 @@
+name: Backup Production DB
+
+# Nightly full-table dump of the production Turso database, uploaded as a
+# GitHub artifact (retention 90 days). Orders/entitlements are revenue data —
+# they must exist somewhere outside the live database.
+
+on:
+  schedule:
+    - cron: "30 20 * * *" # 03:30 WIB, setelah cron link-check
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Dump all tables to JSON
+        env:
+          ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
+          ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}
+        run: node scripts/backup-db.mjs
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: alltools-db-backup
+          path: backups/*.json
+          retention-days: 90
+          if-no-files-found: error

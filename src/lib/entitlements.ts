@@ -10,6 +10,7 @@ import {
   type Order,
 } from "@/db/schema";
 import { getProduct } from "@/lib/products";
+import { emailShell, sendEmail, siteUrl } from "@/lib/email";
 
 // ── Entitlement: apa yang boleh diakses seorang pengguna ─────────────────
 // Entitlement "materialized": saat order dibayar, satu baris per user dibuat
@@ -78,7 +79,35 @@ export async function finalizeOrderIfPaid(
   if (updated.length === 0) return { alreadyPaid: true, granted: false };
 
   await grantEntitlements(order);
+  // Struk pembelian — best-effort: kegagalan email tidak boleh memengaruhi
+  // grant entitlement (yang sudah atomik).
+  void sendReceiptEmail(order).catch(() => undefined);
   return { alreadyPaid: false, granted: true };
+}
+
+async function sendReceiptEmail(order: Order): Promise<void> {
+  const product = getProduct(order.productId);
+  const rows = await db.select({ email: users.email }).from(users).where(eq(users.id, order.userId)).limit(1);
+  const to = rows[0]?.email;
+  if (!to) return;
+  const amount = new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(order.amount);
+  const body = [
+    `<p>Pembayaran Anda sudah kami terima. Terima kasih!</p>`,
+    `<p><strong>${product?.name ?? order.productId}</strong><br>`,
+    `Invoice: <code>${order.invoiceNo}</code><br>`,
+    `Total: ${amount}</p>`,
+    `<p>Akses sudah aktif di akun Anda — template premium dan AI review tanpa batas bisa dipakai sekarang.</p>`,
+    `<p><a href="${siteUrl()}/account">Buka halaman akun</a> untuk mengunduh template.</p>`,
+  ].join("");
+  await sendEmail({
+    to,
+    subject: `Pembayaran diterima — ${product?.name ?? "AktifKoding Pro"} (${order.invoiceNo})`,
+    html: emailShell("Pembayaran diterima", body),
+  });
 }
 
 async function grantEntitlements(order: Order): Promise<void> {

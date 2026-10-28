@@ -17,7 +17,8 @@ const ERRORS: Record<string, string> = {
   rate_limited: "Too many sign-in attempts. Try again in a few minutes.",
   email_not_configured:
     "Email delivery isn't configured on this deployment yet — set RESEND_API_KEY to enable sign-in.",
-  email_failed: "Couldn't send the email right now. Try again in a moment.",
+  email_failed:
+    "Email gagal terkirim. Jika Anda pemilik situs: pastikan domain sudah diverifikasi di Resend dan RESEND_FROM di-set ke alamat domain tersebut. Coba lagi beberapa saat.",
   verify_invalid: "That sign-in link is invalid, already used, or expired. Request a new one.",
 };
 

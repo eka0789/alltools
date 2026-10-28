@@ -76,3 +76,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, recipients: recipients.length, sent });
 }
+
+// Vercel Cron mengirim GET — alias ke handler yang sama (sebelumnya hanya
+// POST sehingga cron mingguan gagal 405 diam-diam).
+export const GET = POST;
