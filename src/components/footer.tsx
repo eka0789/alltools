@@ -70,6 +70,7 @@ export function Footer() {
               Contribute
             </h3>
             <ul className="mt-3 space-y-2 text-sm">
+              <li><Link href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing &amp; Sponsors</Link></li>
               <li><Link href="/submit" className="text-muted-foreground hover:text-foreground">Submit a Tool</Link></li>
               <li><Link href="/about" className="text-muted-foreground hover:text-foreground">About &amp; Data Policy</Link></li>
               <li><Link href="/favorites" className="text-muted-foreground hover:text-foreground">Your Shortlist</Link></li>

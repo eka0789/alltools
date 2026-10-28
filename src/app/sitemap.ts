@@ -40,6 +40,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/stacks`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/ai-chat`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/submit`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${base}/pricing`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/about`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
     ...COLLECTIONS.map((c) => ({
       url: `${base}/collections/${c.slug}`,
