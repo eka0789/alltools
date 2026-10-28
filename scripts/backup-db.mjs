@@ -22,7 +22,7 @@ const tables = await db.execute(
 );
 const dump = {
   generatedAt: new Date().toISOString(),
-  tables: {} as Record<string, unknown[]>,
+  tables: {},
 };
 for (const row of tables.rows) {
   const name = String(row.name);
