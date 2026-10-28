@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getCatalog } from "@/lib/data";
 
 export function Footer() {
@@ -11,12 +12,13 @@ export function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <span
-                className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-[13px] font-black text-accent-foreground"
-                aria-hidden
-              >
-                AK
-              </span>
+              <Image
+                src="/logo.png"
+                alt="AktifKoding Logo"
+                width={28}
+                height={28}
+                className="h-7 w-7 rounded-lg object-cover"
+              />
               <span className="text-sm font-semibold">AktifKoding</span>
             </div>
             <p className="mt-3 max-w-xs text-xs leading-relaxed text-muted-foreground">

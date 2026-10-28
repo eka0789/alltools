@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Heart, Search, UserRound } from "lucide-react";
@@ -14,24 +15,27 @@ const LINKS = [
   { href: "/collections", label: "Collections" },
   { href: "/templates", label: "Templates" },
   { href: "/generators", label: "Generators" },
-  { href: "/ai-review", label: "AI Review" },
-  { href: "/stacks", label: "Stacks" },
-  { href: "/about", label: "About" },
+  // Layar lg saja sempit untuk 8 tautan — sisanya muncul di xl.
+  { href: "/ai-review", label: "AI Review", xlOnly: true },
+  { href: "/stacks", label: "Stacks", xlOnly: true },
+  { href: "/about", label: "About", xlOnly: true },
 ];
 
 function Wordmark() {
   return (
-    <Link href="/" className="flex items-center gap-2.5">
-      <span
-        className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-[13px] font-black text-accent-foreground"
-        aria-hidden
-      >
-        AK
-      </span>
+    <Link href="/" className="flex shrink-0 items-center gap-2.5">
+      <Image
+        src="/logo.png"
+        alt="AktifKoding Logo"
+        width={28}
+        height={28}
+        priority
+        className="h-7 w-7 rounded-lg object-cover"
+      />
       <span className="text-[15px] font-semibold tracking-tight">
         AktifKoding
       </span>
-      <span className="hidden rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
+      <span className="hidden rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground md:inline">
         Developer Tools Pro
       </span>
     </Link>
@@ -53,18 +57,20 @@ export function Navbar() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
           <Wordmark />
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden items-center gap-0.5 lg:flex">
             {LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className={`rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground ${
+                  l.xlOnly ? "hidden xl:block" : ""
+                }`}
               >
                 {l.label}
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {/* Global search affordance — the site is search-first, the
                 navbar should say so. Also opens with Ctrl/Cmd+K anywhere. */}
             <button
@@ -99,7 +105,7 @@ export function Navbar() {
               <UserRound className="h-3.5 w-3.5" />
             </Link>
             <ThemeToggle />
-            <Link href="/submit" className="btn-primary hidden sm:inline-flex">
+            <Link href="/submit" className="btn-primary hidden lg:inline-flex">
               Submit Tool
             </Link>
             <button

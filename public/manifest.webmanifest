@@ -1,7 +1,7 @@
 {
-  "name": "AllTools — The Developer Dictionary",
-  "short_name": "AllTools",
-  "description": "Search thousands of curated developer tools, resources and AI services — with glossary, collections and stack guides.",
+  "name": "AktifKoding — Developer Tools Pro",
+  "short_name": "AktifKoding",
+  "description": "Direktori developer tools, generator boilerplate, template proyek, AI code review, dan konfigurasi deployment — dari satu tempat.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -19,9 +19,14 @@
       "description": "Search the full directory"
     },
     {
-      "name": "Glossary",
-      "url": "/glossary",
-      "description": "Developer terms in plain English"
+      "name": "Project Templates",
+      "url": "/templates",
+      "description": "Template proyek siap pakai"
+    },
+    {
+      "name": "AI Code Review",
+      "url": "/ai-review",
+      "description": "Review kode berbantuan AI"
     },
     {
       "name": "Your shortlist",

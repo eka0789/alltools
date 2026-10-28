@@ -44,7 +44,7 @@ export function InviteForm() {
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-col gap-2 sm:flex-row">
       <input
         value={email}
         onChange={(e) => setEmail(e.target.value)}
@@ -52,10 +52,10 @@ export function InviteForm() {
         type="email"
         className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
       />
-      <button type="button" onClick={invite} disabled={busy || !email} className="btn-secondary">
+      <button type="button" onClick={invite} disabled={busy || !email} className="btn-secondary sm:w-auto">
         {busy ? "…" : "Invite"}
       </button>
-      {message && <span className="self-center text-xs text-muted-foreground">{message}</span>}
+      {message && <span className="text-xs text-muted-foreground sm:self-center">{message}</span>}
     </div>
   );
 }

@@ -44,7 +44,7 @@ export function emailShell(title: string, bodyHtml: string): string {
   return `<!doctype html><html><body style="margin:0;background:#f4f4f5;font-family:system-ui,-apple-system,Segoe UI,sans-serif;padding:32px 16px;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid #e4e4e7;overflow:hidden;">
     <div style="padding:20px 24px;border-bottom:1px solid #e4e4e7;">
-      <img src="${siteUrl()}/logo.png" alt="AktifKoding" width="32" height="22" style="vertical-align:middle;border:0;display:inline-block;" />
+      <img src="${siteUrl()}/logo.png" alt="AktifKoding" width="28" height="28" style="vertical-align:middle;border:0;display:inline-block;border-radius:6px;" />
       <span style="font-weight:600;margin-left:8px;color:#18181b;vertical-align:middle;">AktifKoding</span>
     </div>
     <div style="padding:24px;color:#18181b;font-size:14px;line-height:1.6;">

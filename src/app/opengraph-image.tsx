@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { BRAND_LOGO_DATA_URI } from "@/lib/brand-logo-data";
 
 export const alt = "AktifKoding — Developer Tools Pro";
 export const size = { width: 1200, height: 630 };
@@ -22,22 +23,14 @@ export default function RootOgImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div
-            style={{
-              width: 88,
-              height: 88,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 20,
-              background: "#6366f1",
-              color: "#ffffff",
-              fontSize: 44,
-              fontWeight: 800,
-            }}
-          >
-            AK
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={BRAND_LOGO_DATA_URI}
+            width={96}
+            height={96}
+            style={{ objectFit: "cover", borderRadius: 24 }}
+            alt="AktifKoding Logo"
+          />
           <div style={{ fontSize: 56, fontWeight: 800 }}>AktifKoding</div>
         </div>
         <div style={{ fontSize: 34, color: "#818cf8", fontWeight: 600 }}>
