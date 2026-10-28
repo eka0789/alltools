@@ -431,7 +431,7 @@ export function ChatPanel({ variant }: { variant: "page" | "widget" }) {
         </form>
         <p className="mt-2 hidden text-center text-[10px] text-muted-foreground sm:block">
           Answers come straight from the{" "}
-          <span className="font-medium text-foreground/70">AllTools catalog</span> — no external data.
+          <span className="font-medium text-foreground/70">AktifKoding catalog</span> — no external data.
         </p>
       </div>
     </div>

@@ -14,7 +14,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const names = raw ? raw.split(",").join(" + ") : "Custom";
   return {
     title: `${names} Stack Toolbox`,
-    description: `A personalized developer toolbox for a ${names} stack, matched from the AllTools directory.`,
+    description: `A personalized developer toolbox for a ${names} stack, matched from the AktifKoding directory.`,
     robots: { index: false },
   };
 }

@@ -5,7 +5,7 @@ import { getCatalog } from "@/lib/data";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "AllTools is the developer dictionary: an organized, searchable knowledge base of developer tools. Learn about our data policy and principles.",
+    "AktifKoding is the developer dictionary: an organized, searchable knowledge base of developer tools. Learn about our data policy and principles.",
   alternates: { canonical: "/about" },
 };
 
@@ -17,13 +17,13 @@ export default function AboutPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-bold tracking-tight">About AllTools</h1>
+      <h1 className="text-2xl font-bold tracking-tight">About AktifKoding</h1>
       <div className="mt-6 space-y-6 text-sm leading-relaxed text-muted-foreground">
         <p>
           <strong className="text-foreground">
-            AllTools is The Developer Dictionary
+            AktifKoding is Developer Tools Pro
           </strong>{" "}
-          — one search for every developer need. AllTools does not try to
+          — one search for every developer need. AktifKoding does not try to
           rebuild every utility on the internet. Instead, it collects,
           categorizes and points developers to the right existing tool, so the
           answer to <em>“I need a tool to do X — where do I find it?”</em> is
@@ -31,7 +31,7 @@ export default function AboutPage() {
         </p>
 
         <div className="card p-5">
-          <h2 className="text-base font-semibold text-foreground">What AllTools is</h2>
+          <h2 className="text-base font-semibold text-foreground">What AktifKoding is</h2>
           <ul className="mt-3 list-disc space-y-1.5 pl-5">
             <li>A discovery engine and directory for the developer ecosystem.</li>
             <li>
@@ -57,7 +57,7 @@ export default function AboutPage() {
         </div>
 
         <div className="card p-5">
-          <h2 className="text-base font-semibold text-foreground">What AllTools is not</h2>
+          <h2 className="text-base font-semibold text-foreground">What AktifKoding is not</h2>
           <ul className="mt-3 list-disc space-y-1.5 pl-5">
             <li>A clone or re-implementation of the tools it lists.</li>
             <li>

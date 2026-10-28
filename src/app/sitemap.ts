@@ -4,6 +4,7 @@ import { STACKS } from "@/lib/stacks";
 import { COLLECTIONS } from "@/data/collections";
 import { GLOSSARY } from "@/data/glossary";
 import { getSeoLandingPages } from "@/lib/programmatic-seo";
+import { TEMPLATES } from "@/data/templates";
 
 // Revalidate hourly instead of force-dynamic per request: keeps lastModified
 // honest for search engines and avoids treating every crawler hit as fresh.
@@ -39,6 +40,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/tags`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/stacks`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/ai-chat`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${base}/generators`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${base}/generators/boilerplate`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${base}/generators/api-docs`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${base}/generators/deployment`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${base}/ai-review`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${base}/templates`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/submit`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/pricing`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/about`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
@@ -71,6 +78,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(t.updatedAt || latestToolUpdate),
       changeFrequency: "weekly" as const,
       priority: 0.6,
+    })),
+    ...TEMPLATES.map((t) => ({
+      url: `${base}/templates/${t.slug}`,
+      lastModified: catalogDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
     })),
     ...STACKS.map((s) => ({
       url: `${base}/stacks/${s.slug}`,

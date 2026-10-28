@@ -9,14 +9,14 @@ export const dynamic = "force-dynamic";
 
 // Minimal stateless MCP (Model Context Protocol) server over Streamable
 // HTTP. Lets Claude Desktop, Cursor, Cline and other MCP clients query the
-// AllTools catalog and glossary directly from the IDE. JSON-RPC 2.0 wire
+// AktifKoding catalog and glossary directly from the IDE. JSON-RPC 2.0 wire
 // format, plain-JSON responses (the spec allows completing a request with
 // application/json when no streaming is needed).
 
 const PROTOCOL_VERSION = "2025-06-18";
 const SERVER_INFO = {
   name: "alltools",
-  title: "AllTools — The Developer Dictionary",
+  title: "AktifKoding — Developer Tools Pro",
   version: "1.0.0",
 };
 
@@ -45,7 +45,7 @@ const TOOL_DEFS = [
   {
     name: "search_tools",
     description:
-      "Search the AllTools catalog of 800+ curated developer tools. Supports fuzzy matching, synonyms and task-based queries like 'test rest api' or 'convert json to typescript'.",
+      "Search the AktifKoding catalog of 800+ curated developer tools. Supports fuzzy matching, synonyms and task-based queries like 'test rest api' or 'convert json to typescript'.",
     inputSchema: {
       type: "object",
       properties: {
@@ -75,7 +75,7 @@ const TOOL_DEFS = [
   {
     name: "lookup_term",
     description:
-      "Look up a developer term in the AllTools glossary (e.g. 'ORM', 'ACID', 'SSR') and get a plain-English definition.",
+      "Look up a developer term in the AktifKoding glossary (e.g. 'ORM', 'ACID', 'SSR') and get a plain-English definition.",
     inputSchema: {
       type: "object",
       properties: { term: { type: "string", description: "Term to define, e.g. 'ORM'" } },
@@ -140,7 +140,7 @@ function callTool(name: string, args: Record<string, unknown>) {
     const lines = catalog.categories
       .filter((c) => c.toolCount > 0)
       .map((c) => `- ${c.name} (${c.slug}): ${c.toolCount} tools`);
-    return textContent(`AllTools catalog — ${catalog.total} tools in ${catalog.categories.length} categories:\n\n${lines.join("\n")}`);
+    return textContent(`AktifKoding catalog — ${catalog.total} tools in ${catalog.categories.length} categories:\n\n${lines.join("\n")}`);
   }
 
   if (name === "lookup_term") {

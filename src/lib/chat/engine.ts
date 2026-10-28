@@ -653,11 +653,11 @@ function recommendReply(
   const topicPart = topic ? `${connector}**${topic}**` : "";
   const lead = id
     ? langMention
-      ? `Ini rekomendasi tools terbaik dari katalog AllTools${topicPart} — disesuaikan dengan preferensi **${langMention.name}** kamu:`
-      : `Ini rekomendasi tools terbaik dari katalog AllTools${topicPart}:`
+      ? `Ini rekomendasi tools terbaik dari katalog AktifKoding${topicPart} — disesuaikan dengan preferensi **${langMention.name}** kamu:`
+      : `Ini rekomendasi tools terbaik dari katalog AktifKoding${topicPart}:`
     : langMention
-      ? `Here are the best tool picks from the AllTools catalog${topicPart} — matched to your **${langMention.name}** preference:`
-      : `Here are the best tool picks from the AllTools catalog${topicPart}:`;
+      ? `Here are the best tool picks from the AktifKoding catalog${topicPart} — matched to your **${langMention.name}** preference:`
+      : `Here are the best tool picks from the AktifKoding catalog${topicPart}:`;
 
   const topCat = tools[0].categorySlug;
   const links: ChatLink[] = [
@@ -702,12 +702,12 @@ function stackReply(text: string, langs: string[], rl: ChatLang): ChatResponse {
     ? [
         `Untuk membangun **${domainLabel[domain].id}**${lang ? ` dengan **${lang.name}**` : ""}, ini kombinasi stack yang populer dan terbukti:`,
         bullets.map((l) => `- ${l}`).join("\n"),
-        "Tools di bawah adalah titik mulai dari katalog AllTools — jelajahi stack lengkapnya lewat tombol di bawah 👇",
+        "Tools di bawah adalah titik mulai dari katalog AktifKoding — jelajahi stack lengkapnya lewat tombol di bawah 👇",
       ].join("\n\n")
     : [
         `For building **${domainLabel[domain].en}**${lang ? ` with **${lang.name}**` : ""}, here's a popular, proven stack:`,
         bullets.map((l) => `- ${l}`).join("\n"),
-        "The tools below are starting points from the AllTools catalog — explore the full stack via the button below 👇",
+        "The tools below are starting points from the AktifKoding catalog — explore the full stack via the button below 👇",
       ].join("\n\n");
 
   const stackSlug = lang?.stackSlug ?? careerBySlug(plan.career)?.stackSlug;
@@ -749,7 +749,7 @@ function helpReply(rl: ChatLang): ChatResponse {
           "- **Kamus bahasa** → *\"apa itu Rust?\"*, *\"TypeScript vs JavaScript\"*",
           "- **Rekomendasi stack** → *\"stack untuk bikin aplikasi mobile\"*",
         ].join("\n"),
-        "Semua jawaban diambil langsung dari katalog AllTools, jadi rekomendasinya selalu sinkron dengan data terbaru.",
+        "Semua jawaban diambil langsung dari katalog AktifKoding, jadi rekomendasinya selalu sinkron dengan data terbaru.",
       ].join("\n\n")
     : [
         "I can help with 4 things 🧠",
@@ -759,7 +759,7 @@ function helpReply(rl: ChatLang): ChatResponse {
           "- **Language dictionary** → *\"what is Rust?\"*, *\"TypeScript vs JavaScript\"*",
           "- **Stack suggestions** → *\"stack for a mobile app\"*",
         ].join("\n"),
-        "Every answer is drawn straight from the AllTools catalog, so recommendations always match the latest data.",
+        "Every answer is drawn straight from the AktifKoding catalog, so recommendations always match the latest data.",
       ].join("\n\n");
 
   const chips = id
@@ -804,7 +804,7 @@ function fallbackReply(text: string, topicQuery: string, rl: ChatLang): ChatResp
       ? [
           "Wah, aku belum paham pertanyaannya. 🤔 Aku paling jago soal:",
           [
-            "- 🧭 Rekomendasi **tools** dari katalog AllTools",
+            "- 🧭 Rekomendasi **tools** dari katalog AktifKoding",
             "- 🎯 **Profesi** developer & roadmap belajar",
             "- 📚 **Kamus** bahasa pemrograman",
             "- 🧱 Rekomendasi **stack**",
@@ -814,7 +814,7 @@ function fallbackReply(text: string, topicQuery: string, rl: ChatLang): ChatResp
       : [
           "Hmm, I didn't quite get that. 🤔 I'm best at:",
           [
-            "- 🧭 **Tool** recommendations from the AllTools catalog",
+            "- 🧭 **Tool** recommendations from the AktifKoding catalog",
             "- 🎯 Developer **careers** & learning roadmaps",
             "- 📚 Programming language **dictionary**",
             "- 🧱 **Stack** suggestions",

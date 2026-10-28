@@ -1,6 +1,6 @@
 import type { SeedCategory } from "./types";
 
-// Taxonomy for AllTools. `home: true` categories appear on the homepage
+// Taxonomy for AktifKoding. `home: true` categories appear on the homepage
 // "Browse Categories" grid in homeOrder sequence.
 export const CATEGORIES: SeedCategory[] = [
   {

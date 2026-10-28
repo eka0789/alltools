@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { getCatalog } from "@/lib/data";
 
 export function Footer() {
@@ -12,22 +11,22 @@ export function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <Image
-                src="/logo.png"
-                alt="AllTools Logo"
-                width={32}
-                height={22}
-                className="h-6 w-auto object-contain"
-              />
-              <span className="text-sm font-semibold">AllTools</span>
+              <span
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-[13px] font-black text-accent-foreground"
+                aria-hidden
+              >
+                AK
+              </span>
+              <span className="text-sm font-semibold">AktifKoding</span>
             </div>
             <p className="mt-3 max-w-xs text-xs leading-relaxed text-muted-foreground">
-              The Developer Dictionary. {total.toLocaleString()} developer tools,
-              resources and AI services — searchable from one place.
+              Developer Tools Pro. {total.toLocaleString()} developer tools
+              plus premium generators, templates and AI code review — from one
+              place.
             </p>
             <p className="mt-3 text-xs text-muted-foreground">
-              AllTools is a directory. All tools belong to their respective
-              owners.
+              The directory is community data. All tools belong to their
+              respective owners.
             </p>
           </div>
           <div>
@@ -53,14 +52,18 @@ export function Footer() {
             </h3>
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link href="/best" className="text-muted-foreground hover:text-foreground">Best Tools Guides</Link></li>
+              <li><Link href="/templates" className="text-muted-foreground hover:text-foreground">Project Templates</Link></li>
+              <li><Link href="/generators/boilerplate" className="text-muted-foreground hover:text-foreground">Boilerplate Generator</Link></li>
+              <li><Link href="/generators/api-docs" className="text-muted-foreground hover:text-foreground">API Docs Builder</Link></li>
+              <li><Link href="/generators/deployment" className="text-muted-foreground hover:text-foreground">Deployment Config Generator</Link></li>
+              <li><Link href="/ai-review" className="text-muted-foreground hover:text-foreground">AI Code Review</Link></li>
               <li><Link href="/ai-chat" className="text-muted-foreground hover:text-foreground">DevDict AI Chat</Link></li>
               <li><Link href="/glossary" className="text-muted-foreground hover:text-foreground">Developer Glossary</Link></li>
               <li><Link href="/whats-new" className="text-muted-foreground hover:text-foreground">What&apos;s New</Link></li>
-              <li><Link href="/developers" className="text-muted-foreground hover:text-foreground">Public API &amp; MCP</Link></li>
+              <li><Link href="/developers" className="text-muted-foreground hover:text-foreground">Public API & MCP</Link></li>
               <li><Link href="/stacks" className="text-muted-foreground hover:text-foreground">Stack Explorer</Link></li>
               <li><Link href="/collections" className="text-muted-foreground hover:text-foreground">Collections</Link></li>
               <li><Link href="/tags" className="text-muted-foreground hover:text-foreground">Browse by Tag</Link></li>
-              <li><Link href="/tools" className="text-muted-foreground hover:text-foreground">All Tools</Link></li>
               <li><Link href="/search" className="text-muted-foreground hover:text-foreground">Search</Link></li>
               <li><Link href="/categories" className="text-muted-foreground hover:text-foreground">All Categories</Link></li>
             </ul>
@@ -80,7 +83,7 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
-          <span>© {new Date().getFullYear()} AllTools. Not affiliated with any listed tool.</span>
+          <span>© {new Date().getFullYear()} AktifKoding. Not affiliated with any listed tool.</span>
           <span>Find the Right Tool. Build Faster.</span>
         </div>
       </div>

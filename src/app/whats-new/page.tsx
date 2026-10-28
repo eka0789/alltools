@@ -14,7 +14,7 @@ export const revalidate = 120;
 export const metadata: Metadata = {
   title: "What's New — Latest Additions",
   description:
-    "The newest tools added to the AllTools catalog — fresh additions across every category, reviewed and verified.",
+    "The newest tools added to the AktifKoding catalog — fresh additions across every category, reviewed and verified.",
   alternates: { canonical: "/whats-new" },
 };
 

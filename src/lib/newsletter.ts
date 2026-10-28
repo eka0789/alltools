@@ -52,10 +52,10 @@ async function sendConfirmation(email: string, rawToken: string): Promise<boolea
   const url = `${siteUrl()}/api/newsletter/confirm?token=${encodeURIComponent(rawToken)}`;
   const result = await sendEmail({
     to: email,
-    subject: "Confirm your AllTools weekly digest",
+    subject: "Confirm your AktifKoding weekly digest",
     html: emailShell(
       "One click to confirm",
-      `<p>You asked for the AllTools weekly digest: the newest curated tools and what the community is opening, once a week. No noise.</p>
+      `<p>You asked for the AktifKoding weekly digest: the newest curated tools and what the community is opening, once a week. No noise.</p>
        <p style="margin:20px 0;">${actionButton(url, "Confirm subscription")}</p>
        <p style="color:#71717a;font-size:12px;">Every issue has a one-click unsubscribe.</p>`,
     ),

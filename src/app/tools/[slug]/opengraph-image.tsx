@@ -3,7 +3,7 @@ import { getToolBySlug } from "@/lib/data";
 import { PRICING_LABEL } from "@/data/types";
 import { OgCard } from "@/components/og-card";
 
-export const alt = "AllTools — developer tool";
+export const alt = "AktifKoding — developer tool";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -36,9 +36,9 @@ export default async function ToolOgImage({
   return new ImageResponse(
     (
       <OgCard
-        brandTagline="AllTools — The Developer Dictionary"
-        title={tool?.name ?? "AllTools"}
-        subtitle={tool?.categoryName ?? "The Developer Dictionary"}
+        brandTagline="AktifKoding — Developer Tools Pro"
+        title={tool?.name ?? "AktifKoding"}
+        subtitle={tool?.categoryName ?? "Developer Tools Pro"}
         chips={chips}
         description={
           tool?.description ??

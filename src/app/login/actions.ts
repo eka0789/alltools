@@ -29,7 +29,7 @@ export async function requestMagicLinkAction(formData: FormData) {
   if (emailConfigured()) {
     const result = await sendEmail({
       to: email,
-      subject: "Sign in to AllTools",
+      subject: "Sign in to AktifKoding",
       html: emailShell(
         "Your sign-in link",
         `<p>Click the button below to sign in as <strong>${email}</strong>. The link works once and expires in 15 minutes.</p>

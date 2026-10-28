@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Heart, Search, UserRound } from "lucide-react";
@@ -13,28 +12,27 @@ const LINKS = [
   { href: "/categories", label: "Categories" },
   { href: "/glossary", label: "Glossary" },
   { href: "/collections", label: "Collections" },
-  { href: "/search?category=ai", label: "AI Tools" },
+  { href: "/templates", label: "Templates" },
+  { href: "/generators", label: "Generators" },
+  { href: "/ai-review", label: "AI Review" },
   { href: "/stacks", label: "Stacks" },
-  { href: "/ai-chat", label: "AI Chat" },
   { href: "/about", label: "About" },
 ];
 
 function Wordmark() {
   return (
     <Link href="/" className="flex items-center gap-2.5">
-      <Image
-        src="/logo.png"
-        alt="AllTools Logo"
-        width={36}
-        height={25}
-        priority
-        className="h-7 w-auto object-contain"
-      />
+      <span
+        className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-[13px] font-black text-accent-foreground"
+        aria-hidden
+      >
+        AK
+      </span>
       <span className="text-[15px] font-semibold tracking-tight">
-        AllTools
+        AktifKoding
       </span>
       <span className="hidden rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
-        The Developer Dictionary
+        Developer Tools Pro
       </span>
     </Link>
   );

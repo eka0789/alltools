@@ -6,7 +6,7 @@ import { getCatalog } from "@/lib/data";
 export const metadata: Metadata = {
   title: "Browse All Categories",
   description:
-    "Explore the full AllTools taxonomy: programming languages, frontend, backend, API, database, DevOps, cloud, security, AI, design, testing and more.",
+    "Explore the full AktifKoding taxonomy: programming languages, frontend, backend, API, database, DevOps, cloud, security, AI, design, testing and more.",
   alternates: { canonical: "/categories" },
 };
 
@@ -19,7 +19,7 @@ export default function CategoriesPage() {
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="text-2xl font-bold tracking-tight">Browse Categories</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Every tool in AllTools belongs to a clear category. Pick one to explore.
+        Every tool in AktifKoding belongs to a clear category. Pick one to explore.
       </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map((cat) => (

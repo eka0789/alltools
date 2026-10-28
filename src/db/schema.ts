@@ -221,6 +221,116 @@ export const subscribers = sqliteTable("subscribers", {
   createdAt: integer("created_at").notNull(),
 });
 
+// ── AktifKoding Pro: monetization ────────────────────────────────────────
+// Products are static in src/lib/products.ts (code-defined catalog — no
+// admin CRUD needed); orders/entitlements record what a user bought and
+// what they may use. DOKU payments land here via the webhook.
+
+// One row per checkout attempt. status: pending | paid | expired | failed.
+// Amount stored in whole rupiah (IDR has no minor units in practice).
+export const orders = sqliteTable(
+  "orders",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    invoiceNo: text("invoice_no").notNull().unique(), // AK-YYYYMMDD-xxxx
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: text("product_id").notNull(), // key in src/lib/products.ts
+    amount: integer("amount").notNull(), // IDR
+    status: text("status").notNull().default("pending"),
+    provider: text("provider").notNull().default("doku"),
+    paymentUrl: text("payment_url"), // DOKU payment page redirect
+    paidAt: integer("paid_at"),
+    // Raw DOKU notification payload for reconciliation/audit.
+    providerPayload: text("provider_payload"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [index("orders_user_idx").on(t.userId), index("orders_status_idx").on(t.status)],
+);
+
+// What a user may access. product_id is either the product key or the
+// wildcard "pro_all" (lifetime). Team purchases create one row per seat.
+export const entitlements = sqliteTable(
+  "entitlements",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: text("product_id").notNull(), // product key or "pro_all"
+    orderId: integer("order_id").references(() => orders.id),
+    teamId: integer("team_id").references(() => teams.id),
+    createdAt: integer("created_at").notNull(),
+    revokedAt: integer("revoked_at"),
+  },
+  (t) => [index("entitlements_user_idx").on(t.userId, t.productId)],
+);
+
+// Teams: a Team purchase creates one team; the buyer is the owner.
+export const teams = sqliteTable("teams", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  ownerUserId: integer("owner_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  seats: integer("seats").notNull().default(5),
+  createdAt: integer("created_at").notNull(),
+});
+
+// Membership join table. role: owner | member. The owner seat counts toward
+// seats.
+export const teamMembers = sqliteTable(
+  "team_members",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("team_members_unique").on(t.teamId, t.userId)],
+);
+
+// AI code-review usage for quota enforcement. One row per review request;
+// anonymous users get a cookie anon id (no user row).
+export const aiUsage = sqliteTable(
+  "ai_usage",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+    anonId: text("anon_id"), // cookie id when not signed in
+    kind: text("kind").notNull().default("review"), // review | docs_ai
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    index("ai_usage_user_idx").on(t.userId, t.createdAt),
+    index("ai_usage_anon_idx").on(t.anonId, t.createdAt),
+  ],
+);
+
+// Pending team invites: owner adds an email; when that email first signs in
+// the invite is auto-accepted (redeemMagicToken → acceptTeamInvites) and a
+// teamMembers row is created.
+export const teamInvites = sqliteTable(
+  "team_invites",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    createdAt: integer("created_at").notNull(),
+    acceptedAt: integer("accepted_at"),
+  },
+  (t) => [index("team_invites_email_idx").on(t.email), index("team_invites_team_idx").on(t.teamId)],
+);
+
 export type Tool = typeof tools.$inferSelect;
 export type NewTool = typeof tools.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -235,3 +345,8 @@ export type Session = typeof sessions.$inferSelect;
 export type AuthToken = typeof authTokens.$inferSelect;
 export type UserList = typeof userLists.$inferSelect;
 export type Subscriber = typeof subscribers.$inferSelect;
+export type Order = typeof orders.$inferSelect;
+export type Entitlement = typeof entitlements.$inferSelect;
+export type Team = typeof teams.$inferSelect;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type AiUsage = typeof aiUsage.$inferSelect;

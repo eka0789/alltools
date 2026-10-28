@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: collection.description,
     alternates: { canonical: `/collections/${collection.slug}` },
     openGraph: {
-      title: `${collection.emoji} ${collection.title} — AllTools`,
+      title: `${collection.emoji} ${collection.title} — AktifKoding`,
       description: collection.tagline,
     },
   };

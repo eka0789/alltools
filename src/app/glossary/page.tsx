@@ -24,7 +24,7 @@ export default function GlossaryPage() {
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           {GLOSSARY.length} terms, defined in plain English — what it means, why it
-          matters, and the tools behind it. The dictionary half of AllTools.
+          matters, and the tools behind it. The dictionary half of AktifKoding.
         </p>
       </header>
 

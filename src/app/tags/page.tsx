@@ -8,7 +8,7 @@ export const revalidate = 120;
 export const metadata: Metadata = {
   title: "Browse by Tag",
   description:
-    "Explore the AllTools catalog by tag: trending, AI, open-source, API, testing, design and hundreds more thematic groupings.",
+    "Explore the AktifKoding catalog by tag: trending, AI, open-source, API, testing, design and hundreds more thematic groupings.",
   alternates: { canonical: "/tags" },
 };
 

@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { getCatalog } from "@/lib/data";
 import { OgCard } from "@/components/og-card";
 
-export const alt = "AllTools — curated tools in this category";
+export const alt = "AktifKoding — curated tools in this category";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -17,9 +17,9 @@ export default async function CategoryOgImage({
   return new ImageResponse(
     (
       <OgCard
-        brandTagline="AllTools — The Developer Dictionary"
-        title={cat?.name ?? "AllTools"}
-        subtitle={cat ? "Category" : "The Developer Dictionary"}
+        brandTagline="AktifKoding — Developer Tools Pro"
+        title={cat?.name ?? "AktifKoding"}
+        subtitle={cat ? "Category" : "Developer Tools Pro"}
         chips={cat ? [`${cat.toolCount} curated tools`] : undefined}
         description={
           cat?.description ??

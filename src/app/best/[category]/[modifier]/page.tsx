@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: page.metaDescription,
     alternates: { canonical: page.url },
     openGraph: {
-      title: `${page.title} — AllTools`,
+      title: `${page.title} — AktifKoding`,
       description: page.metaDescription,
       url: page.url,
       type: "website",

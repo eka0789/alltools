@@ -60,7 +60,7 @@ export default function FavoritesPage() {
           ? (data as { favorites: unknown[] }).favorites
           : null;
       if (!list) {
-        setImportMsg("That file doesn't look like an AllTools favorites export.");
+        setImportMsg("That file doesn't look like an AktifKoding favorites export.");
         return;
       }
       const imported = list.filter((s): s is string => typeof s === "string");

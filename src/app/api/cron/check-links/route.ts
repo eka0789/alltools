@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
           signal: controller.signal,
           headers: {
             "User-Agent":
-              "Mozilla/5.0 (compatible; AllToolsLinkChecker/1.0; +directory link verification)",
+              "Mozilla/5.0 (compatible; AktifKodingLinkChecker/1.0; +directory link verification)",
             Accept: "text/html,*/*;q=0.8",
           },
         });

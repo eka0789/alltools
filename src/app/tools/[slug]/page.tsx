@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: tool.description,
     alternates: { canonical: `/tools/${tool.slug}` },
     openGraph: {
-      title: `${tool.name} — AllTools`,
+      title: `${tool.name} — AktifKoding`,
       description: tool.description,
       type: "website",
       url: `/tools/${tool.slug}`,
@@ -210,7 +210,7 @@ export default async function ToolPage({ params }: Props) {
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <p className="flex items-center gap-1.5">
           <Link2 className="h-3 w-3" />
-          AllTools is a directory — this link opens the official {tool.name} website.
+          AktifKoding is a directory — this link opens the official {tool.name} website.
           {tool.verified ? (
             <span className="inline-flex items-center gap-1 text-success">
               <CheckCircle2 className="h-3 w-3" />

@@ -6,7 +6,7 @@ import SubmitForm from "./submit-form";
 export const metadata: Metadata = {
   title: "Submit a Tool",
   description:
-    "Submit a developer tool to the AllTools directory. Reviewed by a moderator before publishing.",
+    "Submit a developer tool to the AktifKoding directory. Reviewed by a moderator before publishing.",
   alternates: { canonical: "/submit" },
 };
 

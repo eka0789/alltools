@@ -6,7 +6,7 @@ import { signOutAction, requestMagicLinkAction } from "./actions";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to AllTools to sync your shortlist across devices — passwordless, email only.",
+  description: "Sign in to AktifKoding to sync your shortlist across devices — passwordless, email only.",
   robots: { index: false },
 };
 
@@ -34,7 +34,7 @@ export default async function LoginPage({
     <div className="mx-auto max-w-md px-4 py-16">
       <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
         <LogIn className="h-6 w-6 text-accent" />
-        {user ? "You're signed in" : "Sign in to AllTools"}
+        {user ? "You're signed in" : "Sign in to AktifKoding"}
       </h1>
 
       {user ? (
@@ -45,7 +45,7 @@ export default async function LoginPage({
           </p>
           <p className="text-sm text-muted-foreground">
             Your shortlist and compare list sync to this account automatically —
-            open AllTools on another device, sign in, and they&apos;ll be there.
+            open AktifKoding on another device, sign in, and they&apos;ll be there.
           </p>
           <div className="flex gap-2">
             <Link href="/favorites" className="btn-primary">Your shortlist</Link>

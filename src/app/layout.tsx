@@ -13,8 +13,8 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "AllTools — The Developer Dictionary",
-    template: "%s | AllTools",
+    default: "AktifKoding — Developer Tools Pro",
+    template: "%s | AktifKoding",
   },
   description:
     "Search hundreds of curated developer tools, resources, services, documentation and AI tools. One search for every developer need.",
@@ -34,8 +34,8 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     type: "website",
-    siteName: "AllTools",
-    title: "AllTools — The Developer Dictionary",
+    siteName: "AktifKoding",
+    title: "AktifKoding — Developer Tools Pro",
     description:
       "Everything developers need, in one place. Search hundreds of curated tools, resources and AI services.",
     url: siteUrl,

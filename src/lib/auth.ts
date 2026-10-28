@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "crypto";
 import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import { authTokens, sessions, users, userLists } from "@/db/schema";
+import { acceptPendingInvitesForUser } from "@/lib/entitlements";
 
 // Passwordless accounts. No password column exists anywhere: a magic link
 // proves email ownership once, then an opaque session token (stored as a
@@ -79,6 +80,13 @@ export async function redeemMagicToken(rawToken: string): Promise<string | null>
     createdAt: now,
     expiresAt: now + SESSION_TTL_MS,
   });
+
+  // Tim: undangan yang cocok dengan email ini otomatis diterima saat login.
+  try {
+    await acceptPendingInvitesForUser(token.email);
+  } catch {
+    // Jangan pernah gagalkan login karena proses invite.
+  }
   return sessionToken;
 }
 

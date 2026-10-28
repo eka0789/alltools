@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: term.short,
     alternates: { canonical: `/glossary/${term.slug}` },
     openGraph: {
-      title: `What is ${term.term}? — AllTools Glossary`,
+      title: `What is ${term.term}? — AktifKoding Glossary`,
       description: term.short,
       type: "article",
       url: `/glossary/${term.slug}`,
@@ -53,7 +53,7 @@ export default async function GlossaryTermPage({ params }: Props) {
     name: term.term,
     description: term.definition,
     url: `/glossary/${term.slug}`,
-    inDefinedTermSet: { "@type": "DefinedTermSet", name: "AllTools Developer Glossary", url: "/glossary" },
+    inDefinedTermSet: { "@type": "DefinedTermSet", name: "AktifKoding Developer Glossary", url: "/glossary" },
   };
 
   return (

@@ -9,7 +9,7 @@ export const revalidate = 120;
 export const metadata: Metadata = {
   title: "Curated Collections",
   description:
-    "Starter packs for developers: frontend essentials, backend & API, AI/LLM toolkits, DevOps, data & analytics — curated from the AllTools catalog.",
+    "Starter packs for developers: frontend essentials, backend & API, AI/LLM toolkits, DevOps, data & analytics — curated from the AktifKoding catalog.",
   alternates: { canonical: "/collections" },
 };
 

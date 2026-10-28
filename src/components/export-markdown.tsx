@@ -11,7 +11,7 @@ export interface ExportItem {
 }
 
 // Copy/download a stack or collection as a shareable Markdown list. The
-// footer link makes pasted lists carry attribution back to AllTools.
+// footer link makes pasted lists carry attribution back to AktifKoding.
 export function ExportMarkdown({
   title,
   tagline,
@@ -27,7 +27,7 @@ export function ExportMarkdown({
     const lines: string[] = [`# ${title}`];
     if (tagline) lines.push("", `> ${tagline}`);
     lines.push("", ...items.map((t) => `- [${t.name}](${t.url})${t.installCommand ? ` — \`${t.installCommand}\`` : ""}`));
-    lines.push("", `---`, `*Generated from [AllTools — The Developer Dictionary](${baseUrl()}${basePath})*`);
+    lines.push("", `---`, `*Generated from [AktifKoding — Developer Tools Pro](${baseUrl()}${basePath})*`);
     return lines.join("\n");
   };
 

@@ -19,8 +19,8 @@ function systemPrompt(base: ChatResponse, toolNames: string[]): string {
   const id = base.responseLang === "id";
   return [
     id
-      ? "Kamu adalah DevDict AI, asisten Developer Dictionary dari situs direktori AllTools."
-      : "You are DevDict AI, the Developer Dictionary assistant of the AllTools directory site.",
+      ? "Kamu adalah DevDict AI, asisten Developer Dictionary dari situs direktori AktifKoding."
+      : "You are DevDict AI, the Developer Dictionary assistant of the AktifKoding directory site.",
     id
       ? "Gaya: ramah, ringkas, membantu. Jawab HANYA dalam Bahasa Indonesia."
       : "Style: friendly, concise, helpful. Reply in ENGLISH only.",

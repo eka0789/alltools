@@ -68,8 +68,8 @@ export async function POST(req: NextRequest) {
   for (const email of recipients) {
     const result = await sendEmail({
       to: email,
-      subject: "AllTools weekly — new tools & what developers are opening",
-      html: emailShell("This week on AllTools", `${popularHtml}${newHtml}`),
+      subject: "AktifKoding weekly — new tools & what developers are opening",
+      html: emailShell("This week on AktifKoding", `${popularHtml}${newHtml}`),
     });
     if (result.ok) sent += 1;
   }

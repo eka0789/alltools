@@ -82,7 +82,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-2xl text-center">
             <p className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
               <Sparkles className="h-3 w-3 text-accent" />
-              The Developer Dictionary
+              Developer Tools Pro
             </p>
             <h1 className="mt-5 text-4xl font-bold tracking-tight sm:text-5xl">
               Everything Developers Need,{" "}
@@ -107,16 +107,33 @@ export default function HomePage() {
               {total.toLocaleString()} curated tools · {categories.length}{" "}
               categories · link health checked automatically
             </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <Link href="/templates" className="chip">
+                📦 Project Templates
+              </Link>
+              <Link href="/generators/boilerplate" className="chip">
+                🚀 Boilerplate Generator
+              </Link>
+              <Link href="/generators/api-docs" className="chip">
+                📚 API Docs Builder
+              </Link>
+              <Link href="/ai-review" className="chip">
+                🤖 AI Code Review
+              </Link>
+              <Link href="/generators/deployment" className="chip">
+                ⚙️ Deploy Config
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Popular on AllTools — real outbound clicks; hidden until there is
+      {/* Popular on AktifKoding — real outbound clicks; hidden until there is
           honest click data, so a fresh deployment doesn't fake it. */}
       {popular.length >= 4 && (
         <section className="mx-auto max-w-6xl px-4 pt-12">
           <SectionHeading
-            title="Popular on AllTools"
+            title="Popular on AktifKoding"
             href="/tools?sort=popular"
             linkLabel="See all popular"
           />

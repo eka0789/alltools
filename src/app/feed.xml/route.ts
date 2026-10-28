@@ -39,7 +39,7 @@ export async function GET(req: Request) {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>AllTools — The Developer Dictionary</title>
+    <title>AktifKoding — Developer Tools Pro</title>
     <link>${base}</link>
     <atom:link href="${base}/feed.xml" rel="self" type="application/rss+xml" />
     <description>Newest of ${total} curated developer tools, resources and AI services. Curated collections: ${COLLECTIONS.map((c) => c.title).join(", ")}.</description>

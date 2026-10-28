@@ -45,7 +45,7 @@ export function welcomeReply(lang: ChatLang, greeting?: string): ChatResponse {
     intent: "greeting",
     responseLang: lang,
     reply: [
-      `${hello} 👋 ${id ? "Aku" : "I'm"} **DevDict AI** — ${id ? "asisten Developer Dictionary dari AllTools" : "the AllTools Developer Dictionary assistant"}.`,
+      `${hello} 👋 ${id ? "Aku" : "I'm"} **DevDict AI** — ${id ? "asisten Developer Dictionary dari AktifKoding" : "the AktifKoding Developer Dictionary assistant"}.`,
       FEATURES[lang],
       id
         ? "Mau mulai dari mana? Ketuk salah satu di bawah, atau langsung tanya. 😄"

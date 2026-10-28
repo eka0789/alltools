@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `The essential developer toolbox for a ${stack.name} stack: ${stack.description}`,
     alternates: { canonical: `/stacks/${stack.slug}` },
     openGraph: {
-      title: `${stack.name} Stack — AllTools`,
+      title: `${stack.name} Stack — AktifKoding`,
       description: `The essential developer toolbox for a ${stack.name} stack: ${stack.description}`,
       url: `/stacks/${stack.slug}`,
     },
@@ -76,7 +76,7 @@ export default async function StackPage({ params }: Props) {
             {stack.name} Stack Toolbox
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            {stack.description} Tools below are matched from the AllTools directory
+            {stack.description} Tools below are matched from the AktifKoding directory
             by tags, languages and frameworks.
           </p>
         </div>

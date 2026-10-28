@@ -3,7 +3,7 @@ import { COLLECTIONS } from "@/data/collections";
 import { getToolBySlug } from "@/lib/data";
 import { OgCard, ogTruncate } from "@/components/og-card";
 
-export const alt = "AllTools — curated collection";
+export const alt = "AktifKoding — curated collection";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -23,9 +23,9 @@ export default async function CollectionOgImage({
   return new ImageResponse(
     (
       <OgCard
-        brandTagline="AllTools — The Developer Dictionary"
-        title={collection ? `${collection.emoji} ${collection.title}` : "AllTools"}
-        subtitle={collection ? "Curated Collection" : "The Developer Dictionary"}
+        brandTagline="AktifKoding — Developer Tools Pro"
+        title={collection ? `${collection.emoji} ${collection.title}` : "AktifKoding"}
+        subtitle={collection ? "Curated Collection" : "Developer Tools Pro"}
         chips={collection ? [`${toolCount} hand-picked tools`] : undefined}
         description={
           collection

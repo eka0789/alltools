@@ -54,7 +54,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("Seeding AllTools database...");
+  console.log("Seeding AktifKoding database...");
 
   // Tools created via the admin panel (slugs outside the seed set) are
   // captured before the wipe and re-inserted after — `--reset` replaces the

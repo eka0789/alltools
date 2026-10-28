@@ -7,7 +7,7 @@ import { getCatalog } from "@/lib/data";
 export const metadata: Metadata = {
   title: "All Developer Tools",
   description:
-    "Browse the full AllTools directory: API tools, formatters, databases, DevOps, AI coding tools, design utilities and more.",
+    "Browse the full AktifKoding directory: API tools, formatters, databases, DevOps, AI coding tools, design utilities and more.",
   alternates: { canonical: "/tools" },
 };
 

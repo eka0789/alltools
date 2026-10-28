@@ -1,7 +1,6 @@
 import { ImageResponse } from "next/og";
-import { BRAND_LOGO_DATA_URI } from "@/lib/brand-logo-data";
 
-export const alt = "AllTools — The Developer Dictionary";
+export const alt = "AktifKoding — Developer Tools Pro";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -23,21 +22,29 @@ export default function RootOgImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={BRAND_LOGO_DATA_URI}
-            width={104}
-            height={72}
-            style={{ objectFit: "contain" }}
-            alt="AllTools Logo"
-          />
-          <div style={{ fontSize: 56, fontWeight: 800 }}>AllTools</div>
+          <div
+            style={{
+              width: 88,
+              height: 88,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 20,
+              background: "#6366f1",
+              color: "#ffffff",
+              fontSize: 44,
+              fontWeight: 800,
+            }}
+          >
+            AK
+          </div>
+          <div style={{ fontSize: 56, fontWeight: 800 }}>AktifKoding</div>
         </div>
         <div style={{ fontSize: 34, color: "#818cf8", fontWeight: 600 }}>
-          Everything developers need, in one place
+          Developer Tools Pro — build faster, ship sooner
         </div>
         <div style={{ fontSize: 24, color: "#94a3b8" }}>
-          Tools · Resources · AI services · Curated collections
+          Direktori tools · Generator · Template · AI code review
         </div>
       </div>
     ),

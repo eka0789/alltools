@@ -7,7 +7,7 @@ import { Compass, GraduationCap, Layers } from "lucide-react";
 export const metadata: Metadata = {
   title: "AI Chat — DevDict AI",
   description:
-    "Ask DevDict AI anything: developer tool recommendations, career guidance based on your favorite programming language, a programming language dictionary, and stack suggestions. Accurate answers drawn straight from the AllTools catalog.",
+    "Ask DevDict AI anything: developer tool recommendations, career guidance based on your favorite programming language, a programming language dictionary, and stack suggestions. Accurate answers drawn straight from the AktifKoding catalog.",
   alternates: { canonical: "/ai-chat" },
 };
 
@@ -56,7 +56,7 @@ export default function AiChatPage() {
           A smart assistant for {total.toLocaleString()} developer tools. Ask for tool
           recommendations, explore careers that match your favorite language, or query the
           language dictionary — answers stay accurate because they come straight from the
-          AllTools catalog.
+          AktifKoding catalog.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
           <span className="chip">🧰 {total.toLocaleString()} tools indexed</span>

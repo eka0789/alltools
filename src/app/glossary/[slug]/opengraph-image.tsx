@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { getGlossaryTerm } from "@/data/glossary";
 import { OgCard, ogTruncate } from "@/components/og-card";
 
-export const alt = "AllTools Glossary — developer term explained";
+export const alt = "AktifKoding Glossary — developer term explained";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -17,9 +17,9 @@ export default async function GlossaryOgImage({
   return new ImageResponse(
     (
       <OgCard
-        brandTagline="AllTools — The Developer Dictionary"
-        title={term ? `What is ${term.term}?` : "AllTools Glossary"}
-        subtitle={term ? term.category : "The Developer Dictionary"}
+        brandTagline="AktifKoding — Developer Tools Pro"
+        title={term ? `What is ${term.term}?` : "AktifKoding Glossary"}
+        subtitle={term ? term.category : "Developer Tools Pro"}
         chips={term ? ["Developer Glossary"] : undefined}
         description={
           term

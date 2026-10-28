@@ -123,7 +123,10 @@ Open http://localhost:3000 (or your chosen port).
 | `LLM_BASE_URL`         | `https://api.openai.com/v1` | Optional LLM endpoint override |
 | `LLM_MODEL`            | `gpt-4o-mini`           | Optional LLM model override |
 | `RESEND_API_KEY`       | —                       | Optional: enables passwordless sign-in links and the weekly digest email. Without it, login fails closed in production and the subscribe form is hidden |
-| `RESEND_FROM`          | `AllTools <onboarding@resend.dev>` | From address (use a domain verified in Resend for real sends) |
+| `RESEND_FROM`          | `AktifKoding <onboarding@resend.dev>` | From address (use a domain verified in Resend for real sends) |
+| `DOKU_CLIENT_ID`       | —                       | Optional: enables DOKU Checkout payments (Pro Lifetime, Paket Tim, template premium). Without it checkout is disabled in production; in dev the payment flow is simulated locally |
+| `DOKU_SECRET_KEY`      | —                       | Secret key dari Back Office DOKU |
+| `DOKU_ENV`             | `sandbox`               | `sandbox` (api.sandbox.doku.com) atau `production` (api.doku.com) |
 | `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | —             | Optional: enables Plausible analytics (cookie-free pageview + outbound-link tracking) |
 | `NEXT_PUBLIC_UMAMI_SCRIPT_URL` | —             | Optional: enables Umami analytics (self-hosted script URL) |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | —             | Umami website ID — both Umami vars required together |
@@ -317,6 +320,28 @@ Live: https://alldevtools.vercel.app
 - **Catalog freshness**: each serverless instance serves the catalog from memory and refreshes it from the DB in the background at most every 30 s (`CATALOG_TTL_MS` in `src/lib/data.ts`), so approved submissions and admin edits appear on public pages within ~1–2 minutes (ISR `revalidate = 120`) without a redeploy. Admin mutations additionally refresh the catalog synchronously on the instance that ran them.
 - Re-seed the remote database after changing the seed data: `ALLTOOLS_DB_URL=… ALLTOOLS_DB_AUTH_TOKEN=… npm run db:seed -- --reset` — wipes and reseeds the catalog tables (community submissions are preserved).
 - Environment vars on Vercel: `ADMIN_TOKEN`, `NEXT_PUBLIC_SITE_URL`, `ALLTOOLS_DB_URL`, `ALLTOOLS_DB_AUTH_TOKEN`.
+
+## AktifKoding Pro (monetization)
+
+Fitur premium di atas direktori gratis: **generator** (boilerplate, API docs,
+deployment config), **template proyek** (gratis + premium), **AI code review**
+(heuristik lokal + LLM opsional), dan **pembayaran DOKU**.
+
+- Produk statis di `src/lib/products.ts` (Pro Lifetime Rp 299rb, Paket Tim 10
+  seat Rp 1,29jt, template premium à la carte dari `src/data/templates.ts`).
+- Order → entitlement: `orders` + `entitlements` tabel; `finalizeOrderIfPaid`
+  idempoten, dipanggil webhook DOKU, polling status halaman checkout, dan
+  simulasi dev.
+- **DOKU**: set env `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_ENV`
+  (`sandbox`/`production`), lalu di Back Office DOKU set notification URL ke
+  `https://<domain>/api/payments/doku/notify`. Webhook memverifikasi signature
+  (dengan fallback ke Orders Status API sebagai sumber kebenaran) sebelum
+  memberi entitlement. Tanpa kredensial di non-produksi, tombol "Bayar
+  (simulasi)" mengemulasi webhook untuk menguji alur end-to-end.
+- Kuota AI review: anonim 3/hari (cookie), free 5/hari, Pro 200/hari
+  (`src/lib/quota.ts`, tabel `ai_usage`).
+- Tim: pembelian Paket Tim membuat tim + undangan email; anggota auto-join
+  saat login pertama (`team_invites` → `acceptPendingInvitesForUser`).
 
 ## Project Layout
 

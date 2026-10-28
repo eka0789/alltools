@@ -7,7 +7,7 @@ export const revalidate = 120;
 export const metadata: Metadata = {
   title: "Public API & MCP Server",
   description:
-    "Use the AllTools catalog as data: a free JSON API for 800+ curated developer tools, an MCP server for AI assistants, and RSS.",
+    "Use the AktifKoding catalog as data: a free JSON API for 800+ curated developer tools, an MCP server for AI assistants, and RSS.",
   alternates: { canonical: "/developers" },
 };
 
@@ -82,10 +82,10 @@ export default function DevelopersPage() {
       <section className="mt-12">
         <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
           <Bot className="h-5 w-5 text-accent" />
-          MCP server — use AllTools inside your AI assistant
+          MCP server — use AktifKoding inside your AI assistant
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          AllTools speaks the Model Context Protocol. Add it once and Claude
+          AktifKoding speaks the Model Context Protocol. Add it once and Claude
           Desktop, Cursor, Cline or any MCP client can search the catalog and
           define terms without leaving your editor.
         </p>
