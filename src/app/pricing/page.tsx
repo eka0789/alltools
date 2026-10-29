@@ -216,8 +216,8 @@ export default async function PricingPage() {
               Verified Listing
             </p>
             <p className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold">$29</span>
-              <span className="text-xs text-muted-foreground">one-time</span>
+              <span className="text-3xl font-bold">{formatIdr(299000)}</span>
+              <span className="text-xs text-muted-foreground">sekali bayar</span>
             </p>
             <ul className="mt-5 space-y-2.5">
               <Feature>Editorial review 3 hari kerja</Feature>
@@ -240,8 +240,8 @@ export default async function PricingPage() {
               Featured Placement
             </p>
             <p className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold">$79</span>
-              <span className="text-xs text-muted-foreground">/tool /month</span>
+              <span className="text-3xl font-bold">{formatIdr(799000)}</span>
+              <span className="text-xs text-muted-foreground">/tool /bulan</span>
             </p>
             <ul className="mt-5 space-y-2.5">
               <Feature>Slot Sponsored di kategori & pencarian</Feature>
@@ -262,8 +262,8 @@ export default async function PricingPage() {
               Category Sponsorship
             </p>
             <p className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold">$249</span>
-              <span className="text-xs text-muted-foreground">/month</span>
+              <span className="text-3xl font-bold">{formatIdr(2490000)}</span>
+              <span className="text-xs text-muted-foreground">/bulan</span>
             </p>
             <ul className="mt-5 space-y-2.5">
               <Feature>Sponsor eksklusif satu kategori</Feature>
