@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { subscribers } from "@/db/schema";
 import { sendEmail, siteUrl, emailShell, actionButton } from "./email";
@@ -67,6 +67,6 @@ export async function confirmedSubscribers(): Promise<string[]> {
   const rows = await db
     .select({ email: subscribers.email })
     .from(subscribers)
-    .where(and(isNull(subscribers.unsubscribedAt)));
+    .where(and(isNotNull(subscribers.confirmedAt), isNull(subscribers.unsubscribedAt)));
   return rows.map((r) => r.email);
 }
