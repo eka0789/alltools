@@ -127,13 +127,67 @@ function nextFiles(c: BoilerplateConfig): Files {
     "src/app/globals.css": '@import "tailwindcss";\n',
   };
 
-  if (c.database === "postgres" || c.database === "mysql" || c.database === "sqlite") {
-    const driver =
-      c.database === "postgres" ? "postgres-js" : c.database === "mysql" ? "mysql2" : "better-sqlite3";
+  if (c.database === "postgres") {
+    files["src/db/schema.ts"] = [
+      'import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";',
+      "",
+      "// Contoh tabel PostgreSQL — ganti sesuai kebutuhan.",
+      'export const notes = pgTable("notes", {',
+      '  id: serial("id").primaryKey(),',
+      '  title: text("title").notNull(),',
+      '  createdAt: timestamp("created_at").defaultNow().notNull(),',
+      "});",
+    ].join("\n") + "\n";
+    files["src/db/client.ts"] = [
+      'import { drizzle } from "drizzle-orm/postgres-js";',
+      'import postgres from "postgres";',
+      'import * as schema from "./schema";',
+      "",
+      'const client = postgres(process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/app");',
+      "export const db = drizzle(client, { schema });",
+    ].join("\n") + "\n";
+    files["drizzle.config.ts"] = [
+      'import { defineConfig } from "drizzle-kit";',
+      "",
+      "export default defineConfig({",
+      '  dialect: "postgresql",',
+      '  schema: "./src/db/schema.ts",',
+      "  dbCredentials: { url: process.env.DATABASE_URL ?? \"\" },",
+      "});",
+    ].join("\n") + "\n";
+  } else if (c.database === "mysql") {
+    files["src/db/schema.ts"] = [
+      'import { mysqlTable, serial, varchar, timestamp } from "drizzle-orm/mysql-core";',
+      "",
+      "// Contoh tabel MySQL — ganti sesuai kebutuhan.",
+      'export const notes = mysqlTable("notes", {',
+      '  id: serial("id").primaryKey(),',
+      '  title: varchar("title", { length: 255 }).notNull(),',
+      '  createdAt: timestamp("created_at").defaultNow().notNull(),',
+      "});",
+    ].join("\n") + "\n";
+    files["src/db/client.ts"] = [
+      'import { drizzle } from "drizzle-orm/mysql2";',
+      'import mysql from "mysql2/promise";',
+      'import * as schema from "./schema";',
+      "",
+      'const pool = mysql.createPool(process.env.DATABASE_URL ?? "mysql://root:root@localhost:3306/app");',
+      "export const db = drizzle(pool, { schema, mode: \"default\" });",
+    ].join("\n") + "\n";
+    files["drizzle.config.ts"] = [
+      'import { defineConfig } from "drizzle-kit";',
+      "",
+      "export default defineConfig({",
+      '  dialect: "mysql",',
+      '  schema: "./src/db/schema.ts",',
+      "  dbCredentials: { url: process.env.DATABASE_URL ?? \"\" },",
+      "});",
+    ].join("\n") + "\n";
+  } else if (c.database === "sqlite") {
     files["src/db/schema.ts"] = [
       'import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";',
       "",
-      "// Contoh tabel — ganti sesuai kebutuhan.",
+      "// Contoh tabel SQLite — ganti sesuai kebutuhan.",
       'export const notes = sqliteTable("notes", {',
       '  id: integer("id").primaryKey({ autoIncrement: true }),',
       '  title: text("title").notNull(),',
@@ -141,19 +195,20 @@ function nextFiles(c: BoilerplateConfig): Files {
       "});",
     ].join("\n") + "\n";
     files["src/db/client.ts"] = [
-      'import { drizzle } from "drizzle-orm/' + driver + '";',
+      'import Database from "better-sqlite3";',
+      'import { drizzle } from "drizzle-orm/better-sqlite3";',
       'import * as schema from "./schema";',
       "",
-      'const url = process.env.DATABASE_URL ?? "";',
-      "export const db = drizzle(url, { schema });",
+      'const sqlite = new Database(process.env.DATABASE_URL ?? "./data.db");',
+      "export const db = drizzle(sqlite, { schema });",
     ].join("\n") + "\n";
     files["drizzle.config.ts"] = [
       'import { defineConfig } from "drizzle-kit";',
       "",
       "export default defineConfig({",
-      '  dialect: "' + (c.database === "postgres" ? "postgresql" : c.database === "mysql" ? "mysql" : "sqlite") + '",',
-      '  url: process.env.DATABASE_URL ?? "",',
+      '  dialect: "sqlite",',
       '  schema: "./src/db/schema.ts",',
+      '  dbCredentials: { url: process.env.DATABASE_URL ?? "./data.db" },',
       "});",
     ].join("\n") + "\n";
   }

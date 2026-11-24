@@ -8,6 +8,8 @@ export interface ReviewFinding {
   severity: Severity;
   title: string;
   detail: string;
+  line?: number;
+  suggestion?: string;
 }
 
 export interface ReviewResult {
@@ -22,6 +24,7 @@ interface Rule {
   severity: Severity;
   title: string;
   detail: string;
+  suggestion?: string;
 }
 
 const RULES: Rule[] = [
@@ -30,6 +33,7 @@ const RULES: Rule[] = [
     severity: "critical",
     title: "eval() terdeteksi",
     detail: "eval mengeksekusi string apa pun sebagai kode — pintu injeksi. Pakai JSON.parse, parser, atau mapping eksplisit.",
+    suggestion: "const parsed = JSON.parse(input);",
   },
   {
     pattern: /new\s+Function\s*\(/,
@@ -42,6 +46,7 @@ const RULES: Rule[] = [
     severity: "critical",
     title: "Penugasan innerHTML",
     detail: "Rentan XSS bila sumber string menyentuh input pengguna. Gunakan textContent atau sanitasi (DOMPurify).",
+    suggestion: "el.textContent = userInput;",
   },
   {
     pattern: /dangerouslySetInnerHTML/,
@@ -54,24 +59,28 @@ const RULES: Rule[] = [
     severity: "critical",
     title: "Eksekusi shell",
     detail: "exec/execSync dengan interpolasi string = command injection. Pakai execFile dengan array argumen.",
+    suggestion: 'execFile("git", ["status", "--short"]);',
   },
   {
     pattern: /(SELECT|INSERT|UPDATE|DELETE)\s+.*\$\{|\+\s*req\.|\+\s*request\.|query\s*\+\s*/,
     severity: "critical",
     title: "Kemungkinan SQL injection",
     detail: "Query SQL dibangun dari konkatenasi/interpolasi. Gunakan parameterized query ($1, ?, :param).",
+    suggestion: 'await db.query("SELECT * FROM users WHERE id = $1", [userId]);',
   },
   {
     pattern: /(api[_-]?key|secret|password|token)\s*[:=]\s*["'][A-Za-z0-9_\-]{16,}["']/i,
     severity: "critical",
     title: "Kredensial tertulis di kode",
     detail: "Secret keras di source akan terbawa ke git history. Pindahkan ke environment variable.",
+    suggestion: "const apiKey = process.env.API_KEY;",
   },
   {
     pattern: /catch\s*\([^)]*\)\s*\{\s*\}/,
     severity: "warning",
     title: "catch kosong",
     detail: "Error ditelan diam-diam; kegagalan produksi tidak terlihat. Minimal log/errorlah atau lempar ulang.",
+    suggestion: "catch (err) {\n  console.error(err);\n  throw err;\n}",
   },
   {
     pattern: /\bvar\s+\w+/,
@@ -102,6 +111,7 @@ const RULES: Rule[] = [
     severity: "warning",
     title: "I/O sinkron filesystem",
     detail: "readFileSync memblokir event loop Node — latency semua request naik. Gunakan fs/promise.",
+    suggestion: 'import { readFile } from "node:fs/promises";\nconst text = await readFile(path, "utf8");',
   },
   {
     pattern: /TODO|FIXME|HACK/,
@@ -117,11 +127,23 @@ const RULES: Rule[] = [
   },
 ];
 
+function firstMatchLine(code: string, pattern: RegExp): number | undefined {
+  const match = pattern.exec(code);
+  if (!match) return undefined;
+  return code.slice(0, match.index).split("\n").length;
+}
+
 export function heuristicReview(code: string, language: string): ReviewResult {
   const findings: ReviewFinding[] = [];
   for (const rule of RULES) {
     if (rule.pattern.test(code)) {
-      findings.push({ severity: rule.severity, title: rule.title, detail: rule.detail });
+      findings.push({
+        severity: rule.severity,
+        title: rule.title,
+        detail: rule.detail,
+        line: firstMatchLine(code, rule.pattern),
+        ...(rule.suggestion ? { suggestion: rule.suggestion } : {}),
+      });
     }
   }
   const lines = code.split("\n").length;
@@ -172,7 +194,7 @@ export async function llmReview(
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.2,
-        max_tokens: 1200,
+        max_tokens: 1400,
         messages: [
           {
             role: "system",
@@ -181,7 +203,7 @@ export async function llmReview(
               "Fokus: keamanan, bug logika, performa, dan kejelasan. Jangan mengarang baris kode yang tidak ada.",
               focus ? `Prioritas review: ${focus}.` : "",
               "Balas HANYA JSON valid dengan bentuk:",
-              '{"summary": "string pendek", "score": 0-100, "findings": [{"severity": "critical|warning|info", "title": "...", "detail": "..."}]}',
+              '{"summary": "string pendek", "score": 0-100, "findings": [{"severity": "critical|warning|info", "title": "...", "detail": "...", "line": 12, "suggestion": "cuplikan perbaikan singkat (opsional)"}]}',
               "Maksimal 8 findings, urut dari paling penting.",
             ]
               .filter(Boolean)
@@ -202,7 +224,7 @@ export async function llmReview(
     const parsed = JSON.parse(jsonText) as {
       summary?: string;
       score?: number;
-      findings?: { severity?: string; title?: string; detail?: string }[];
+      findings?: { severity?: string; title?: string; detail?: string; line?: number; suggestion?: string }[];
     };
     const severity = (s: string | undefined): Severity =>
       s === "critical" || s === "warning" || s === "info" ? s : "info";
@@ -213,6 +235,10 @@ export async function llmReview(
         severity: severity(f.severity),
         title: String(f.title).slice(0, 120),
         detail: String(f.detail).slice(0, 600),
+        ...(typeof f.line === "number" && f.line > 0 ? { line: Math.round(f.line) } : {}),
+        ...(typeof f.suggestion === "string" && f.suggestion.trim()
+          ? { suggestion: f.suggestion.slice(0, 400) }
+          : {}),
       }));
     const score = Math.min(100, Math.max(0, Math.round(parsed.score ?? 70)));
     return {

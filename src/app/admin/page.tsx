@@ -9,11 +9,14 @@ import {
   logoutAction,
   resolveFeedbackAction,
   dismissFeedbackAction,
+  reconcileOrdersAction,
+  grantProAction,
 } from "./actions";
 import { db } from "@/db/client";
-import { submissions, feedback, toolClicks } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { submissions, feedback, toolClicks, orders, subscribers, users } from "@/db/schema";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { trendingQueries, noResultQueries } from "@/lib/search-analytics";
+import { formatIdr, getProduct } from "@/lib/products";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -80,6 +83,20 @@ export default async function AdminPage({
   let topClicked: { slug: string; clicks: number; weeklyClicks: number }[] = [];
   let topSearches: { query: string; hits: number }[] = [];
   let zeroResult: { query: string; hits: number }[] = [];
+  let recentOrders: {
+    id: number;
+    invoiceNo: string;
+    productId: string;
+    amount: number;
+    status: string;
+    createdAt: number;
+    email: string;
+  }[] = [];
+  let totalRevenueIdr = 0;
+  let paidOrdersCount = 0;
+  let pendingOrdersCount = 0;
+  let confirmedSubscriberCount = 0;
+
   if (db) {
     try {
       pending = await db
@@ -107,6 +124,39 @@ export default async function AdminPage({
     } catch {
       // tables missing / db unavailable — dashboard stays up
     }
+
+    try {
+      const allOrders = await db
+        .select({
+          id: orders.id,
+          invoiceNo: orders.invoiceNo,
+          productId: orders.productId,
+          amount: orders.amount,
+          status: orders.status,
+          createdAt: orders.createdAt,
+          email: users.email,
+        })
+        .from(orders)
+        .innerJoin(users, eq(users.id, orders.userId))
+        .orderBy(desc(orders.createdAt))
+        .limit(100);
+      recentOrders = allOrders.slice(0, 10);
+      for (const o of allOrders) {
+        if (o.status === "paid") {
+          paidOrdersCount += 1;
+          totalRevenueIdr += o.amount;
+        } else if (o.status === "pending") {
+          pendingOrdersCount += 1;
+        }
+      }
+      const subs = await db
+        .select({ id: subscribers.id })
+        .from(subscribers)
+        .where(and(isNotNull(subscribers.confirmedAt), isNull(subscribers.unsubscribedAt)));
+      confirmedSubscriberCount = subs.length;
+    } catch {
+      // Pro/newsletter tables may not exist yet — degrade cleanly
+    }
   }
 
   return (
@@ -118,7 +168,23 @@ export default async function AdminPage({
         </form>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-4">
+      {typeof sp.reconciled === "string" && (
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          Reconciled {sp.checked ?? "0"} pending order(s) — {sp.reconciled} marked paid.
+        </p>
+      )}
+      {typeof sp.granted === "string" && (
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          Granted Pro Lifetime (pro_all) to {sp.granted}.
+        </p>
+      )}
+      {typeof sp.grant_error === "string" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Invalid email address for Pro grant.
+        </p>
+      )}
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-5">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Tools</p>
           <p className="mt-1 text-3xl font-bold">{catalog.total.toLocaleString()}</p>
@@ -148,17 +214,108 @@ export default async function AdminPage({
             {openFeedback.length}
           </p>
           <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-            <Flag className="h-3 w-3" /> broken links & edit suggestions
+            <Flag className="h-3 w-3" /> broken links &amp; edit suggestions
           </p>
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2">
+      {/* Monetization & Growth overview */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="card p-5">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Revenue (Paid)</p>
+          <p className="mt-1 text-2xl font-bold text-success">{formatIdr(totalRevenueIdr)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{paidOrdersCount} paid order(s)</p>
+        </div>
+        <div className="card p-5">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending Orders</p>
+          <p className={`mt-1 text-2xl font-bold ${pendingOrdersCount > 0 ? "text-warning" : ""}`}>
+            {pendingOrdersCount}
+          </p>
+          <form action={reconcileOrdersAction} className="mt-2">
+            <button type="submit" className="text-xs font-medium text-accent hover:underline">
+              Reconcile with DOKU now →
+            </button>
+          </form>
+        </div>
+        <div className="card p-5">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Newsletter Subscribers</p>
+          <p className="mt-1 text-2xl font-bold">{confirmedSubscriberCount}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Confirmed double opt-in</p>
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2">
         <Link href="/admin/tools/new" className="btn-primary">
           <Plus className="h-4 w-4" /> Add tool
         </Link>
         <Link href="/admin/tools" className="btn-secondary">All tools</Link>
         <Link href="/admin/submissions" className="btn-secondary">Submissions</Link>
+      </div>
+
+      {/* Manual Pro Grant + Recent Orders */}
+      <div className="mt-8 grid gap-6 lg:grid-cols-3">
+        <div className="card p-5">
+          <h2 className="font-semibold">Grant Pro Manually</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Give Pro Lifetime access (<code className="font-mono">pro_all</code>) to an email for support, partners, or manual transfers.
+          </p>
+          <form action={grantProAction} className="mt-4 space-y-3">
+            <input
+              type="email"
+              name="email"
+              required
+              placeholder="developer@example.com"
+              className="input"
+            />
+            <button type="submit" className="btn-primary w-full">
+              Grant Pro Lifetime
+            </button>
+          </form>
+        </div>
+
+        <div className="card p-5 lg:col-span-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Recent Orders</h2>
+            <form action={reconcileOrdersAction}>
+              <button type="submit" className="btn-secondary !px-2.5 !py-1 text-xs">
+                Sync DOKU Status
+              </button>
+            </form>
+          </div>
+          {recentOrders.length === 0 ? (
+            <p className="mt-3 text-xs text-muted-foreground">No orders yet.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-border text-sm">
+              {recentOrders.map((o) => (
+                <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {getProduct(o.productId)?.name ?? o.productId}
+                      <span className="ml-2 font-mono text-xs text-muted-foreground">{o.invoiceNo}</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {o.email} · {formatDate(o.createdAt)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{formatIdr(o.amount)}</p>
+                    <p
+                      className={`text-xs ${
+                        o.status === "paid"
+                          ? "text-success"
+                          : o.status === "pending"
+                            ? "text-warning"
+                            : "text-muted-foreground"
+                      }`}
+                    >
+                      {o.status}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {(topSearches.length > 0 || zeroResult.length > 0) && (

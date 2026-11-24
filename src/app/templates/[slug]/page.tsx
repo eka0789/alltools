@@ -8,6 +8,8 @@ import { getSessionUser } from "@/lib/auth";
 import { canDownloadTemplate, getUserAccess } from "@/lib/entitlements";
 import { BuyButton } from "@/components/buy-button";
 import { TemplateDownloadButton } from "./download-button";
+import { TemplateFilePreview, type PreviewFile } from "./file-preview";
+import { generateBoilerplate, slugifyProjectName } from "@/lib/generators/boilerplate";
 
 export function generateStaticParams() {
   return TEMPLATES.map((t) => ({ slug: t.slug }));
@@ -28,6 +30,8 @@ export async function generateMetadata({
   };
 }
 
+const PUBLIC_PREVIEW_FILES = new Set(["README.md", "package.json", "docs/ARCHITECTURE.md", "pyproject.toml"]);
+
 export default async function TemplateDetailPage({
   params,
 }: {
@@ -41,6 +45,23 @@ export default async function TemplateDetailPage({
   const access = await getUserAccess(user?.id ?? null);
   const unlocked = canDownloadTemplate(access, template.slug);
   const related = TEMPLATES.filter((t) => t.slug !== template.slug).slice(0, 3);
+
+  const generated = generateBoilerplate({
+    projectName: slugifyProjectName(template.slug),
+    stack: template.preset.stack,
+    database: template.preset.database,
+    auth: template.preset.auth,
+    docker: template.preset.docker,
+    tests: template.preset.tests,
+  });
+  const allFiles: Record<string, string> = { ...generated, ...(template.extraFiles ?? {}) };
+  const canViewAll = template.priceIdr === 0 || unlocked;
+  const previewFiles: PreviewFile[] = Object.keys(allFiles)
+    .sort()
+    .map((path) => ({
+      path,
+      content: canViewAll || PUBLIC_PREVIEW_FILES.has(path) ? allFiles[path] : null,
+    }));
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -64,7 +85,7 @@ export default async function TemplateDetailPage({
       </header>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div>
+        <div className="min-w-0">
           <section>
             <h2 className="text-base font-semibold">Yang Anda dapatkan</h2>
             <ul className="mt-3 space-y-2">
@@ -94,6 +115,7 @@ export default async function TemplateDetailPage({
               ))}
             </dl>
           </section>
+          <TemplateFilePreview files={previewFiles} />
           <section className="mt-8">
             <h2 className="text-base font-semibold">Tags</h2>
             <div className="mt-3 flex flex-wrap gap-2">

@@ -251,7 +251,7 @@ export async function approveSubmissionAction(formData: FormData) {
   // already listed.
   const url = safeHttpUrl(sub.url);
   if (!url) redirect("/admin/submissions?error=url");
-  if (getCatalog().byUrl.has(url)) {
+  if (getCatalog().byUrl.has(normalizeUrlKey(url))) {
     redirect("/admin/submissions?error=duplicate");
   }
 
@@ -295,10 +295,11 @@ export async function rejectSubmissionAction(formData: FormData) {
   const id = Number(formData.get("id") ?? 0);
   // Only pending submissions are actionable — re-rejecting an
   // already-reviewed row would overwrite the original decision's timestamp.
+  const { and } = await import("drizzle-orm");
   await db
     .update(submissions)
     .set({ status: "rejected", reviewedAt: Date.now() })
-    .where(eq(submissions.id, id));
+    .where(and(eq(submissions.id, id), eq(submissions.status, "pending")));
   redirect("/admin/submissions?rejected=1");
 }
 
@@ -320,4 +321,38 @@ export async function dismissFeedbackAction(formData: FormData) {
     .set({ status: "dismissed", resolvedAt: Date.now() })
     .where(eq(feedback.id, id));
   revalidatePath("/admin");
+}
+
+export async function reconcileOrdersAction() {
+  await requireAdmin();
+  const { reconcilePendingOrders } = await import("@/lib/reconcile");
+  const res = await reconcilePendingOrders(50);
+  revalidatePath("/admin");
+  redirect(`/admin?reconciled=${res.paid}&checked=${res.checked}`);
+}
+
+export async function grantProAction(formData: FormData) {
+  await requireAdmin();
+  const { normalizeEmail } = await import("@/lib/auth");
+  const { entitlements, users } = await import("@/db/schema");
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
+  if (!email) redirect("/admin?grant_error=invalid_email");
+
+  const now = Date.now();
+  const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  let userId: number;
+  if (existing[0]) {
+    userId = existing[0].id;
+  } else {
+    const inserted = await db.insert(users).values({ email, createdAt: now }).returning({ id: users.id });
+    userId = inserted[0].id;
+  }
+
+  await db.insert(entitlements).values({
+    userId,
+    productId: "pro_all",
+    createdAt: now,
+  });
+  revalidatePath("/admin");
+  redirect(`/admin?granted=${encodeURIComponent(email)}`);
 }
