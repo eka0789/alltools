@@ -1,4 +1,4 @@
-import { db, DB_ACTIVE, DB_IS_REMOTE } from "@/db/client";
+import { db, DB_ACTIVE } from "@/db/client";
 import { categories, subcategories, toolClicks, tools } from "@/db/schema";
 import type { Category, Subcategory, Tool } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -248,38 +248,16 @@ function kickCatalogRefresh() {
 }
 
 export function getCatalog(): Catalog {
-  // Remote DB: getCatalog is synchronous and queries cannot await, so serve
-  // the current snapshot (bundled JSON on a cold instance) and swap in the
-  // database-backed catalog in the background, refreshed every TTL.
-  if (DB_IS_REMOTE) {
+  // getCatalog is synchronous while @libsql/client queries are async, so
+  // serve the current snapshot (bundled JSON on a cold instance) and swap in
+  // the database-backed catalog in the background, refreshed every TTL.
+  if (DB_ACTIVE) {
     if (!cache) cache = catalogFromBundledJson();
     if (Date.now() - cacheAt >= CATALOG_TTL_MS) kickCatalogRefresh();
     return cache;
   }
 
-  if (cache) return cache;
-
-  if (DB_ACTIVE) {
-    try {
-      const catRows = db.select().from(categories).all() as unknown as RawRow[];
-      const subRows = db.select().from(subcategories).all() as unknown as RawRow[];
-      const toolRows = db.select().from(tools).all() as unknown as RawRow[];
-      let clickRows: RawRow[] = [];
-      try {
-        clickRows = db.select().from(toolClicks).all() as unknown as RawRow[];
-      } catch {
-        // click table missing on a stale local schema — popularity stays 0
-      }
-      attachClicks(toolRows, clickRows);
-      cache = buildCatalog(catRows, subRows, toolRows);
-      cacheAt = Date.now();
-      return cache;
-    } catch {
-      // broken/unavailable db file → fall through to bundled JSON
-    }
-  }
-
-  cache = catalogFromBundledJson();
+  if (!cache) cache = catalogFromBundledJson();
   return cache;
 }
 

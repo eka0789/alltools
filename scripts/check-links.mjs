@@ -8,15 +8,15 @@
  *                      stay untouched (transient failures must not flip
  *                      healthy tools' badges or flag them for review).
  *
- * Supports both storage modes:
- *   - local SQLite file (better-sqlite3) — default
+ * Supports both storage modes via @libsql/client:
+ *   - local SQLite file (file:// URI) — default
  *   - remote libSQL/Turso when ALLTOOLS_DB_URL is set (used by CI/cron)
  *
  * Usage: npm run check-links [-- --only-unchecked] [-- --limit N]
  */
-import Database from "better-sqlite3";
 import { createClient } from "@libsql/client";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const REMOTE_URL = process.env.ALLTOOLS_DB_URL ?? "";
 const IS_REMOTE = REMOTE_URL !== "" && !REMOTE_URL.startsWith("file:");
@@ -54,42 +54,34 @@ export function isPrivateHost(hostname) {
   return false;
 }
 
-// Tiny adapter so the checker body stays storage-agnostic. better-sqlite3 is
-// synchronous; libSQL async — the async surface covers both.
-let store;
+// Tiny adapter so the checker body stays storage-agnostic across local and remote libSQL.
+let client;
 if (IS_REMOTE) {
-  const client = createClient({
+  client = createClient({
     url: REMOTE_URL,
     authToken: process.env.ALLTOOLS_DB_AUTH_TOKEN,
   });
-  store = {
-    async all(sql, args = []) {
-      const res = await client.execute({ sql, args });
-      return res.rows;
-    },
-    async run(sql, args = []) {
-      await client.execute({ sql, args });
-    },
-    close() {
-      client.close();
-    },
-  };
   console.log(`Checking links against REMOTE database (${REMOTE_URL})`);
 } else {
-  const sqlite = new Database(DB_PATH);
-  sqlite.pragma("journal_mode = WAL");
-  store = {
-    async all(sql, args = []) {
-      return sqlite.prepare(sql).all(...args);
-    },
-    async run(sql, args = []) {
-      return sqlite.prepare(sql).run(...args);
-    },
-    close() {
-      sqlite.close();
-    },
-  };
+  const dbUrl = /^file:/i.test(DB_PATH)
+    ? DB_PATH
+    : pathToFileURL(path.resolve(DB_PATH)).href;
+  client = createClient({ url: dbUrl });
+  await client.execute("PRAGMA journal_mode = WAL");
 }
+
+const store = {
+  async all(sql, args = []) {
+    const res = await client.execute({ sql, args });
+    return res.rows;
+  },
+  async run(sql, args = []) {
+    await client.execute({ sql, args });
+  },
+  close() {
+    client.close();
+  },
+};
 
 let tools = await store.all(
   "SELECT id, name, slug, url FROM tools WHERE status != 'deprecated'",

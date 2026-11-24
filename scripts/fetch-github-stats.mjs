@@ -12,10 +12,10 @@
  *   … -- --all          # refetch every repo (refresh stale stars)
  *   ALLTOOLS_DB_URL=…   # run against Turso
  */
-import Database from "better-sqlite3";
 import { createClient } from "@libsql/client";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const REMOTE_URL = process.env.ALLTOOLS_DB_URL ?? "";
 const IS_REMOTE = REMOTE_URL !== "" && !REMOTE_URL.startsWith("file:");
@@ -23,26 +23,26 @@ const TOKEN = process.env.GITHUB_TOKEN ?? "";
 const REFRESH_ALL = process.argv.includes("--all");
 const STATS_FILE = path.resolve("data/github-stats.json");
 
-let store;
+let client;
 if (IS_REMOTE) {
-  const client = createClient({
+  client = createClient({
     url: REMOTE_URL,
     authToken: process.env.ALLTOOLS_DB_AUTH_TOKEN,
   });
-  store = {
-    all: (sql, args = []) => client.execute({ sql, args }).then((r) => r.rows),
-    run: (sql, args = []) => client.execute({ sql, args }),
-    close: () => client.close(),
-  };
 } else {
-  const sqlite = new Database(process.env.ALLTOOLS_DB ?? path.join(process.cwd(), "data", "alltools.db"));
-  sqlite.pragma("journal_mode = WAL");
-  store = {
-    all: (sql, args = []) => sqlite.prepare(sql).all(...args),
-    run: (sql, args = []) => sqlite.prepare(sql).run(...args),
-    close: () => sqlite.close(),
-  };
+  const dbPath = process.env.ALLTOOLS_DB ?? path.join(process.cwd(), "data", "alltools.db");
+  const dbUrl = /^file:/i.test(dbPath)
+    ? dbPath
+    : pathToFileURL(path.resolve(dbPath)).href;
+  client = createClient({ url: dbUrl });
+  await client.execute("PRAGMA journal_mode = WAL");
 }
+
+const store = {
+  all: (sql, args = []) => client.execute({ sql, args }).then((r) => r.rows),
+  run: (sql, args = []) => client.execute({ sql, args }),
+  close: () => client.close(),
+};
 
 function parseRepo(githubUrl) {
   try {

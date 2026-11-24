@@ -1,28 +1,22 @@
-import { drizzle as drizzleBetterSqlite } from "drizzle-orm/better-sqlite3";
-import { drizzle as drizzleLibsql } from "drizzle-orm/libsql";
-import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import path from "node:path";
 import fs from "node:fs";
+import { pathToFileURL } from "node:url";
 import * as schema from "./schema";
 
-// Two storage modes:
-// - Remote (Vercel): ALLTOOLS_DB_URL points at a hosted libSQL/Turso
-//   instance ("libsql://..." or "https://..."). Queries go over HTTP and are
-//   async; ALLTOOLS_DB_AUTH_TOKEN authenticates.
-// - Local file: ALLTOOLS_DB (legacy name) or ./data/alltools.db opened with
-//   better-sqlite3 — same behavior as before.
+// Two storage modes, both powered by @libsql/client (precompiled N-API binary):
+// - Remote (Turso): ALLTOOLS_DB_URL points at a hosted libSQL/Turso instance
+//   ("libsql://..." or "https://..."), with ALLTOOLS_DB_AUTH_TOKEN.
+// - Local file: ALLTOOLS_DB or ./data/alltools.db converted to a file:// URI.
 // When no usable database exists (e.g. serverless without env vars and a
-// read-only filesystem), fall back to an empty in-memory database. data.ts
-// detects this via DB_ACTIVE and serves the statically-imported catalog JSON.
+// read-only filesystem, or Vitest hermetic mode ALLTOOLS_DB="."), fall back to
+// an empty in-memory database. data.ts detects this via DB_ACTIVE and serves
+// the statically-imported catalog JSON.
 const REMOTE_URL = process.env.ALLTOOLS_DB_URL;
 const REMOTE_TOKEN = process.env.ALLTOOLS_DB_AUTH_TOKEN;
-// ALLTOOLS_DB_DRIVER=libsql forces the libSQL driver even for local file
-// URLs — used to exercise the remote code path against a local database.
-const FORCE_LIBSQL = process.env.ALLTOOLS_DB_DRIVER === "libsql";
 const IS_REMOTE =
-  FORCE_LIBSQL ||
-  (!!REMOTE_URL && !/^file:/i.test(REMOTE_URL) && !REMOTE_URL.endsWith(".db"));
+  !!REMOTE_URL && !/^file:/i.test(REMOTE_URL) && !REMOTE_URL.endsWith(".db");
 
 // Resolve the local db across environments: local cwd, Vercel serverless
 // bundles (traced files sit relative to the function root, which varies per
@@ -41,25 +35,25 @@ function resolveDbPath(): string {
   return candidates[0];
 }
 
-type SqliteDb = ReturnType<typeof drizzleBetterSqlite<typeof schema>>;
+function toLocalFileUrl(dbPath: string): string {
+  if (/^file:/i.test(dbPath)) return dbPath;
+  return pathToFileURL(path.resolve(dbPath)).href;
+}
+
+type LibsqlDb = ReturnType<typeof drizzle<typeof schema>>;
 
 const globalForDb = globalThis as unknown as {
-  __alltoolsDb?: { db: SqliteDb; active: boolean; remote: boolean };
+  __alltoolsDb?: { db: LibsqlDb; active: boolean; remote: boolean };
 };
 
-// better-sqlite3 cannot open the bundled db file on a read-only filesystem
-// (WAL needs to write -wal/-shm), so that failure falls back to :memory:.
-function openDb(): { db: SqliteDb; active: boolean; remote: boolean } {
+function openDb(): { db: LibsqlDb; active: boolean; remote: boolean } {
   if (IS_REMOTE) {
     const client = createClient({
-      url: REMOTE_URL || "file:./data/alltools.db",
+      url: REMOTE_URL!,
       authToken: REMOTE_TOKEN || undefined,
     });
-    // Both drizzle drivers expose the same query builder; the libsql one
-    // returns promises (every runtime caller awaits them), so the shared
-    // better-sqlite3 type is safe at the call sites.
     return {
-      db: drizzleLibsql(client, { schema }) as unknown as SqliteDb,
+      db: drizzle(client, { schema }),
       active: true,
       remote: true,
     };
@@ -67,16 +61,19 @@ function openDb(): { db: SqliteDb; active: boolean; remote: boolean } {
 
   try {
     const dbPath = resolveDbPath();
+    if (fs.existsSync(dbPath) && fs.statSync(dbPath).isDirectory()) {
+      throw new Error("Database path is a directory");
+    }
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    const dbFile = new Database(dbPath);
-    dbFile.pragma("journal_mode = WAL");
+    const client = createClient({ url: toLocalFileUrl(dbPath) });
+    void client.execute("PRAGMA journal_mode = WAL").catch(() => {});
     // Enforce FK constraints (off by default in SQLite): no orphaned
     // link_checks rows when a tool is deleted.
-    dbFile.pragma("foreign_keys = ON");
-    return { db: drizzleBetterSqlite(dbFile, { schema }), active: true, remote: false };
+    void client.execute("PRAGMA foreign_keys = ON").catch(() => {});
+    return { db: drizzle(client, { schema }), active: true, remote: false };
   } catch {
     return {
-      db: drizzleBetterSqlite(new Database(":memory:"), { schema }),
+      db: drizzle(createClient({ url: ":memory:" }), { schema }),
       active: false,
       remote: false,
     };

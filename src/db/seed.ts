@@ -253,9 +253,7 @@ async function main() {
   // local WAL — skip.
   if (!DB_IS_REMOTE) {
     try {
-      (db.$client as import("better-sqlite3").Database).pragma(
-        "wal_checkpoint(TRUNCATE)",
-      );
+      await db.$client.execute("PRAGMA wal_checkpoint(TRUNCATE)");
     } catch {
       // read-only or WAL-less environment: nothing to fold
     }

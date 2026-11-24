@@ -10,45 +10,41 @@
  * prepare-build uses the remote path so tools created via the admin
  * panel survive redeploys in the bundled snapshot.
  */
-import Database from "better-sqlite3";
 import { createClient } from "@libsql/client";
 import path from "node:path";
 import fs from "node:fs";
+import { pathToFileURL } from "node:url";
 
 const REMOTE_URL = process.env.ALLTOOLS_DB_URL ?? "";
 const IS_REMOTE = REMOTE_URL !== "" && !REMOTE_URL.startsWith("file:");
 
-let store;
+let client;
 if (IS_REMOTE) {
-  const client = createClient({
+  client = createClient({
     url: REMOTE_URL,
     authToken: process.env.ALLTOOLS_DB_AUTH_TOKEN,
   });
-  store = {
-    all(sql) {
-      return client.execute({ sql }).then((r) => r.rows);
-    },
-    close() {
-      client.close();
-    },
-  };
   console.log(`catalog export: reading REMOTE database (${REMOTE_URL})`);
 } else {
   const DB_PATH = process.env.ALLTOOLS_DB || path.join(process.cwd(), "data", "alltools.db");
-  if (!fs.existsSync(DB_PATH)) {
+  if (!/^file:/i.test(DB_PATH) && !fs.existsSync(DB_PATH)) {
     console.error(`catalog export: database not found at ${DB_PATH}`);
     process.exit(1);
   }
-  const db = new Database(DB_PATH, { readonly: true });
-  store = {
-    all(sql) {
-      return db.prepare(sql).all();
-    },
-    close() {
-      db.close();
-    },
-  };
+  const dbUrl = /^file:/i.test(DB_PATH)
+    ? DB_PATH
+    : pathToFileURL(path.resolve(DB_PATH)).href;
+  client = createClient({ url: dbUrl });
 }
+
+const store = {
+  all(sql) {
+    return client.execute({ sql }).then((r) => r.rows);
+  },
+  close() {
+    client.close();
+  },
+};
 
 // better-sqlite3 / libsql return raw snake_case column names; data.ts's
 // catalog builder expects the drizzle-style camelCase property names.
