@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LogIn, CheckCircle2, TriangleAlert } from "lucide-react";
-import { getSessionUser as getCurrentUser } from "@/lib/auth";
+import { getSessionUser as getCurrentUser, sanitizeNextPath } from "@/lib/auth";
 import { signOutAction, requestMagicLinkAction } from "./actions";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to AktifKoding to sync your shortlist across devices — passwordless, email only.",
+  description: "Sign in to AktifKoding to sync your shortlist and manage Pro access — passwordless, email only.",
   robots: { index: false },
 };
 
@@ -18,7 +18,7 @@ const ERRORS: Record<string, string> = {
   email_not_configured:
     "Email delivery isn't configured on this deployment yet — set RESEND_API_KEY to enable sign-in.",
   email_failed:
-    "Email gagal terkirim. Jika Anda pemilik situs: pastikan domain sudah diverifikasi di Resend dan RESEND_FROM di-set ke alamat domain tersebut. Coba lagi beberapa saat.",
+    "Failed to send sign-in email. Please verify your Resend domain configuration and try again shortly.",
   verify_invalid: "That sign-in link is invalid, already used, or expired. Request a new one.",
 };
 
@@ -30,6 +30,7 @@ export default async function LoginPage({
   const sp = await searchParams;
   const user = await getCurrentUser();
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
+  const next = sanitizeNextPath(one("next"));
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
@@ -45,11 +46,14 @@ export default async function LoginPage({
             Signed in as <strong>{user.email}</strong>
           </p>
           <p className="text-sm text-muted-foreground">
-            Your shortlist and compare list sync to this account automatically —
-            open AktifKoding on another device, sign in, and they&apos;ll be there.
+            Your shortlist, compare list, Pro templates, and team seats sync
+            automatically to this account.
           </p>
-          <div className="flex gap-2">
-            <Link href="/favorites" className="btn-primary">Your shortlist</Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={next ?? "/account"} className="btn-primary">
+              {next ? "Continue" : "My Account & Pro"}
+            </Link>
+            <Link href="/favorites" className="btn-secondary">Your shortlist</Link>
             <form action={signOutAction}>
               <button type="submit" className="btn-secondary">Sign out</button>
             </form>
@@ -59,8 +63,7 @@ export default async function LoginPage({
         <>
           <p className="mt-2 text-sm text-muted-foreground">
             No password, no account creation — enter your email, click the link we
-            send, and your locally-saved shortlist syncs to every device you sign
-            in from.
+            send, and your shortlist &amp; Pro access sync across every device.
           </p>
 
           {one("sent") && (
@@ -96,6 +99,7 @@ export default async function LoginPage({
           )}
 
           <form action={requestMagicLinkAction} className="card mt-6 space-y-4 p-6">
+            {next && <input type="hidden" name="next" value={next} />}
             <div>
               <label htmlFor="email" className="text-sm font-medium">Email</label>
               <input
@@ -111,8 +115,8 @@ export default async function LoginPage({
               Email me a sign-in link
             </button>
             <p className="text-xs text-muted-foreground">
-              Passwordless only. We store your email and your synced shortlist —
-              nothing else. No tracking, no marketing.
+              Passwordless only. We store your email, synced shortlist, and any Pro
+              purchases — no passwords, no spam.
             </p>
           </form>
         </>

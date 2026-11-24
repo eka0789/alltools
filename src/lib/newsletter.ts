@@ -1,12 +1,39 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { subscribers } from "@/db/schema";
 import { sendEmail, siteUrl, emailShell, actionButton } from "./email";
 
 // Double-opt-in newsletter. The subscriber row stores a sha256 token used
-// for both the confirmation link and the permanent unsubscribe link; until
-// confirmedAt is set, the address never receives a digest.
+// for confirmation; weekly digests include a signed HMAC unsubscribe link
+// so every issue honors one-click opt-out without storing raw tokens.
+
+function unsubscribeSecret(): string {
+  return (
+    process.env.CRON_SECRET?.trim() ||
+    process.env.ADMIN_TOKEN?.trim() ||
+    process.env.RESEND_API_KEY?.trim() ||
+    "aktifkoding-dev-unsub"
+  );
+}
+
+export function signUnsubscribe(email: string): string {
+  return createHmac("sha256", unsubscribeSecret())
+    .update(`unsub:${email.toLowerCase()}`)
+    .digest("base64url");
+}
+
+export function verifyUnsubscribeSignature(email: string, sig: string): boolean {
+  const expected = signUnsubscribe(email);
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(sig, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export function unsubscribeUrl(email: string): string {
+  const cleaned = email.trim().toLowerCase();
+  return `${siteUrl()}/api/newsletter/unsubscribe?email=${encodeURIComponent(cleaned)}&sig=${encodeURIComponent(signUnsubscribe(cleaned))}`;
+}
 
 export function normalizeSubscriberEmail(email: string): string | null {
   const cleaned = email.trim().toLowerCase();
@@ -28,11 +55,17 @@ export async function subscribe(rawEmail: string): Promise<SubscribeResult> {
 
   if (existing[0]) {
     if (existing[0].confirmedAt && !existing[0].unsubscribedAt) return "already";
-    // re-send confirmation for pending/unsubscribed addresses (resets opt-out)
+    // Re-send confirmation for pending/unsubscribed addresses — must reset
+    // confirmedAt to null so unsubscribed users are NEVER re-subscribed without
+    // clicking the new double-opt-in link.
     const fresh = randomBytes(32).toString("base64url");
     await db
       .update(subscribers)
-      .set({ tokenHash: createHash("sha256").update(fresh).digest("hex"), unsubscribedAt: null })
+      .set({
+        tokenHash: createHash("sha256").update(fresh).digest("hex"),
+        confirmedAt: null,
+        unsubscribedAt: null,
+      })
       .where(eq(subscribers.id, existing[0].id));
     const sent = await sendConfirmation(email, fresh);
     return sent ? "ok" : "email-failed";

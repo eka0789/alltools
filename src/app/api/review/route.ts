@@ -14,7 +14,8 @@ const ANON_COOKIE = "ak_anon";
 // Kuota: anonim 3/hari (cookie), login gratis 5/hari, Pro 200/hari.
 // Anonim tanpa kuota sisa → 402 dengan hint login/upgrade.
 export async function POST(req: NextRequest) {
-  if (!rateLimit(`review:${clientIp(req)}`, 30, 60_000).ok) {
+  const ip = clientIp(req);
+  if (!rateLimit(`review:${ip}`, 30, 60_000).ok) {
     return Response.json({ error: "rate-limited" }, { status: 429 });
   }
 
@@ -34,6 +35,15 @@ export async function POST(req: NextRequest) {
   // Cookie anon id (untuk kuota tanpa login).
   const existingAnon = req.cookies.get(ANON_COOKIE)?.value;
   const anonId = user ? null : existingAnon ?? randomBytes(16).toString("hex");
+
+  // Anti-bypass: selain cookie, batasi juga anon per-IP per 24 jam agar
+  // menghapus cookie tidak bisa dipakai spam LLM API tanpa batas.
+  if (!user && !rateLimit(`review-anon-day:${ip}`, 6, 24 * 60 * 60_000).ok) {
+    return Response.json(
+      { error: "quota-exceeded", tier: "anon", limit: 3, hint: "login" },
+      { status: 402 },
+    );
+  }
 
   const quota = await checkReviewQuota({ userId: user?.id ?? null, anonId });
   if (!quota.allowed) {
@@ -55,11 +65,15 @@ export async function POST(req: NextRequest) {
   if (anonId && !existingAnon) {
     headers.append(
       "Set-Cookie",
-      `${ANON_COOKIE}=${anonId}; Path=/; Max-Age=${30 * 24 * 3600}; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
+      `${ANON_COOKIE}=${anonId}; Path=/; Max-Age=${30 * 24 * 3600}; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
     );
   }
   return Response.json(
-    { ...result, engine: llmReviewEnabled() ? result.engine : "heuristic", quota },
+    {
+      ...result,
+      engine: llmReviewEnabled() ? result.engine : "heuristic",
+      quota: { ...quota, used: quota.used + 1 },
+    },
     { headers },
   );
 }

@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   entitlements,
@@ -10,7 +10,7 @@ import {
   type Order,
 } from "@/db/schema";
 import { getProduct } from "@/lib/products";
-import { emailShell, sendEmail, siteUrl } from "@/lib/email";
+import { emailShell, escapeHtml, sendEmail, siteUrl } from "@/lib/email";
 
 // ── Entitlement: apa yang boleh diakses seorang pengguna ─────────────────
 // Entitlement "materialized": saat order dibayar, satu baris per user dibuat
@@ -97,9 +97,9 @@ async function sendReceiptEmail(order: Order): Promise<void> {
   }).format(order.amount);
   const body = [
     `<p>Pembayaran Anda sudah kami terima. Terima kasih!</p>`,
-    `<p><strong>${product?.name ?? order.productId}</strong><br>`,
-    `Invoice: <code>${order.invoiceNo}</code><br>`,
-    `Total: ${amount}</p>`,
+    `<p><strong>${escapeHtml(product?.name ?? order.productId)}</strong><br>`,
+    `Invoice: <code>${escapeHtml(order.invoiceNo)}</code><br>`,
+    `Total: ${escapeHtml(amount)}</p>`,
     `<p>Akses sudah aktif di akun Anda — template premium dan AI review tanpa batas bisa dipakai sekarang.</p>`,
     `<p><a href="${siteUrl()}/account">Buka halaman akun</a> untuk mengunduh template.</p>`,
   ].join("");
@@ -161,7 +161,7 @@ async function grantEntitlements(order: Order): Promise<void> {
 
 // Auto-join: saat email yang diundang login, terima undangan timnya selama
 // masih ada kursi. Dipanggil dari redeemMagicToken (login) dan saat tim
-// dibuat.
+// dibuat atau anggota baru diundang.
 export async function acceptTeamInvitesForTeam(teamId: number): Promise<void> {
   const pending = await db
     .select({ id: teamInvites.id, email: teamInvites.email })
@@ -169,22 +169,41 @@ export async function acceptTeamInvitesForTeam(teamId: number): Promise<void> {
     .where(and(eq(teamInvites.teamId, teamId), isNull(teamInvites.acceptedAt)));
   if (pending.length === 0) return;
 
-  const usersRows = await db.select({ id: users.id, email: users.email }).from(users);
+  const pendingEmails = [...new Set(pending.map((p) => p.email))];
+  const usersRows = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(inArray(users.email, pendingEmails));
   const byEmail = new Map(usersRows.map((u) => [u.email, u.id]));
   const seats = (await db.select({ seats: teams.seats }).from(teams).where(eq(teams.id, teamId)).limit(1))[0]?.seats ?? 10;
-  const memberCount = (await db.select({ id: teamMembers.id }).from(teamMembers).where(eq(teamMembers.teamId, teamId))).length;
-  let free = Math.max(0, seats - memberCount);
+  const existingMembers = await db
+    .select({ userId: teamMembers.userId })
+    .from(teamMembers)
+    .where(eq(teamMembers.teamId, teamId));
+  const memberUserIds = new Set(existingMembers.map((m) => m.userId));
+  let free = Math.max(0, seats - existingMembers.length);
 
   for (const invite of pending) {
-    if (free <= 0) break;
     const memberUserId = byEmail.get(invite.email);
     if (!memberUserId) continue; // belum pernah login → tetap pending
-    await db.insert(teamMembers).values({
-      teamId,
-      userId: memberUserId,
-      role: "member",
-      createdAt: Date.now(),
-    });
+    if (memberUserIds.has(memberUserId)) {
+      await db
+        .update(teamInvites)
+        .set({ acceptedAt: Date.now() })
+        .where(eq(teamInvites.id, invite.id));
+      continue;
+    }
+    if (free <= 0) break;
+    await db
+      .insert(teamMembers)
+      .values({
+        teamId,
+        userId: memberUserId,
+        role: "member",
+        createdAt: Date.now(),
+      })
+      .onConflictDoNothing();
+    memberUserIds.add(memberUserId);
     await db.insert(entitlements).values({
       userId: memberUserId,
       productId: "pro_all",

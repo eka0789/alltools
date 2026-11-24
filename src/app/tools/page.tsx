@@ -1,5 +1,12 @@
+import Link from "next/link";
 import type { Metadata } from "next";
-import { Filters, SortLinks, type BrowserSearchParams } from "@/components/filters";
+import {
+  Filters,
+  SortLinks,
+  activeFilterChips,
+  buildHref,
+  type BrowserSearchParams,
+} from "@/components/filters";
 import { EmptyState, Pagination, ResultGrid } from "@/components/result-grid";
 import { parseFilters, searchTools } from "@/lib/search";
 import { getCatalog } from "@/lib/data";
@@ -32,6 +39,7 @@ export default async function ToolsPage({ searchParams }: Props) {
         : "name";
   const result = searchTools({ filters, page, perPage: 24, sort });
   const { categories } = getCatalog();
+  const chips = activeFilterChips(filters);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -55,6 +63,19 @@ export default async function ToolsPage({ searchParams }: Props) {
               </span>{" "}
               tools
             </p>
+            {chips.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {chips.map((chip, i) => (
+                  <Link
+                    key={i}
+                    href={buildHref(params, chip.patch, "/tools")}
+                    className="chip !bg-accent-soft !text-accent"
+                  >
+                    {chip.label} ✕
+                  </Link>
+                ))}
+              </div>
+            )}
             <SortLinks params={params} basePath="/tools" active={sort} />
           </div>
           {result.items.length === 0 ? (

@@ -114,13 +114,7 @@ export default async function SearchPage({ searchParams }: Props) {
                 {chips.map((chip, i) => (
                   <Link
                     key={i}
-                    href={(() => {
-                      const patch: Record<string, string> = {};
-                      for (const [k, v] of Object.entries(chip.patch)) {
-                        if (v) patch[k] = v;
-                      }
-                      return buildHref(params, patch, "/search");
-                    })()}
+                    href={buildHref(params, chip.patch, "/search")}
                     className="chip !bg-accent-soft !text-accent"
                   >
                     {chip.label} ✕

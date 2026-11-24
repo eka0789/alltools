@@ -38,6 +38,9 @@ export async function isAdmin(): Promise<boolean> {
 // make guessing infeasible for an opportunistic attacker).
 export async function checkLoginRateLimit(): Promise<boolean> {
   const hdrs = await headers();
-  const ip = hdrs.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  const ip =
+    hdrs.get("x-vercel-forwarded-for-ip")?.split(",")[0].trim() ??
+    hdrs.get("x-forwarded-for")?.split(",")[0].trim() ??
+    "unknown";
   return rateLimit(`login:${ip}`, 5, 10 * 60 * 1000).ok;
 }

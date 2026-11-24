@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { submissions } from "@/db/schema";
-import { getCatalog } from "@/lib/data";
+import { getCatalog, normalizeUrlKey } from "@/lib/data";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeHttpUrl } from "@/lib/url-check";
 
@@ -38,7 +38,10 @@ export async function submitAction(
   }
 
   const hdrs = await headers();
-  const ip = hdrs.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  const ip =
+    hdrs.get("x-vercel-forwarded-for-ip")?.split(",")[0].trim() ??
+    hdrs.get("x-forwarded-for")?.split(",")[0].trim() ??
+    "unknown";
   if (!rateLimit(`submit:${ip}`, 5, 60 * 60 * 1000).ok) {
     return {
       error: "Too many submissions from your network this hour. Please try again later.",
@@ -64,8 +67,9 @@ export async function submitAction(
   }
 
   // Duplicate detection: same website already listed or already waiting
-  // for review.
-  if (catalog.byUrl.has(parsedUrl)) {
+  // for review (canonicalized so trailing slash / host case can't bypass).
+  const urlKey = normalizeUrlKey(parsedUrl);
+  if (catalog.byUrl.has(urlKey)) {
     return {
       error: "This website is already listed in the directory.",
     };
@@ -75,7 +79,7 @@ export async function submitAction(
       .select({ url: submissions.url })
       .from(submissions)
       .where(eq(submissions.status, "pending"));
-    if (pending.some((s) => s.url === parsedUrl)) {
+    if (pending.some((s) => normalizeUrlKey(s.url) === urlKey)) {
       return {
         error: "A submission for this website is already awaiting review.",
       };

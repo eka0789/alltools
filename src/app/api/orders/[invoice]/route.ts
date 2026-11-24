@@ -1,12 +1,24 @@
 import { NextRequest } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orders } from "@/db/schema";
+import { orders, type Order } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { dokuConfig, fetchDokuOrderStatus } from "@/lib/doku";
 import { finalizeOrderIfPaid } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
+
+function publicOrder(order: Order) {
+  return {
+    invoiceNo: order.invoiceNo,
+    productId: order.productId,
+    amount: order.amount,
+    status: order.status,
+    paymentUrl: order.paymentUrl,
+    paidAt: order.paidAt,
+    createdAt: order.createdAt,
+  };
+}
 
 // GET /api/orders/[invoice] — status order milik sesi ini. Saat masih
 // pending dan DOKU aktif, status juga ditanyakan langsung ke DOKU (pembayaran
@@ -34,10 +46,10 @@ export async function GET(
       if (status.status === "PAID") {
         await finalizeOrderIfPaid(order, status.raw || null);
         const fresh = await db.select().from(orders).where(eq(orders.id, order.id)).limit(1);
-        return Response.json({ status: "paid", order: fresh[0] });
+        return Response.json({ status: "paid", order: fresh[0] ? publicOrder(fresh[0]) : publicOrder(order) });
       }
     }
-    return Response.json({ status: "pending", order });
+    return Response.json({ status: "pending", order: publicOrder(order) });
   }
-  return Response.json({ status: order.status, order });
+  return Response.json({ status: order.status, order: publicOrder(order) });
 }

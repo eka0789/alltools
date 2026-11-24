@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { orders } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { getProduct } from "@/lib/products";
+import { getUserAccess } from "@/lib/entitlements";
 import { createDokuPayment, dokuConfig, dokuConfigured, dokuSimulationAllowed } from "@/lib/doku";
 import { siteUrl } from "@/lib/email";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -40,6 +41,15 @@ export async function POST(req: NextRequest) {
   const product = getProduct(productId);
   if (!product) return Response.json({ error: "product-not-found" }, { status: 400 });
 
+  // Cegah pembelian ganda untuk produk yang sudah dimiliki user.
+  const access = await getUserAccess(user.id);
+  const alreadyOwned =
+    (product.kind === "lifetime" && access.hasLifetime) ||
+    (product.kind === "template" && (access.hasLifetime || access.templateIds.includes(product.id)));
+  if (alreadyOwned) {
+    return Response.json({ error: "already-owned" }, { status: 409 });
+  }
+
   const now = Date.now();
   const invoice = invoiceNumber();
   const inserted = await db
@@ -73,6 +83,10 @@ export async function POST(req: NextRequest) {
         .where(eq(orders.id, order.id));
       return Response.json({ ok: true, invoice, paymentUrl: result.paymentUrl });
     }
+    await db
+      .update(orders)
+      .set({ status: "failed", updatedAt: Date.now() })
+      .where(eq(orders.id, order.id));
     return Response.json({ error: result.error ?? "doku-error" }, { status: 502 });
   }
 

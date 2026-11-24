@@ -33,8 +33,15 @@ export async function POST(req: NextRequest) {
 
   if (order.status === "paid") return Response.json({ ok: true, alreadyPaid: true });
 
+  const reportedAmount = Number(body.order?.amount ?? 0);
+  if (reportedAmount > 0 && reportedAmount !== order.amount) {
+    console.warn("[doku] amount mismatch", { invoice, expected: order.amount, got: reportedAmount });
+    return Response.json({ ok: true, ignored: true });
+  }
+
   const config = dokuConfig();
   let trusted = false;
+  let statusApiResult: "PAID" | "PENDING" | "EXPIRED" | "FAILED" | "UNKNOWN" | null = null;
   if (config) {
     const verified = verifyDokuSignature(
       config,
@@ -55,15 +62,43 @@ export async function POST(req: NextRequest) {
       // Signature tidak cocok → tanya langsung ke DOKU.
       const product = getProduct(order.productId);
       const status = await fetchDokuOrderStatus(config, invoice, order.amount);
-      if (status.status === "PAID") trusted = true;
+      statusApiResult = status.status;
+      if (status.status === "PAID" || status.status === "FAILED" || status.status === "EXPIRED") {
+        trusted = true;
+      }
       void product;
     }
   }
 
-  const reportedStatus = (body.transaction?.status ?? "").toUpperCase();
-  const paidNow = trusted && (reportedStatus === "PAID" || reportedStatus === "" || reportedStatus === "COMPLETED");
-  if (!paidNow) return Response.json({ ok: true, ignored: true });
+  if (!trusted) return Response.json({ ok: true, ignored: true });
 
-  await finalizeOrderIfPaid(order, raw);
-  return Response.json({ ok: true });
+  const reportedStatus = (body.transaction?.status ?? "").toUpperCase();
+  const paidStatuses = new Set(["SUCCESS", "PAID", "COMPLETED", "FINISH", ""]);
+  const failedStatuses = new Set(["FAILED", "DENIED", "CANCELED", "CANCELLED"]);
+  const expiredStatuses = new Set(["EXPIRED", "ORDER_EXPIRED"]);
+
+  const isPaid =
+    statusApiResult === "PAID" || (statusApiResult === null && paidStatuses.has(reportedStatus));
+  if (isPaid) {
+    await finalizeOrderIfPaid(order, raw);
+    return Response.json({ ok: true });
+  }
+
+  const isExpired =
+    statusApiResult === "EXPIRED" || (statusApiResult === null && expiredStatuses.has(reportedStatus));
+  const isFailed =
+    statusApiResult === "FAILED" || (statusApiResult === null && failedStatuses.has(reportedStatus));
+  if (isExpired || isFailed) {
+    await db
+      .update(orders)
+      .set({
+        status: isExpired ? "expired" : "failed",
+        providerPayload: raw,
+        updatedAt: Date.now(),
+      })
+      .where(eq(orders.id, order.id));
+    return Response.json({ ok: true, status: isExpired ? "expired" : "failed" });
+  }
+
+  return Response.json({ ok: true, ignored: true });
 }

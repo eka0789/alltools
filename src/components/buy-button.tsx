@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 // Tombol beli: POST /api/checkout → redirect ke halaman pembayaran DOKU,
 // atau buka halaman checkout internal (mode simulasi). 401 → arahkan login.
@@ -17,11 +17,14 @@ export function BuyButton({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [alreadyOwned, setAlreadyOwned] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   async function buy() {
     setBusy(true);
     setError(null);
+    setAlreadyOwned(false);
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -29,7 +32,8 @@ export function BuyButton({
         body: JSON.stringify({ productId }),
       });
       if (res.status === 401) {
-        router.push("/login?next=/pricing");
+        const next = pathname && pathname.startsWith("/") ? pathname : "/pricing";
+        router.push(`/login?next=${encodeURIComponent(next)}`);
         return;
       }
       const data = (await res.json()) as {
@@ -38,8 +42,17 @@ export function BuyButton({
         invoice?: string;
         error?: string;
       };
+      if (res.status === 409 && data.error === "already-owned") {
+        setAlreadyOwned(true);
+        return;
+      }
       if (data.ok && data.invoice) {
-        router.push(data.paymentUrl ?? `/checkout/${data.invoice}`);
+        const target = data.paymentUrl ?? `/checkout/${data.invoice}`;
+        if (target.startsWith("http")) {
+          window.location.href = target;
+        } else {
+          router.push(target);
+        }
         return;
       }
       setError(
@@ -56,13 +69,24 @@ export function BuyButton({
     }
   }
 
+  if (alreadyOwned) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-success">Anda sudah memiliki akses untuk produk ini.</p>
+        <Link href="/account" className="btn-secondary text-center">
+          Buka Akun Saya
+        </Link>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="flex flex-col gap-2">
         <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-        <Link href="/login" className="btn-secondary">
-          Coba lagi
-        </Link>
+        <button type="button" onClick={buy} disabled={busy} className="btn-secondary">
+          {busy ? "Memproses…" : "Coba lagi"}
+        </button>
       </div>
     );
   }

@@ -13,6 +13,10 @@ export function AccountSync() {
     let pushTimer: ReturnType<typeof setTimeout> | null = null;
     let syncing = false;
 
+    const hasSessionHint = () =>
+      typeof document !== "undefined" &&
+      document.cookie.split(";").some((c) => c.trim().startsWith("at_logged_in=1"));
+
     const push = () => {
       if (!authed || syncing) return;
       pushTimer = null;
@@ -35,10 +39,14 @@ export function AccountSync() {
     };
 
     const pullAndMerge = async () => {
+      if (!hasSessionHint()) return;
       syncing = true;
       try {
         const res = await fetch("/api/sync/lists", { cache: "no-store" });
-        if (res.status === 401) return;
+        if (res.status === 401) {
+          authed = false;
+          return;
+        }
         if (!res.ok) return;
         authed = true;
         const data = (await res.json()) as { favorites?: string[]; compare?: string[] };
@@ -59,14 +67,19 @@ export function AccountSync() {
       }
     };
 
+    const onOnline = () => {
+      void pullAndMerge();
+    };
+
     void pullAndMerge();
 
     window.addEventListener(STORE_EVENT, schedulePush);
     window.addEventListener("storage", schedulePush);
-    window.addEventListener("online", () => void pullAndMerge());
+    window.addEventListener("online", onOnline);
     return () => {
       window.removeEventListener(STORE_EVENT, schedulePush);
       window.removeEventListener("storage", schedulePush);
+      window.removeEventListener("online", onOnline);
       if (pushTimer) clearTimeout(pushTimer);
     };
   }, []);

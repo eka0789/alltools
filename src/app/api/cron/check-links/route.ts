@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, DB_ACTIVE } from "@/db/client";
 import { linkChecks, tools } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { safeEqual } from "@/lib/admin";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { isPrivateHost } from "@/lib/url-check";
 
@@ -21,9 +22,9 @@ const MAX_BATCH = 120;
 export async function POST(req: NextRequest) {
   // Vercel Cron sends `Authorization: Bearer $CRON_SECRET`; reject anything
   // else (and anything from non-cron sources when the secret is unset).
-  const secret = process.env.CRON_SECRET;
+  const secret = process.env.CRON_SECRET?.trim();
   const auth = req.headers.get("authorization") ?? "";
-  if (!secret || auth !== `Bearer ${secret}`) {
+  if (!secret || !safeEqual(auth, `Bearer ${secret}`)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   if (!DB_ACTIVE) {

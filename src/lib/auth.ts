@@ -11,6 +11,9 @@ import { acceptPendingInvitesForUser } from "@/lib/entitlements";
 // for 30 days.
 
 export const SESSION_COOKIE = "at_session";
+// Lightweight non-HttpOnly hint so client components (Navbar, AccountSync)
+// know whether to query session endpoints without firing 401s for anon traffic.
+export const SESSION_HINT_COOKIE = "at_logged_in";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAGIC_TTL_MS = 15 * 60 * 1000;
 
@@ -27,6 +30,17 @@ export function normalizeEmail(email: string): string | null {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleaned) ? cleaned : null;
 }
 
+// Guards post-login redirects against open redirects: only internal app paths
+// starting with a single "/" are accepted.
+export function sanitizeNextPath(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes("\\")) {
+    return null;
+  }
+  return trimmed.slice(0, 300);
+}
+
 // Creates a single-use magic-link token for the email and returns the raw
 // token to embed in the URL (only the hash is persisted).
 export async function createMagicToken(email: string): Promise<string> {
@@ -41,13 +55,13 @@ export async function createMagicToken(email: string): Promise<string> {
   return token;
 }
 
-// Redeems a magic token: marks it used, upserts the user, opens a session.
-// Returns the raw session token for the cookie, or null when invalid.
+// Redeems a magic token atomically: marks it used in a single conditional
+// UPDATE so concurrent requests cannot double-redeem the same token.
 export async function redeemMagicToken(rawToken: string): Promise<string | null> {
   const now = Date.now();
-  const rows = await db
-    .select()
-    .from(authTokens)
+  const claimed = await db
+    .update(authTokens)
+    .set({ usedAt: now })
     .where(
       and(
         eq(authTokens.tokenHash, sha256(rawToken)),
@@ -55,11 +69,9 @@ export async function redeemMagicToken(rawToken: string): Promise<string | null>
         gt(authTokens.expiresAt, now),
       ),
     )
-    .limit(1);
-  const token = rows[0];
+    .returning({ id: authTokens.id, email: authTokens.email });
+  const token = claimed[0];
   if (!token) return null;
-
-  await db.update(authTokens).set({ usedAt: now }).where(eq(authTokens.id, token.id));
 
   const existing = await db.select().from(users).where(eq(users.email, token.email)).limit(1);
   let userId: number;
@@ -128,6 +140,16 @@ export async function destroySession(raw: string): Promise<void> {
 export function sessionCookieOptions() {
   return {
     httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_TTL_MS / 1000,
+  };
+}
+
+export function sessionHintCookieOptions() {
+  return {
+    httpOnly: false,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",

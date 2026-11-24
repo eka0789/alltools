@@ -39,8 +39,24 @@ export function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 }
 
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Shared email shell — plain, honest, dark-mode-friendly.
-export function emailShell(title: string, bodyHtml: string): string {
+export function emailShell(title: string, bodyHtml: string, footerExtraHtml = ""): string {
+  const host = (() => {
+    try {
+      return new URL(siteUrl()).hostname;
+    } catch {
+      return "aktifkoding.biz.id";
+    }
+  })();
   return `<!doctype html><html><body style="margin:0;background:#f4f4f5;font-family:system-ui,-apple-system,Segoe UI,sans-serif;padding:32px 16px;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid #e4e4e7;overflow:hidden;">
     <div style="padding:20px 24px;border-bottom:1px solid #e4e4e7;">
@@ -52,7 +68,7 @@ export function emailShell(title: string, bodyHtml: string): string {
       ${bodyHtml}
     </div>
     <div style="padding:16px 24px;border-top:1px solid #e4e4e7;color:#71717a;font-size:12px;">
-      AktifKoding — Developer Tools Pro · <a href="${siteUrl()}" style="color:#4f46e5;">aktifkoding.biz.id</a>
+      AktifKoding — Developer Tools Pro · <a href="${siteUrl()}" style="color:#4f46e5;">${host}</a>${footerExtraHtml ? `<div style="margin-top:6px;">${footerExtraHtml}</div>` : ""}
     </div>
   </div>
 </body></html>`;
