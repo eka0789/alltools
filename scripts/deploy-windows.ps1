@@ -6,10 +6,42 @@ param(
     [int]$Port = 0,
     [string]$NodeDir = "",
     [switch]$ForceInstall,
-    [switch]$SkipPull
+    [switch]$SkipPull,
+    [switch]$FromEnv,
+    [string]$RepoUrl = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+$doForceInstall = $ForceInstall.IsPresent
+$doSkipPull = $SkipPull.IsPresent
+
+if ($FromEnv.IsPresent) {
+    if ([string]::IsNullOrWhiteSpace($AppDir) -and [string]::IsNullOrWhiteSpace($env:LOCAL_DEPLOY_DIR)) {
+        throw "Missing repository variable LOCAL_DEPLOY_DIR. Set it in GitHub: Settings -> Secrets and variables -> Actions -> Variables -> LOCAL_DEPLOY_DIR"
+    }
+    if ([string]::IsNullOrWhiteSpace($AppDir)) {
+        $AppDir = $env:LOCAL_DEPLOY_DIR
+    }
+    if ((-not $PSBoundParameters.ContainsKey("AppName")) -and (-not [string]::IsNullOrWhiteSpace($env:PM2_APP_NAME))) {
+        $AppName = $env:PM2_APP_NAME
+    }
+    if (($Port -le 0) -and ($env:APP_PORT -match '^\d+$')) {
+        $Port = [int]$env:APP_PORT
+    }
+    if ([string]::IsNullOrWhiteSpace($NodeDir) -and (-not [string]::IsNullOrWhiteSpace($env:NODE_DIR))) {
+        $NodeDir = $env:NODE_DIR
+    }
+    if ([string]::IsNullOrWhiteSpace($RepoUrl) -and (-not [string]::IsNullOrWhiteSpace($env:REPO_URL))) {
+        $RepoUrl = $env:REPO_URL
+    }
+    if ($env:FORCE_INSTALL -eq "true") {
+        $doForceInstall = $true
+    }
+    if ($env:SKIP_PULL -eq "true") {
+        $doSkipPull = $true
+    }
+}
 
 function Invoke-Native {
     param(
@@ -101,6 +133,19 @@ foreach ($cmdName in @("git", "node", "npm", "npx", "pm2")) {
     }
 }
 
+$dirMissingOrEmpty = (-not (Test-Path $AppDir)) -or ((Get-ChildItem -Path $AppDir -Force | Measure-Object).Count -eq 0)
+if ($dirMissingOrEmpty -and (-not [string]::IsNullOrWhiteSpace($RepoUrl))) {
+    $parentDir = Split-Path -Parent $AppDir
+    if (-not [string]::IsNullOrWhiteSpace($parentDir) -and (-not (Test-Path $parentDir))) {
+        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+    }
+    if (-not (Test-Path $AppDir)) {
+        New-Item -ItemType Directory -Path $AppDir -Force | Out-Null
+    }
+    Write-Host "[deploy] AppDir '${AppDir}' is empty; cloning $RepoUrl (branch $Branch)..."
+    [void](Invoke-Native -Exe "git" -ArgsList @("clone", "--branch", $Branch, $RepoUrl, $AppDir))
+}
+
 if (-not (Test-Path (Join-Path $AppDir "package.json"))) {
     throw "Invalid AppDir '${AppDir}': package.json not found."
 }
@@ -142,7 +187,7 @@ try {
         $effectivePort = [int]$env:PORT
     }
 
-    if (-not $SkipPull) {
+    if (-not $doSkipPull) {
         $statusRes = Invoke-Native -Exe "git" -ArgsList @("status", "--porcelain", "--untracked-files=no") -CaptureOutput
         $dirtyFiles = @($statusRes.Output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         if ($dirtyFiles.Count -gt 0) {
@@ -179,7 +224,7 @@ try {
             $prevHash = $rawPrev.Trim()
         }
     }
-    $needInstall = $ForceInstall.IsPresent -or (-not (Test-Path "node_modules")) -or ($prevHash -ne $currHash)
+    $needInstall = $doForceInstall -or (-not (Test-Path "node_modules")) -or ($prevHash -ne $currHash)
 
     $pm2Desc = Invoke-Native -Exe "pm2" -ArgsList @("describe", $AppName) -AllowFailure -CaptureOutput
     if ($pm2Desc.ExitCode -eq 0) {
@@ -262,15 +307,44 @@ try {
         $healthy = $false
         Write-Host "[deploy] Checking server health at $healthUrl ..."
         for ($attempt = 1; $attempt -le 20; $attempt++) {
-            try {
-                $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 5
-                if ($response.StatusCode -eq 200) {
-                    $healthy = $true
-                    Write-Host "[deploy] Health check passed (HTTP 200 on attempt $attempt)."
-                    break
+            $pm2Status = ""
+            $jlistRes = Invoke-Native -Exe "pm2" -ArgsList @("jlist") -AllowFailure -CaptureOutput
+            if ($jlistRes.ExitCode -eq 0) {
+                $jlistText = ($jlistRes.Output | Out-String).Trim()
+                if ($jlistText -match '(\[[\s\S]*\])') {
+                    $jlistText = $Matches[1]
                 }
-            } catch {
-                # Server may still be starting up
+                if (-not [string]::IsNullOrWhiteSpace($jlistText)) {
+                    try {
+                        $pm2Procs = $jlistText | ConvertFrom-Json
+                        if ($null -ne $pm2Procs) {
+                            $matched = @($pm2Procs | Where-Object { $_.name -eq $AppName })
+                            if ($matched.Count -gt 0 -and $null -ne $matched[0].pm2_env) {
+                                $pm2Status = [string]$matched[0].pm2_env.status
+                            }
+                        }
+                    } catch {
+                        # Ignore transient JSON parse errors
+                    }
+                }
+            }
+
+            if ($pm2Status -eq "errored" -or $pm2Status -eq "stopped") {
+                Write-Host "[deploy] PM2 process '$AppName' entered status '$pm2Status'."
+                break
+            }
+
+            if ($pm2Status -eq "online") {
+                try {
+                    $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 5
+                    if ($response.StatusCode -eq 200) {
+                        $healthy = $true
+                        Write-Host "[deploy] Health check passed (PM2 online + HTTP 200 on attempt $attempt)."
+                        break
+                    }
+                } catch {
+                    # Server may still be starting up
+                }
             }
             Start-Sleep -Seconds 2
         }

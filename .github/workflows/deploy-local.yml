@@ -44,40 +44,13 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Deploy & restart local Next.js server
-        shell: powershell
+        shell: cmd
         env:
           LOCAL_DEPLOY_DIR: ${{ vars.LOCAL_DEPLOY_DIR }}
           PM2_APP_NAME: ${{ vars.PM2_APP_NAME }}
           APP_PORT: ${{ vars.APP_PORT }}
           NODE_DIR: ${{ vars.NODE_DIR }}
+          REPO_URL: https://github.com/${{ github.repository }}.git
           FORCE_INSTALL: ${{ inputs.force_install || 'false' }}
           SKIP_PULL: ${{ inputs.skip_pull || 'false' }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:LOCAL_DEPLOY_DIR)) {
-            Write-Error "Missing repository variable LOCAL_DEPLOY_DIR. Set it in GitHub: Settings -> Secrets and variables -> Actions -> Variables -> LOCAL_DEPLOY_DIR"
-            exit 1
-          }
-
-          $params = @{
-            AppDir  = $env:LOCAL_DEPLOY_DIR
-            Branch  = "master"
-            AppName = $(if (-not [string]::IsNullOrWhiteSpace($env:PM2_APP_NAME)) { $env:PM2_APP_NAME } else { "aktifkoding" })
-          }
-
-          if ($env:APP_PORT -match '^\d+$') {
-            $params.Port = [int]$env:APP_PORT
-          }
-          if (-not [string]::IsNullOrWhiteSpace($env:NODE_DIR)) {
-            $params.NodeDir = $env:NODE_DIR
-          }
-          if ($env:FORCE_INSTALL -eq "true") {
-            $params.ForceInstall = $true
-          }
-          if ($env:SKIP_PULL -eq "true") {
-            $params.SkipPull = $true
-          }
-
-          & ".\scripts\deploy-windows.ps1" @params
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\deploy-windows.ps1 -FromEnv
