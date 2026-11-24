@@ -46,6 +46,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/generators/deployment`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/ai-review`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/templates`, lastModified: catalogDate, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${base}/developers`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/submit`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/pricing`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/about`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },

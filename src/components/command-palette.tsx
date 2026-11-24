@@ -12,12 +12,17 @@ interface QuickResult {
 }
 
 const QUICK_LINKS = [
+  { href: "/templates", label: "Project Templates", hint: "Production-ready starter packs" },
+  { href: "/generators", label: "Generators", hint: "Boilerplate, API Docs & Deploy Config" },
+  { href: "/ai-review", label: "AI Code Review", hint: "Security & code health analysis" },
+  { href: "/pricing", label: "Pricing & Pro", hint: "Lifetime, Team & Templates" },
+  { href: "/account", label: "My Account", hint: "Purchases, downloads & team seats" },
   { href: "/tools", label: "All tools", hint: "Browse the full directory" },
   { href: "/categories", label: "Categories", hint: "Browse by topic" },
   { href: "/glossary", label: "Glossary", hint: "Terms in plain English" },
   { href: "/collections", label: "Collections", hint: "Curated starter packs" },
-  { href: "/tags", label: "Tags", hint: "Thematic groupings" },
   { href: "/stacks", label: "Stacks", hint: "Pick your stack" },
+  { href: "/developers", label: "Public API & MCP", hint: "JSON API & IDE server" },
   { href: "/whats-new", label: "What's new", hint: "Latest catalog additions" },
   { href: "/ai-chat", label: "DevDict AI", hint: "Ask the assistant" },
   { href: "/favorites", label: "Your shortlist", hint: "Saved tools" },
@@ -127,7 +132,8 @@ export function CommandPalette() {
 
   const trimmed = query.trim();
   const showQuickLinks = trimmed.length < 2;
-  const results = trimmed.length >= 2 && search.q === trimmed ? search.items : [];
+  const isFetching = !showQuickLinks && search.q !== trimmed;
+  const results = !isFetching && !showQuickLinks ? search.items : [];
   const totalItems = showQuickLinks ? QUICK_LINKS.length : results.length;
 
   const go = useCallback(
@@ -221,6 +227,10 @@ export function CommandPalette() {
                 </button>
               ))}
             </>
+          ) : isFetching ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+              Searching catalog…
+            </p>
           ) : results.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-muted-foreground">
               No matches. Press Enter to run a full search.

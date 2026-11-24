@@ -51,8 +51,9 @@ export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchB
   const placeholderIdx = useRef(0);
 
   const trimmed = query.trim();
-  const results = trimmed.length >= 2 && search.q === trimmed ? search.items : [];
   const searched = trimmed.length >= 2;
+  const isFetching = searched && search.q !== trimmed;
+  const results = searched && !isFetching ? search.items : [];
 
   // Rotating placeholder (pauses while typing)
   useEffect(() => {
@@ -180,7 +181,9 @@ export function SearchBox({ size = "lg", initialQuery = "", autoFocus }: SearchB
           role="listbox"
           className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
         >
-          {results.length === 0 ? (
+          {isFetching ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">Searching…</p>
+          ) : results.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">
               No matches for “{query.trim()}”. Press Enter for a full search —
               fuzzy matching may still find it.

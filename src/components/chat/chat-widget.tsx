@@ -4,11 +4,13 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Sparkles, X } from "lucide-react";
 import { ChatPanel } from "./chat-panel";
+import { useCompare } from "@/lib/client-store";
 
 export function ChatWidget() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [greeted, setGreeted] = useState(false);
+  const [compare] = useCompare();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -52,6 +54,8 @@ export function ChatWidget() {
   // The widget is redundant on the dedicated chat page and hidden in admin.
   if (pathname?.startsWith("/admin") || pathname?.startsWith("/ai-chat")) return null;
 
+  const trayVisible = compare.length > 0 && !pathname?.startsWith("/compare");
+
   return (
     <>
       {open && (
@@ -60,7 +64,9 @@ export function ChatWidget() {
           role="dialog"
           aria-modal="true"
           aria-label="DevDict AI chat"
-          className="card fixed bottom-20 right-3 z-50 flex h-[min(66vh,540px)] w-[min(94vw,400px)] flex-col overflow-hidden shadow-2xl shadow-black/20 sm:right-5 chat-pop"
+          className={`card fixed right-3 z-50 flex h-[min(66vh,540px)] w-[min(94vw,400px)] flex-col overflow-hidden shadow-2xl shadow-black/20 sm:right-5 chat-pop ${
+            trayVisible ? "bottom-32 sm:bottom-20" : "bottom-20"
+          }`}
         >
           <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-accent to-accent-hover px-4 py-3 text-accent-foreground">
             <div className="flex items-center gap-2.5">
@@ -99,7 +105,9 @@ export function ChatWidget() {
         }}
         aria-label={open ? "Close DevDict AI" : "Open DevDict AI — tool & career recommendations assistant"}
         aria-expanded={open}
-        className="fixed bottom-4 right-3 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-hover text-accent-foreground shadow-xl shadow-accent/30 transition-transform hover:scale-105 active:scale-95 sm:right-5"
+        className={`fixed right-3 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-hover text-accent-foreground shadow-xl shadow-accent/30 transition-all hover:scale-105 active:scale-95 sm:right-5 ${
+          trayVisible ? "bottom-16 sm:bottom-4" : "bottom-4"
+        }`}
       >
         {!open && !greeted && (
           <span className="absolute inset-0 animate-ping rounded-full bg-accent/40 [animation-duration:2s]" />

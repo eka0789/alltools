@@ -1,11 +1,11 @@
-# AllTools — The Developer Dictionary
+# AktifKoding — Developer Tools Pro
 
 > **Everything Developers Need, In One Place.**
-> Search thousands of developer tools, resources, services, documentation and AI tools.
+> Search hundreds of curated developer tools, resources, services, documentation, AI tools, plus project templates, boilerplate/deploy generators, and AI code review.
 
-AllTools is **not** a collection of re-implemented utilities. It is a
-**discovery engine and directory**: it collects, categorizes, and points
-developers to the best existing tools on the internet, with one search.
+AktifKoding combines a **curated developer directory & discovery engine** with
+built-in **Pro developer productivity tools** (project templates, browser-side
+boilerplate/API docs/deployment config generators, and AI code review).
 
 - **829 curated tools** across **30 categories** (127 subcategories) — every entry has a real,
   official URL.

@@ -24,6 +24,9 @@ export interface BulkTool {
   githubUrl: string | null;
   documentationUrl: string | null;
   githubStars: number | null;
+  installCommand: string | null;
+  pros: string[];
+  cons: string[];
 }
 
 export async function GET(req: NextRequest) {
@@ -66,6 +69,9 @@ export async function GET(req: NextRequest) {
       githubUrl: t.githubUrl,
       documentationUrl: t.documentationUrl,
       githubStars: t.githubStars,
+      installCommand: t.installCommand,
+      pros: t.pros,
+      cons: t.cons,
     });
   }
 

@@ -128,6 +128,75 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* AktifKoding Pro Showcase — direct access to templates, generators & AI review */}
+      <section className="border-b border-border bg-muted/30">
+        <div className="mx-auto max-w-6xl px-4 py-10">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+                AktifKoding Pro Toolkit
+              </p>
+              <h2 className="mt-1 text-lg font-semibold tracking-tight">
+                Not just a directory — ship faster with built-in developer tools
+              </h2>
+            </div>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
+            >
+              See Pro &amp; Team plans
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Link href="/templates" className="card group flex flex-col p-4 transition-colors hover:border-accent/50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold group-hover:text-accent">Project Templates</span>
+                <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
+                  Free &amp; Pro
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Production-ready Next.js SaaS, Express Clean Architecture, Admin Dashboard &amp; API starters with live file preview.
+              </p>
+            </Link>
+            <Link href="/generators/boilerplate" className="card group flex flex-col p-4 transition-colors hover:border-accent/50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold group-hover:text-accent">Boilerplate Generator</span>
+                <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
+                  Free
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Combine Next.js, Vite, Express, Hono, or FastAPI with Postgres/MySQL/SQLite, Auth &amp; Docker — download as ZIP.
+              </p>
+            </Link>
+            <Link href="/ai-review" className="card group flex flex-col p-4 transition-colors hover:border-accent/50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold group-hover:text-accent">AI Code Review</span>
+                <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
+                  3×/day Free
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Detect security bugs, SQLi, XSS, performance issues with line numbers, copyable fixes &amp; Markdown reports.
+              </p>
+            </Link>
+            <Link href="/generators" className="card group flex flex-col p-4 transition-colors hover:border-accent/50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold group-hover:text-accent">API Docs &amp; Deploy</span>
+                <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
+                  Browser-only
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Generate OpenAPI 3.1 specs, Markdown API docs, Dockerfiles, Nginx/Caddy &amp; GitHub Actions locally.
+              </p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Popular on AktifKoding — real outbound clicks; hidden until there is
           honest click data, so a fresh deployment doesn't fake it. */}
       {popular.length >= 4 && (

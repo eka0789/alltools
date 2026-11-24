@@ -18,6 +18,9 @@ export interface BulkTool {
   githubUrl: string | null;
   documentationUrl: string | null;
   githubStars: number | null;
+  installCommand?: string | null;
+  pros?: string[];
+  cons?: string[];
 }
 
 // Shared fetcher for client pages that resolve slugs (favorites, compare,

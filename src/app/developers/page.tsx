@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Braces, Bot, Rss } from "lucide-react";
+import { siteUrl } from "@/lib/email";
+import { ApiPlayground } from "./playground";
 
 export const revalidate = 120;
 
@@ -11,35 +13,34 @@ export const metadata: Metadata = {
   alternates: { canonical: "/developers" },
 };
 
-const ENDPOINTS = [
-  {
-    method: "GET",
-    path: "/api/v1/tools",
-    desc: "Paginated catalog. Params: page, perPage (≤100), category, tag, pricing, q, sort (name | newest | popular).",
-    example: `curl "https://alldevtools.vercel.app/api/v1/tools?category=database&pricing=free&perPage=5"`,
-  },
-  {
-    method: "GET",
-    path: "/api/v1/tools/[slug]",
-    desc: "One tool with the full public projection: pros/cons, install command, GitHub stats, alternatives.",
-    example: `curl "https://alldevtools.vercel.app/api/v1/tools/next-js"`,
-  },
-  {
-    method: "GET",
-    path: "/api/v1/search",
-    desc: "Search with fuzzy matching, synonyms and task-based intents. Params: q (required), limit (≤25), category, tag, pricing.",
-    example: `curl "https://alldevtools.vercel.app/api/v1/search?q=test%20rest%20api&limit=5"`,
-  },
-  {
-    method: "GET",
-    path: "/api/v1/categories",
-    desc: "The taxonomy with live tool counts and subcategories.",
-    example: `curl "https://alldevtools.vercel.app/api/v1/categories"`,
-  },
-];
-
 export default function DevelopersPage() {
-  const origin = "https://alldevtools.vercel.app";
+  const origin = siteUrl();
+  const endpoints = [
+    {
+      method: "GET",
+      path: "/api/v1/tools",
+      desc: "Paginated catalog. Params: page, perPage (≤100), category, tag, pricing, q, sort (name | newest | popular).",
+      example: `curl "${origin}/api/v1/tools?category=database&pricing=free&perPage=5"`,
+    },
+    {
+      method: "GET",
+      path: "/api/v1/tools/[slug]",
+      desc: "One tool with the full public projection: pros/cons, install command, GitHub stats, alternatives.",
+      example: `curl "${origin}/api/v1/tools/next-js"`,
+    },
+    {
+      method: "GET",
+      path: "/api/v1/search",
+      desc: "Search with fuzzy matching, synonyms and task-based intents. Params: q (required), limit (≤25), category, tag, pricing.",
+      example: `curl "${origin}/api/v1/search?q=test%20rest%20api&limit=5"`,
+    },
+    {
+      method: "GET",
+      path: "/api/v1/categories",
+      desc: "The taxonomy with live tool counts and subcategories.",
+      example: `curl "${origin}/api/v1/categories"`,
+    },
+  ];
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <header>
@@ -56,8 +57,9 @@ export default function DevelopersPage() {
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold tracking-tight">JSON API (v1)</h2>
+        <ApiPlayground />
         <div className="mt-4 space-y-4">
-          {ENDPOINTS.map((e) => (
+          {endpoints.map((e) => (
             <div key={e.path} className="card p-5">
               <p className="flex items-center gap-2 text-sm font-semibold">
                 <span className="rounded bg-accent-soft px-1.5 py-0.5 font-mono text-[11px] text-accent">
@@ -86,8 +88,8 @@ export default function DevelopersPage() {
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           AktifKoding speaks the Model Context Protocol. Add it once and Claude
-          Desktop, Cursor, Cline or any MCP client can search the catalog and
-          define terms without leaving your editor.
+          Desktop, Cursor, Cline or any MCP client can search the catalog,
+          compare tools, and define terms without leaving your editor.
         </p>
         <div className="card mt-4 p-5">
           <p className="text-sm font-semibold">Endpoint</p>
@@ -99,7 +101,7 @@ export default function DevelopersPage() {
             <code>{JSON.stringify(
               {
                 mcpServers: {
-                  alltools: { url: `${origin}/api/mcp` },
+                  aktifkoding: { url: `${origin}/api/mcp` },
                 },
               },
               null,
@@ -109,6 +111,7 @@ export default function DevelopersPage() {
           <p className="mt-3 text-xs text-muted-foreground">
             Tools exposed: <code className="font-mono">search_tools</code>,{" "}
             <code className="font-mono">get_tool</code>,{" "}
+            <code className="font-mono">compare_tools</code>,{" "}
             <code className="font-mono">list_categories</code>,{" "}
             <code className="font-mono">lookup_term</code>.
           </p>

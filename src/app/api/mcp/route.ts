@@ -15,9 +15,9 @@ export const dynamic = "force-dynamic";
 
 const PROTOCOL_VERSION = "2025-06-18";
 const SERVER_INFO = {
-  name: "alltools",
+  name: "aktifkoding",
   title: "AktifKoding — Developer Tools Pro",
-  version: "1.0.0",
+  version: "1.1.0",
 };
 
 const CORS_HEADERS: Record<string, string> = {
@@ -65,6 +65,24 @@ const TOOL_DEFS = [
       type: "object",
       properties: { slug: { type: "string", description: "Tool slug, e.g. 'next-js'" } },
       required: ["slug"],
+    },
+  },
+  {
+    name: "compare_tools",
+    description:
+      "Compare 2 to 4 developer tools side by side (pricing, open source, GitHub stars, pros/cons, install commands).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slugs: {
+          type: "array",
+          items: { type: "string" },
+          minItems: 2,
+          maxItems: 4,
+          description: "Array of 2-4 tool slugs, e.g. ['drizzle-orm', 'prisma']",
+        },
+      },
+      required: ["slugs"],
     },
   },
   {
@@ -134,6 +152,33 @@ function callTool(name: string, args: Record<string, unknown>) {
       t.useCases.length ? `\nUseful for: ${t.useCases.join("; ")}` : "",
     ].filter(Boolean);
     return textContent(parts.join("\n"));
+  }
+
+  if (name === "compare_tools") {
+    const slugs = Array.isArray(args.slugs)
+      ? args.slugs.map((s) => String(s).trim()).filter(Boolean).slice(0, 4)
+      : [];
+    if (slugs.length < 2) return textContent("Error: provide at least 2 tool slugs to compare.");
+    const found = slugs
+      .map((s) => getToolBySlug(s))
+      .filter((t): t is NonNullable<typeof t> => !!t && t.status !== "deprecated");
+    if (found.length < 2) {
+      return textContent(`Found fewer than 2 valid tools for slugs: ${slugs.join(", ")}`);
+    }
+    const blocks = found.map((t) =>
+      [
+        `## ${t.name} (${t.slug})`,
+        `- Category: ${t.categoryName} | Pricing: ${t.pricing} | Open Source: ${t.openSource ? "Yes" : "No"} | Self-hostable: ${t.selfHosted ? "Yes" : "No"}`,
+        t.githubStars !== null ? `- GitHub stars: ${t.githubStars.toLocaleString()}` : "",
+        t.installCommand ? `- Install: \`${t.installCommand}\`` : "",
+        t.pros.length ? `- Strengths: ${t.pros.join("; ")}` : "",
+        t.cons.length ? `- Trade-offs: ${t.cons.join("; ")}` : "",
+        `- URL: ${t.url}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+    return textContent(`# Side-by-side Comparison\n\n${blocks.join("\n\n")}`);
   }
 
   if (name === "list_categories") {

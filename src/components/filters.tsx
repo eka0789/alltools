@@ -86,6 +86,8 @@ function FilterLink({
   );
 }
 
+import { MobileFilterDrawer } from "./mobile-filter-drawer";
+
 export function Filters({
   params,
   basePath,
@@ -99,11 +101,12 @@ export function Filters({
 }) {
   const filters = parseFilters(params as Record<string, string>);
   const cat = categories.find((c) => c.slug === filters.category);
-  const hasActive = Object.values(filters).some((v) => v !== undefined);
+  const activeCount = Object.values(filters).filter((v) => v !== undefined).length;
+  const hasActive = activeCount > 0;
 
   return (
-    <aside className="w-full lg:w-56 lg:shrink-0">
-      <div className="lg:sticky lg:top-20">
+    <MobileFilterDrawer activeCount={activeCount}>
+      <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Filters</h2>
           {hasActive && (
@@ -188,7 +191,7 @@ export function Filters({
           </FilterLink>
         </FilterGroup>
       </div>
-    </aside>
+    </MobileFilterDrawer>
   );
 }
 
