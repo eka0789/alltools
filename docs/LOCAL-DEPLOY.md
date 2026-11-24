@@ -22,14 +22,15 @@ Panduan ini menjelaskan cara mengaktifkan deploy otomatis ke mesin Windows lokal
 
 ## Setup Sekali Saja (5 Langkah)
 
-### 1. Install PM2 & hentikan server manual lama
+### 1. Install PM2 & Microsoft Visual C++ Redistributable
 Jalankan di PowerShell pada mesin server Windows:
 
 ```powershell
 npm install -g pm2
+winget install --id Microsoft.VCRedist.2015+.x64 -e --accept-source-agreements --accept-package-agreements
 ```
 
-Jika sebelumnya Anda menjalankan server secara manual (misalnya lewat `npm run start` di terminal), hentikan dulu proses lama tersebut agar port aplikasi (`3000`) tidak bentrok saat PM2 mulai berjalan.
+**Microsoft Visual C++ 2015–2022 Redistributable (x64)** wajib terpasang sekali di Windows untuk binary native Node/`@libsql/win32-x64-msvc`/Next.js. Jika sebelumnya Anda menjalankan server secara manual (misalnya lewat `npm run start` di terminal), hentikan dulu proses lama tersebut agar port aplikasi (`3000`) tidak bentrok saat PM2 mulai berjalan.
 
 ### 2. Pastikan `.env.local` sudah lengkap
 Pastikan file `.env.local` di folder deploy sudah berisi seluruh variabel produksi yang dibutuhkan, khususnya:

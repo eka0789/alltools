@@ -58,7 +58,7 @@ function Invoke-Native {
             $output = & $Exe @ArgsList
             $code = $LASTEXITCODE
         } else {
-            & $Exe @ArgsList
+            & $Exe @ArgsList | Out-Host
             $code = $LASTEXITCODE
         }
     } finally {
@@ -71,11 +71,11 @@ function Invoke-Native {
 
     if ($CaptureOutput) {
         return @{
-            ExitCode = $code
+            ExitCode = [int]$code
             Output   = $output
         }
     }
-    return $code
+    return [int]$code
 }
 
 function Add-PathCandidates {
@@ -131,6 +131,11 @@ foreach ($cmdName in @("git", "node", "npm", "npx", "pm2")) {
         }
         throw "Required command '$cmdName' not found in PATH. Ensure it is installed or configure -NodeDir / NODE_DIR."
     }
+}
+
+$vcRuntime = Join-Path $env:SystemRoot "System32\vcruntime140.dll"
+if (-not (Test-Path $vcRuntime)) {
+    throw "Missing Microsoft Visual C++ Redistributable ($vcRuntime), required by @libsql/win32-x64-msvc and Next.js native binaries. Install it once via: winget install --id Microsoft.VCRedist.2015+.x64 -e --accept-source-agreements --accept-package-agreements"
 }
 
 $dirMissingOrEmpty = (-not (Test-Path $AppDir)) -or ((Get-ChildItem -Path $AppDir -Force | Measure-Object).Count -eq 0)
