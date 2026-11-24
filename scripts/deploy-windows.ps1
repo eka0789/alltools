@@ -312,27 +312,8 @@ try {
         $healthy = $false
         Write-Host "[deploy] Checking server health at $healthUrl ..."
         for ($attempt = 1; $attempt -le 20; $attempt++) {
-            $pm2Status = ""
-            $jlistRes = Invoke-Native -Exe "pm2" -ArgsList @("jlist") -AllowFailure -CaptureOutput
-            if ($jlistRes.ExitCode -eq 0) {
-                $jlistText = ($jlistRes.Output | Out-String).Trim()
-                if ($jlistText -match '(\[[\s\S]*\])') {
-                    $jlistText = $Matches[1]
-                }
-                if (-not [string]::IsNullOrWhiteSpace($jlistText)) {
-                    try {
-                        $pm2Procs = $jlistText | ConvertFrom-Json
-                        if ($null -ne $pm2Procs) {
-                            $matched = @($pm2Procs | Where-Object { $_.name -eq $AppName })
-                            if ($matched.Count -gt 0 -and $null -ne $matched[0].pm2_env) {
-                                $pm2Status = [string]$matched[0].pm2_env.status
-                            }
-                        }
-                    } catch {
-                        # Ignore transient JSON parse errors
-                    }
-                }
-            }
+            $statusRes = Invoke-Native -Exe "node" -ArgsList @("scripts/pm2-status.mjs", $AppName) -AllowFailure -CaptureOutput
+            $pm2Status = ($statusRes.Output | Out-String).Trim()
 
             if ($pm2Status -eq "errored" -or $pm2Status -eq "stopped") {
                 Write-Host "[deploy] PM2 process '$AppName' entered status '$pm2Status'."
