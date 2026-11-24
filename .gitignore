@@ -56,3 +56,7 @@ gui-test-screenshots/
 
 .vercel
 .env*
+
+# local Windows deploy artifacts
+.deploy-lock.sha256
+/.next.bak/

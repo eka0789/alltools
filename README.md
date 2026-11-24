@@ -321,6 +321,10 @@ Live: https://alldevtools.vercel.app
 - Re-seed the remote database after changing the seed data: `ALLTOOLS_DB_URL=… ALLTOOLS_DB_AUTH_TOKEN=… npm run db:seed -- --reset` — wipes and reseeds the catalog tables (community submissions are preserved).
 - Environment vars on Vercel: `ADMIN_TOKEN`, `NEXT_PUBLIC_SITE_URL`, `ALLTOOLS_DB_URL`, `ALLTOOLS_DB_AUTH_TOKEN`.
 
+### Local Windows Auto-Deploy
+
+Untuk menjalankan aplikasi di server lokal Windows (seperti `aktifkoding.biz.id` di balik Cloudflare) dengan auto-deploy setiap `git push` ke `master` via GitHub Actions Self-Hosted Runner + PM2, lihat panduan lengkap di [docs/LOCAL-DEPLOY.md](docs/LOCAL-DEPLOY.md).
+
 ## AktifKoding Pro (monetization)
 
 Fitur premium di atas direktori gratis: **generator** (boilerplate, API docs,

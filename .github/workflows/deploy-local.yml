@@ -1,0 +1,83 @@
+name: Deploy Local (Windows)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      force_install:
+        description: "Force npm ci even if package-lock.json is unchanged"
+        required: false
+        type: boolean
+        default: false
+      skip_pull:
+        description: "Skip git pull and only rebuild/restart"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-local-aktifkoding
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Windows local server
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 15
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'master' &&
+        github.event.workflow_run.event == 'push'
+      )
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Deploy & restart local Next.js server
+        shell: powershell
+        env:
+          LOCAL_DEPLOY_DIR: ${{ vars.LOCAL_DEPLOY_DIR }}
+          PM2_APP_NAME: ${{ vars.PM2_APP_NAME }}
+          APP_PORT: ${{ vars.APP_PORT }}
+          NODE_DIR: ${{ vars.NODE_DIR }}
+          FORCE_INSTALL: ${{ inputs.force_install || 'false' }}
+          SKIP_PULL: ${{ inputs.skip_pull || 'false' }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:LOCAL_DEPLOY_DIR)) {
+            Write-Error "Missing repository variable LOCAL_DEPLOY_DIR. Set it in GitHub: Settings -> Secrets and variables -> Actions -> Variables -> LOCAL_DEPLOY_DIR"
+            exit 1
+          }
+
+          $params = @{
+            AppDir  = $env:LOCAL_DEPLOY_DIR
+            Branch  = "master"
+            AppName = $(if (-not [string]::IsNullOrWhiteSpace($env:PM2_APP_NAME)) { $env:PM2_APP_NAME } else { "aktifkoding" })
+          }
+
+          if ($env:APP_PORT -match '^\d+$') {
+            $params.Port = [int]$env:APP_PORT
+          }
+          if (-not [string]::IsNullOrWhiteSpace($env:NODE_DIR)) {
+            $params.NodeDir = $env:NODE_DIR
+          }
+          if ($env:FORCE_INSTALL -eq "true") {
+            $params.ForceInstall = $true
+          }
+          if ($env:SKIP_PULL -eq "true") {
+            $params.SkipPull = $true
+          }
+
+          & ".\scripts\deploy-windows.ps1" @params
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
