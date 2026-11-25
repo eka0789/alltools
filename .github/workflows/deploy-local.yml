@@ -34,9 +34,9 @@ jobs:
           sparse-checkout: scripts
 
       - name: Trigger LocalDeploy build & health-checked rollout
-        shell: powershell
+        shell: cmd
         env:
           LOCALDEPLOY_API_URL: ${{ vars.LOCALDEPLOY_API_URL }}
           LOCALDEPLOY_APP_ID: ${{ vars.LOCALDEPLOY_APP_ID }}
           LOCALDEPLOY_TOKEN: ${{ secrets.LOCALDEPLOY_TOKEN }}
-        run: ./scripts/deploy-localdeploy.ps1
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\deploy-localdeploy.ps1
