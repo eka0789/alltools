@@ -17,6 +17,10 @@ on:
         description: "Schema push only (skip wipe+reseed)"
         type: boolean
         default: false
+      safe_schema_sync:
+        description: "Idempotent additive DDL (no data loss) instead of drizzle-kit push"
+        type: boolean
+        default: false
 
 jobs:
   update:
@@ -31,10 +35,17 @@ jobs:
       - name: Validate seed data
         run: npm run validate
       - name: Push Drizzle schema to Turso
+        if: ${{ !inputs.safe_schema_sync }}
         env:
           ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
           ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}
         run: npm run db:push
+      - name: Safe additive schema sync (no data loss)
+        if: ${{ inputs.safe_schema_sync }}
+        env:
+          ALLTOOLS_DB_URL: ${{ secrets.ALLTOOLS_DB_URL }}
+          ALLTOOLS_DB_AUTH_TOKEN: ${{ secrets.ALLTOOLS_DB_AUTH_TOKEN }}
+        run: node scripts/db-migrate-safe.mjs
       - name: Reseed catalog
         if: ${{ !inputs.skip_seed }}
         env:
