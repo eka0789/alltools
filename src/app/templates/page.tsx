@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Lock, Unlock } from "lucide-react";
 import { TEMPLATES } from "@/data/templates";
 import { formatIdr, discountPercent } from "@/lib/products";
 import { getSessionUser } from "@/lib/auth";
 import { canDownloadTemplate, getUserAccess } from "@/lib/entitlements";
 import { CustomServiceCta } from "@/components/custom-service-cta";
+import { TemplatesBrowser, type TemplateCardItem } from "./templates-browser";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,22 @@ export default async function TemplatesPage() {
   const user = await getSessionUser();
   const access = await getUserAccess(user?.id ?? null);
 
+  const items: TemplateCardItem[] = TEMPLATES.map((t) => ({
+    slug: t.slug,
+    name: t.name,
+    tagline: t.tagline,
+    tags: t.tags,
+    priceIdr: t.priceIdr,
+    compareAtPriceIdr: t.compareAtPriceIdr,
+    discountPct: discountPercent(t.priceIdr, t.compareAtPriceIdr),
+    priceFormatted: t.priceIdr === 0 ? "Gratis" : formatIdr(t.priceIdr),
+    compareAtFormatted:
+      t.compareAtPriceIdr && t.compareAtPriceIdr > t.priceIdr
+        ? formatIdr(t.compareAtPriceIdr)
+        : null,
+    unlocked: canDownloadTemplate(access, t.slug),
+  }));
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <header className="max-w-2xl">
@@ -30,52 +46,7 @@ export default async function TemplatesPage() {
           diperbarui. Template gratis terbuka untuk semua.
         </p>
       </header>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {TEMPLATES.map((t) => {
-          const unlocked = canDownloadTemplate(access, t.slug);
-          return (
-            <Link
-              key={t.slug}
-              href={`/templates/${t.slug}`}
-              className="card flex flex-col p-6 transition-colors hover:border-accent/40"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">{t.name}</h2>
-                {t.priceIdr === 0 ? (
-                  <Unlock className="h-4 w-4 text-success" aria-label="Gratis" />
-                ) : unlocked ? (
-                  <Unlock className="h-4 w-4 text-accent" aria-label="Anda punya akses" />
-                ) : (
-                  <Lock className="h-4 w-4 text-muted-foreground" aria-label="Premium" />
-                )}
-              </div>
-              <p className="mt-2 flex-1 text-xs leading-relaxed text-muted-foreground">{t.tagline}</p>
-              <div className="mt-3 flex items-center gap-1.5">
-                {t.tags.slice(0, 3).map((tag) => (
-                  <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="text-sm font-semibold">
-                  {t.priceIdr === 0 ? "Gratis" : formatIdr(t.priceIdr)}
-                </span>
-                {t.compareAtPriceIdr && t.compareAtPriceIdr > t.priceIdr && (
-                  <>
-                    <span className="text-xs text-muted-foreground line-through">
-                      {formatIdr(t.compareAtPriceIdr)}
-                    </span>
-                    <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
-                      -{discountPercent(t.priceIdr, t.compareAtPriceIdr)}%
-                    </span>
-                  </>
-                )}
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+      <TemplatesBrowser items={items} />
       <CustomServiceCta />
       <p className="mt-6 text-xs text-muted-foreground">
         Butuh semuanya?{" "}

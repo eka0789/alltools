@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { getProduct } from "@/lib/products";
 import { emailShell, escapeHtml, sendEmail, siteUrl } from "@/lib/email";
+import { consumeCouponUsage } from "@/lib/coupons";
 
 // ── Entitlement: apa yang boleh diakses seorang pengguna ─────────────────
 // Entitlement "materialized": saat order dibayar, satu baris per user dibuat
@@ -79,6 +80,9 @@ export async function finalizeOrderIfPaid(
   if (updated.length === 0) return { alreadyPaid: true, granted: false };
 
   await grantEntitlements(order);
+  if (order.couponCode) {
+    void consumeCouponUsage(order.couponCode).catch(() => undefined);
+  }
   // Struk pembelian — best-effort: kegagalan email tidak boleh memengaruhi
   // grant entitlement (yang sudah atomik).
   void sendReceiptEmail(order).catch(() => undefined);
@@ -90,18 +94,30 @@ async function sendReceiptEmail(order: Order): Promise<void> {
   const rows = await db.select({ email: users.email }).from(users).where(eq(users.id, order.userId)).limit(1);
   const to = rows[0]?.email;
   if (!to) return;
-  const amount = new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(order.amount);
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(n);
+  const amount = fmt(order.amount);
+  const discountLine =
+    order.couponCode && order.discountAmount > 0
+      ? `Kode promo: <code>${escapeHtml(order.couponCode)}</code> (-${escapeHtml(fmt(order.discountAmount))})<br>`
+      : "";
+  const downloadCta =
+    product?.kind === "template" && product.templateSlug
+      ? `<p><a href="${siteUrl()}/templates/${encodeURIComponent(product.templateSlug)}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:9px 16px;border-radius:8px;font-weight:600;">Unduh Template Sekarang</a></p>`
+      : "";
+  const invoiceUrl = `${siteUrl()}/account/invoice/${encodeURIComponent(order.invoiceNo)}`;
   const body = [
     `<p>Pembayaran Anda sudah kami terima. Terima kasih!</p>`,
     `<p><strong>${escapeHtml(product?.name ?? order.productId)}</strong><br>`,
     `Invoice: <code>${escapeHtml(order.invoiceNo)}</code><br>`,
-    `Total: ${escapeHtml(amount)}</p>`,
-    `<p>Akses sudah aktif di akun Anda — template premium dan AI review tanpa batas bisa dipakai sekarang.</p>`,
-    `<p><a href="${siteUrl()}/account">Buka halaman akun</a> untuk mengunduh template.</p>`,
+    discountLine,
+    `Total dibayar: <strong>${escapeHtml(amount)}</strong></p>`,
+    downloadCta,
+    `<p>Akses sudah aktif di akun Anda. Anda dapat <a href="${invoiceUrl}">melihat &amp; mencetak invoice PDF</a> atau <a href="${siteUrl()}/account">membuka halaman akun</a> kapan saja.</p>`,
   ].join("");
   await sendEmail({
     to,

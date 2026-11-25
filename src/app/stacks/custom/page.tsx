@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ToolCardCompact } from "@/components/tool-card";
+import { ShareStackButton } from "@/components/share-stack-button";
 import { getCatalog } from "@/lib/data";
 import { matchStack } from "@/lib/stacks";
 
@@ -55,6 +56,14 @@ export default async function CustomStackPage({ searchParams }: Props) {
       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
         Your personalized toolbox, grouped by workflow stage.
       </p>
+      {sections.length > 0 && (
+        <div className="mt-3">
+          <ShareStackButton
+            slugs={[...new Set(sections.flatMap((s) => s.tools.map((t) => t.slug)))].slice(0, 30)}
+            defaultTitle={`${labels} Toolbox`}
+          />
+        </div>
+      )}
 
       {sections.length === 0 ? (
         <div className="mt-8 card p-6 text-sm text-muted-foreground">

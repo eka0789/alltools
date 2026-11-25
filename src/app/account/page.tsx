@@ -169,8 +169,8 @@ export default async function AccountPage() {
                     {o.status === "paid" && (
                       <>
                         {" · "}
-                        <Link href={`/checkout/${o.invoiceNo}`} className="text-accent hover:underline">
-                          kuitansi
+                        <Link href={`/account/invoice/${o.invoiceNo}`} className="text-accent hover:underline">
+                          invoice / PDF
                         </Link>
                       </>
                     )}

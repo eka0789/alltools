@@ -9,6 +9,7 @@ import { ToolLogo } from "@/components/tool-logo";
 import { PricingBadge } from "@/components/tool-card";
 import { FavoriteButton } from "@/components/favorite-button";
 import { RecentlyViewedStrip } from "@/components/recently-viewed";
+import { ShareStackButton } from "@/components/share-stack-button";
 
 function ToolRow({ tool }: { tool: BulkTool }) {
   return (
@@ -88,6 +89,11 @@ export default function FavoritesPage() {
         </div>
         {favorites.length > 0 && (
           <div className="flex shrink-0 flex-wrap justify-end gap-2">
+            <ShareStackButton
+              slugs={favorites}
+              defaultTitle="My Shortlist Stack"
+              label="Share Stack"
+            />
             <button type="button" onClick={exportFavorites} className="btn-secondary !py-1.5 text-xs">
               Export
             </button>

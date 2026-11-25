@@ -14,7 +14,7 @@ boilerplate/API docs/deployment config generators, and AI code review).
   "convert JSON to TypeScript", "inspect PostgreSQL"). Reachable everywhere
   via the navbar search button or **Ctrl/Cmd+K** command palette.
 - **Trending Open Source** section on the homepage, ranked by real GitHub stars.
-- **Popularity pipeline**: outbound clicks on "Open Website" are tracked per tool (all-time + a lazy 7-day bucket) and power the homepage **Popular on AllTools** section plus a **Popular** sort on /tools and /search. Hidden until real click data exists — never faked.
+- **Popularity pipeline**: outbound clicks on "Open Website" are tracked per tool (all-time + a lazy 7-day bucket) and power the homepage **Popular on AktifKoding** section plus a **Popular** sort on /tools and /search. Hidden until real click data exists — never faked.
 - **Stack Explorer** — pick your stack (Next.js, Laravel, Flutter…) and get a
   personalized toolbox grouped by workflow stage.
 - **Curated Collections** (`/collections`) — starter packs ("Frontend Starter
@@ -50,8 +50,9 @@ boilerplate/API docs/deployment config generators, and AI code review).
   categories. Free, CORS-enabled, no key. Documented at `/developers`.
 - **MCP server** (`/api/mcp`) — lets Claude Desktop, Cursor, Cline and other
   MCP clients search the catalog and define glossary terms from the IDE.
-- **Accounts & cross-device sync** — passwordless magic-link sign-in (Resend);
-  signed-in users sync favorites and compare across devices. Local-first.
+- **Accounts & cross-device sync** — passwordless magic-link sign-in (Resend) plus optional **GitHub OAuth**; signed-in users sync favorites and compare across devices. Local-first.
+- **Shareable public stacks** (`/stacks/shared/[id]`) — publish any custom stack or shortlist to a permanent public URL with view counter.
+- **Programmatic SEO comparisons** (`/compare/[toolA]-vs-[toolB]`) — canonical side-by-side comparison pages generated from catalog alternatives, included in `sitemap.xml`.
 - **Weekly digest** — double-opt-in newsletter (form on /whats-new) sent by a
   Monday cron: most-opened tools of the week plus fresh additions.
 - **Markdown export** — any collection or stack page copies/downloads as a
@@ -79,7 +80,7 @@ boilerplate/API docs/deployment config generators, and AI code review).
 | ---------- | ------------------------------------------------------- |
 | Framework  | Next.js 16 (App Router) + React 19 + TypeScript         |
 | Styling    | Tailwind CSS v4, custom design tokens, dark/light mode  |
-| Database   | SQLite via **Drizzle ORM** + better-sqlite3             |
+| Database   | SQLite / Turso via **Drizzle ORM** + `@libsql/client`   |
 | Search     | In-app scoring engine (fuzzy + synonyms + intents)      |
 | Icons      | lucide-react                                            |
 | Validation | zod                                                     |
@@ -124,6 +125,8 @@ Open http://localhost:3000 (or your chosen port).
 | `LLM_MODEL`            | `gpt-4o-mini`           | Optional LLM model override |
 | `RESEND_API_KEY`       | —                       | Optional: enables passwordless sign-in links and the weekly digest email. Without it, login fails closed in production and the subscribe form is hidden |
 | `RESEND_FROM`          | `AktifKoding <onboarding@resend.dev>` | From address (use a domain verified in Resend for real sends) |
+| `GITHUB_OAUTH_CLIENT_ID` | —                     | Optional: enables "Lanjut dengan GitHub" OAuth sign-in on `/login` (callback: `<SITE_URL>/api/auth/github/callback`) |
+| `GITHUB_OAUTH_CLIENT_SECRET` | —                 | GitHub OAuth app client secret (paired with `GITHUB_OAUTH_CLIENT_ID`) |
 | `DOKU_CLIENT_ID`       | —                       | Optional: enables DOKU Checkout payments (Pro Lifetime, Paket Tim, template premium). Without it checkout is disabled in production; in dev the payment flow is simulated locally |
 | `DOKU_SECRET_KEY`      | —                       | Secret key dari Back Office DOKU |
 | `DOKU_ENV`             | `sandbox`               | `sandbox` (api.sandbox.doku.com) atau `production` (api.doku.com) |
@@ -333,6 +336,14 @@ deployment config), **template proyek** (gratis + premium), **AI code review**
 
 - Produk statis di `src/lib/products.ts` (Pro Lifetime Rp 299rb, Paket Tim 10
   seat Rp 1,29jt, template premium à la carte dari `src/data/templates.ts`).
+- **Kupon / voucher promo**: tabel `coupons` dikelola langsung dari `/admin`
+  (diskon persen atau nominal IDR, batas kuota, tanggal kedaluwarsa), divalidasi
+  lewat `/api/coupons/validate` dan otomatis diterapkan saat checkout.
+- **Invoice cetak / PDF**: setiap order lunas punya halaman `/account/invoice/[invoice]`
+  ramah cetak (`window.print()`) plus link langsung di email konfirmasi pembayaran.
+- **Filter template**: `/templates` mendukung pencarian, tab Gratis/Premium, dan filter stack/tag.
+- **AI Code Review**: mendukung mode Kode, **Git Diff**, impor langsung dari URL GitHub/Gist publik,
+  ekspor `.md`, dan tombol **Salin PR Comment**.
 - Order → entitlement: `orders` + `entitlements` tabel; `finalizeOrderIfPaid`
   idempoten, dipanggil webhook DOKU, polling status halaman checkout, dan
   simulasi dev.

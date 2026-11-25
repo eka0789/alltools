@@ -4,6 +4,7 @@ import { STACKS } from "@/lib/stacks";
 import { COLLECTIONS } from "@/data/collections";
 import { GLOSSARY } from "@/data/glossary";
 import { getSeoLandingPages } from "@/lib/programmatic-seo";
+import { getTopComparePairs } from "@/lib/compare-seo";
 import { TEMPLATES } from "@/data/templates";
 
 // Revalidate hourly instead of force-dynamic per request: keeps lastModified
@@ -28,6 +29,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   // Programmatic SEO landing pages (categories × modifiers with ≥3 tools)
   const seoPages = getSeoLandingPages();
+  const comparePairs = getTopComparePairs(100);
 
   return [
     { url: `${base}/`, lastModified: catalogDate, changeFrequency: "daily", priority: 1 },
@@ -91,6 +93,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: catalogDate,
       changeFrequency: "weekly" as const,
       priority: 0.5,
+    })),
+    ...comparePairs.map((p) => ({
+      url: `${base}/compare/${p.pair}`,
+      lastModified: catalogDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.65,
     })),
   ];
 }

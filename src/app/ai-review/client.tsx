@@ -2,7 +2,7 @@
 
 import { useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Check, Copy, Download, History, Loader2, ScanSearch, Sparkles, Upload } from "lucide-react";
+import { Check, Copy, Download, GitPullRequest, History, Link2, Loader2, ScanSearch, Sparkles, Upload } from "lucide-react";
 
 interface Finding {
   severity: "critical" | "warning" | "info";
@@ -95,6 +95,17 @@ app.get("/users", async (req, res) => {
   return <div dangerouslySetInnerHTML={{ __html: bio }} />;
 }`,
   },
+  {
+    label: "Git Diff (PR)",
+    language: "typescript",
+    code: `@@ -12,6 +12,11 @@ export async function handler(req: Request) {
+   const user = await getUser(req);
++  const query = new URL(req.url).searchParams.get("q") ?? "";
++  const rows = await db.execute(\`SELECT * FROM items WHERE name = '\${query}'\`);
++  console.log("debug user token:", req.headers.get("authorization"));
++  return Response.json(rows);
+ }`,
+  },
 ];
 
 const SEVERITY_STYLE: Record<Finding["severity"], string> = {
@@ -121,6 +132,8 @@ function guessLanguage(filename: string): string {
 
 export function AiReviewClient() {
   const [code, setCode] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [mode, setMode] = useState<"code" | "diff">("code");
   const [language, setLanguage] = useState("typescript");
   const [focus, setFocus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -128,6 +141,7 @@ export function AiReviewClient() {
   const [error, setError] = useState<{ message: string; hint?: string } | null>(null);
   const [quotaInfo, setQuotaInfo] = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [copiedPr, setCopiedPr] = useState(false);
   const history = useSyncExternalStore(subscribeHistory, readHistorySnapshot, () => EMPTY_HISTORY);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -156,7 +170,13 @@ export function AiReviewClient() {
       const res = await fetch("/api/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, language, focus }),
+        body: JSON.stringify({
+          code: sourceUrl.trim() && !code.trim() ? "" : code,
+          sourceUrl: sourceUrl.trim() || undefined,
+          mode,
+          language,
+          focus,
+        }),
       });
       if (res.status === 402) {
         const data = (await res.json()) as { hint?: string; limit?: number };
@@ -170,10 +190,23 @@ export function AiReviewClient() {
         return;
       }
       if (!res.ok) {
-        setError({ message: "Gagal mereview. Coba lagi." });
+        const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+        setError({
+          message:
+            errBody.error === "invalid-source-url"
+              ? "URL harus berasal dari GitHub file (blob/raw) atau GitHub Gist publik."
+              : errBody.error === "source-fetch-failed"
+                ? "Gagal mengambil kode dari URL GitHub/Gist tersebut. Pastikan repositori/gist publik."
+                : "Gagal mereview. Coba lagi.",
+        });
         return;
       }
-      const data = (await res.json()) as Result & { quota?: { used: number; limit: number | null } };
+      const data = (await res.json()) as Result & {
+        fetchedCode?: string;
+        quota?: { used: number; limit: number | null };
+      };
+      const effectiveCode = data.fetchedCode ?? code;
+      if (data.fetchedCode) setCode(data.fetchedCode);
       setResult(data);
       if (data.quota?.limit != null) {
         setQuotaInfo(`${data.quota.used}/${data.quota.limit} review hari ini`);
@@ -185,8 +218,8 @@ export function AiReviewClient() {
         summary: data.summary,
         findingsCount: data.findings.length,
         createdAt: Date.now(),
-        codePreview: code.trim().split("\n")[0]?.slice(0, 60) || language,
-        code,
+        codePreview: effectiveCode.trim().split("\n")[0]?.slice(0, 60) || language,
+        code: effectiveCode,
         result: data,
       });
     } catch {
@@ -196,26 +229,35 @@ export function AiReviewClient() {
     }
   }
 
-  function exportMarkdown() {
-    if (!result) return;
-    const lines = [
-      `# AI Code Review Report (${language})`,
+  function buildMarkdownReport(): string {
+    if (!result) return "";
+    return [
+      `## AI Code Review Report (${language}${mode === "diff" ? " · Git Diff" : ""})`,
       "",
       `- **Score**: ${result.score}/100`,
       `- **Engine**: ${result.engine}`,
       `- **Summary**: ${result.summary}`,
       "",
-      "## Findings",
+      "### Findings",
       "",
-      ...result.findings.map((f, idx) =>
-        [
-          `### ${idx + 1}. [${f.severity.toUpperCase()}] ${f.title}${f.line ? ` (Line ${f.line})` : ""}`,
-          f.detail,
-          f.suggestion ? `\n\`\`\`${language}\n${f.suggestion}\n\`\`\`` : "",
-          "",
-        ].join("\n"),
-      ),
+      ...(result.findings.length === 0
+        ? ["✅ Tidak ada temuan kritis atau peringatan."]
+        : result.findings.map((f, idx) =>
+            [
+              `#### ${idx + 1}. [${f.severity.toUpperCase()}] ${f.title}${f.line ? ` (Line ${f.line})` : ""}`,
+              f.detail,
+              f.suggestion ? `\n\`\`\`${language}\n${f.suggestion}\n\`\`\`` : "",
+              "",
+            ].join("\n"),
+          )),
+      "---",
+      "_Generated with [AktifKoding AI Code Review](https://aktifkoding.biz.id/ai-review)_",
     ].join("\n");
+  }
+
+  function exportMarkdown() {
+    if (!result) return;
+    const lines = buildMarkdownReport();
     const blob = new Blob([lines], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -223,6 +265,17 @@ export function AiReviewClient() {
     a.download = `aktifkoding-review-${language}.md`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function copyPrComment() {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(buildMarkdownReport());
+      setCopiedPr(true);
+      setTimeout(() => setCopiedPr(false), 1800);
+    } catch {
+      // ignore
+    }
   }
 
   async function copySuggestion(idx: number, text: string) {
@@ -252,6 +305,8 @@ export function AiReviewClient() {
             onClick={() => {
               setCode(s.code);
               setLanguage(s.language);
+              setMode(s.label.includes("Diff") ? "diff" : "code");
+              setSourceUrl("");
               setResult(null);
               setError(null);
             }}
@@ -289,7 +344,28 @@ export function AiReviewClient() {
             void onFile(e.dataTransfer.files?.[0]);
           }}
         >
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setMode("code")}
+                className={`rounded-md px-2.5 py-1 font-medium ${
+                  mode === "code" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                Kode
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("diff")}
+                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium ${
+                  mode === "diff" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                <GitPullRequest className="h-3 w-3" />
+                Git Diff
+              </button>
+            </div>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
@@ -304,14 +380,27 @@ export function AiReviewClient() {
               value={focus}
               onChange={(e) => setFocus(e.target.value)}
               placeholder="Fokus (opsional): keamanan, performa, SQL…"
-              className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-accent"
+              className="min-w-[160px] flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-accent"
+            />
+          </div>
+          <div className="relative">
+            <Link2 className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              placeholder="Atau tempel URL GitHub file / Gist publik (opsional)…"
+              className="w-full rounded-lg border border-border bg-background py-1.5 pl-8 pr-3 text-xs outline-none focus:border-accent"
             />
           </div>
           <textarea
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            rows={18}
-            placeholder="Tempel kode di sini atau seret file ke area ini… (min. 20, maks. 20.000 karakter)"
+            rows={17}
+            placeholder={
+              mode === "diff"
+                ? "Tempel output `git diff` di sini… (min. 20, maks. 20.000 karakter)"
+                : "Tempel kode di sini atau seret file ke area ini… (min. 20, maks. 20.000 karakter)"
+            }
             className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-accent"
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -321,7 +410,7 @@ export function AiReviewClient() {
             <button
               type="button"
               onClick={run}
-              disabled={busy || code.trim().length < 20}
+              disabled={busy || (code.trim().length < 20 && !sourceUrl.trim())}
               className="btn-primary disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanSearch className="h-4 w-4" />}
@@ -362,7 +451,15 @@ export function AiReviewClient() {
                 <span className="text-xs font-medium text-muted-foreground">
                   {result.engine === "llm" ? "Mesin: LLM" : "Mesin: heuristik (lokal)"}
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void copyPrComment()}
+                    className="btn-secondary !px-2.5 !py-1 text-xs"
+                  >
+                    {copiedPr ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copiedPr ? "Disalin!" : "Salin PR Comment"}
+                  </button>
                   <button
                     type="button"
                     onClick={exportMarkdown}

@@ -8,7 +8,8 @@ import { getProduct } from "@/lib/products";
 import { getUserAccess } from "@/lib/entitlements";
 import { createDokuPayment, dokuConfig, dokuConfigured, dokuSimulationAllowed } from "@/lib/doku";
 import { siteUrl } from "@/lib/email";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimitPersistent } from "@/lib/rate-limit";
+import { validateCoupon } from "@/lib/coupons";
 
 export const runtime = "nodejs";
 
@@ -27,14 +28,16 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return Response.json({ error: "login-required", loginUrl: "/login?next=/pricing" }, { status: 401 });
   }
-  if (!rateLimit(`checkout:${clientIp(req)}`, 10, 60_000).ok) {
+  if (!(await rateLimitPersistent(`checkout:${clientIp(req)}`, 10, 60_000)).ok) {
     return Response.json({ error: "rate-limited" }, { status: 429 });
   }
 
   let productId = "";
+  let rawCoupon = "";
   try {
-    const body = (await req.json()) as { productId?: string };
+    const body = (await req.json()) as { productId?: string; couponCode?: string };
     productId = String(body.productId ?? "");
+    rawCoupon = String(body.couponCode ?? "").trim();
   } catch {
     productId = "";
   }
@@ -50,6 +53,20 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "already-owned" }, { status: 409 });
   }
 
+  let finalAmount = product.priceIdr;
+  let discountAmount = 0;
+  let appliedCouponCode: string | null = null;
+
+  if (rawCoupon) {
+    const couponRes = await validateCoupon(rawCoupon, product.priceIdr);
+    if (!couponRes.valid) {
+      return Response.json({ error: `coupon-${couponRes.error}` }, { status: 400 });
+    }
+    finalAmount = couponRes.finalAmount;
+    discountAmount = couponRes.discountAmount;
+    appliedCouponCode = couponRes.coupon.code;
+  }
+
   const now = Date.now();
   const invoice = invoiceNumber();
   const inserted = await db
@@ -58,7 +75,9 @@ export async function POST(req: NextRequest) {
       invoiceNo: invoice,
       userId: user.id,
       productId: product.id,
-      amount: product.priceIdr,
+      amount: finalAmount,
+      couponCode: appliedCouponCode,
+      discountAmount,
       status: "pending",
       provider: dokuConfigured() ? "doku" : "manual",
       createdAt: now,
@@ -71,9 +90,9 @@ export async function POST(req: NextRequest) {
   if (config) {
     const result = await createDokuPayment(config, {
       invoiceNumber: invoice,
-      amount: product.priceIdr,
+      amount: finalAmount,
       customer: { name: user.email.split("@")[0], email: user.email },
-      lineItems: [{ name: product.name, price: product.priceIdr, quantity: 1 }],
+      lineItems: [{ name: product.name, price: finalAmount, quantity: 1 }],
       callbackUrl: `${siteUrl()}/checkout/${invoice}`,
     });
     if (result.ok && result.paymentUrl) {

@@ -356,3 +356,67 @@ export async function grantProAction(formData: FormData) {
   revalidatePath("/admin");
   redirect(`/admin?granted=${encodeURIComponent(email)}`);
 }
+
+export async function createCouponAction(formData: FormData) {
+  await requireAdmin();
+  const { coupons } = await import("@/db/schema");
+  const { normalizeCouponCode } = await import("@/lib/coupons");
+
+  const code = normalizeCouponCode(String(formData.get("code") ?? ""));
+  const discountType = String(formData.get("discountType") ?? "percent") === "fixed" ? "fixed" : "percent";
+  const discountValue = Number(formData.get("discountValue") ?? 0);
+  const minAmountIdr = Math.max(0, Number(formData.get("minAmountIdr") ?? 0) || 0);
+  const maxUsesRaw = String(formData.get("maxUses") ?? "").trim();
+  const maxUses = maxUsesRaw ? Math.max(1, Number(maxUsesRaw) || 1) : null;
+  const expiresRaw = String(formData.get("expiresAt") ?? "").trim();
+  const expiresAt = expiresRaw ? Date.parse(expiresRaw) : null;
+
+  if (
+    code.length < 3 ||
+    !Number.isFinite(discountValue) ||
+    discountValue <= 0 ||
+    (discountType === "percent" && discountValue > 95)
+  ) {
+    redirect("/admin?coupon_error=invalid");
+  }
+
+  try {
+    await db.insert(coupons).values({
+      code,
+      discountType,
+      discountValue: Math.round(discountValue),
+      minAmountIdr: Math.round(minAmountIdr),
+      maxUses,
+      usedCount: 0,
+      expiresAt: expiresAt && Number.isFinite(expiresAt) ? expiresAt : null,
+      active: true,
+      createdAt: Date.now(),
+    });
+  } catch {
+    redirect("/admin?coupon_error=duplicate");
+  }
+
+  revalidatePath("/admin");
+  redirect(`/admin?coupon_created=${encodeURIComponent(code)}`);
+}
+
+export async function toggleCouponAction(formData: FormData) {
+  await requireAdmin();
+  const { coupons } = await import("@/db/schema");
+  const id = Number(formData.get("id") ?? 0);
+  const nextActive = String(formData.get("active") ?? "") === "1";
+  if (id) {
+    await db.update(coupons).set({ active: nextActive }).where(eq(coupons.id, id));
+    revalidatePath("/admin");
+  }
+}
+
+export async function deleteCouponAction(formData: FormData) {
+  await requireAdmin();
+  const { coupons } = await import("@/db/schema");
+  const id = Number(formData.get("id") ?? 0);
+  if (id) {
+    await db.delete(coupons).where(eq(coupons.id, id));
+    revalidatePath("/admin");
+  }
+}

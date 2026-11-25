@@ -11,10 +11,22 @@ import {
   dismissFeedbackAction,
   reconcileOrdersAction,
   grantProAction,
+  createCouponAction,
+  toggleCouponAction,
+  deleteCouponAction,
 } from "./actions";
 import { db } from "@/db/client";
-import { submissions, feedback, toolClicks, orders, subscribers, users } from "@/db/schema";
-import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import {
+  submissions,
+  feedback,
+  toolClicks,
+  orders,
+  subscribers,
+  users,
+  coupons,
+  type Coupon,
+} from "@/db/schema";
+import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { trendingQueries, noResultQueries } from "@/lib/search-analytics";
 import { formatIdr, getProduct } from "@/lib/products";
 
@@ -96,6 +108,7 @@ export default async function AdminPage({
   let paidOrdersCount = 0;
   let pendingOrdersCount = 0;
   let confirmedSubscriberCount = 0;
+  let allCoupons: Coupon[] = [];
 
   if (db) {
     try {
@@ -126,36 +139,55 @@ export default async function AdminPage({
     }
 
     try {
-      const allOrders = await db
-        .select({
-          id: orders.id,
-          invoiceNo: orders.invoiceNo,
-          productId: orders.productId,
-          amount: orders.amount,
-          status: orders.status,
-          createdAt: orders.createdAt,
-          email: users.email,
-        })
-        .from(orders)
-        .innerJoin(users, eq(users.id, orders.userId))
-        .orderBy(desc(orders.createdAt))
-        .limit(100);
-      recentOrders = allOrders.slice(0, 10);
-      for (const o of allOrders) {
-        if (o.status === "paid") {
-          paidOrdersCount += 1;
-          totalRevenueIdr += o.amount;
-        } else if (o.status === "pending") {
-          pendingOrdersCount += 1;
-        }
-      }
-      const subs = await db
-        .select({ id: subscribers.id })
-        .from(subscribers)
-        .where(and(isNotNull(subscribers.confirmedAt), isNull(subscribers.unsubscribedAt)));
-      confirmedSubscriberCount = subs.length;
+      // Accurate SQL aggregation across ALL orders (never truncated by .limit()).
+      const [paidAgg, pendingAgg, recent, subsAgg] = await Promise.all([
+        db
+          .select({
+            count: sql<number>`COUNT(*)`,
+            revenue: sql<number>`COALESCE(SUM(${orders.amount}), 0)`,
+          })
+          .from(orders)
+          .where(eq(orders.status, "paid")),
+        db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(orders)
+          .where(eq(orders.status, "pending")),
+        db
+          .select({
+            id: orders.id,
+            invoiceNo: orders.invoiceNo,
+            productId: orders.productId,
+            amount: orders.amount,
+            status: orders.status,
+            createdAt: orders.createdAt,
+            email: users.email,
+          })
+          .from(orders)
+          .innerJoin(users, eq(users.id, orders.userId))
+          .orderBy(desc(orders.createdAt))
+          .limit(10),
+        db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(subscribers)
+          .where(and(isNotNull(subscribers.confirmedAt), isNull(subscribers.unsubscribedAt))),
+      ]);
+      paidOrdersCount = Number(paidAgg[0]?.count ?? 0);
+      totalRevenueIdr = Number(paidAgg[0]?.revenue ?? 0);
+      pendingOrdersCount = Number(pendingAgg[0]?.count ?? 0);
+      recentOrders = recent;
+      confirmedSubscriberCount = Number(subsAgg[0]?.count ?? 0);
     } catch {
       // Pro/newsletter tables may not exist yet — degrade cleanly
+    }
+
+    try {
+      allCoupons = await db
+        .select()
+        .from(coupons)
+        .orderBy(desc(coupons.createdAt))
+        .limit(50);
+    } catch {
+      // coupons table may not exist yet — degrade cleanly
     }
   }
 
@@ -181,6 +213,18 @@ export default async function AdminPage({
       {typeof sp.grant_error === "string" && (
         <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           Invalid email address for Pro grant.
+        </p>
+      )}
+      {typeof sp.coupon_created === "string" && (
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          Created promo coupon <code className="font-mono">{sp.coupon_created}</code>.
+        </p>
+      )}
+      {typeof sp.coupon_error === "string" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          {sp.coupon_error === "duplicate"
+            ? "Coupon code already exists."
+            : "Invalid coupon parameters (code min 3 chars, percent 1-95 or fixed > 0)."}
         </p>
       )}
 
@@ -316,6 +360,94 @@ export default async function AdminPage({
             </ul>
           )}
         </div>
+      </div>
+
+      {/* Promo Coupons Management */}
+      <div className="card mt-8 p-5">
+        <h2 className="font-semibold">Promo Coupons</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Create percentage or fixed IDR discount codes without redeploying. Validated automatically at checkout.
+        </p>
+        <form action={createCouponAction} className="mt-4 grid gap-2 sm:grid-cols-6">
+          <input
+            name="code"
+            required
+            placeholder="Code (e.g. LAUNCH20)"
+            className="input font-mono text-xs uppercase"
+          />
+          <select name="discountType" className="input text-xs" defaultValue="percent">
+            <option value="percent">Percent (%)</option>
+            <option value="fixed">Fixed (IDR)</option>
+          </select>
+          <input
+            name="discountValue"
+            type="number"
+            min={1}
+            required
+            placeholder="Value (e.g. 20)"
+            className="input text-xs"
+          />
+          <input
+            name="maxUses"
+            type="number"
+            min={1}
+            placeholder="Max uses (opt)"
+            className="input text-xs"
+          />
+          <input
+            name="expiresAt"
+            type="date"
+            aria-label="Expires at"
+            className="input text-xs"
+          />
+          <button type="submit" className="btn-primary text-xs">
+            Create Coupon
+          </button>
+        </form>
+
+        {allCoupons.length > 0 && (
+          <ul className="mt-4 divide-y divide-border text-sm">
+            {allCoupons.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 font-medium">
+                    <code className="font-mono text-accent">{c.code}</code>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px]">
+                      {c.discountType === "percent" ? `${c.discountValue}%` : formatIdr(c.discountValue)}
+                    </span>
+                    <span
+                      className={`text-[10px] font-semibold ${
+                        c.active ? "text-success" : "text-muted-foreground"
+                      }`}
+                    >
+                      {c.active ? "active" : "paused"}
+                    </span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Used {c.usedCount}
+                    {c.maxUses != null ? `/${c.maxUses}` : "×"}
+                    {c.expiresAt ? ` · Expires ${formatDate(c.expiresAt)}` : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <form action={toggleCouponAction}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <input type="hidden" name="active" value={c.active ? "0" : "1"} />
+                    <button type="submit" className="btn-secondary !px-2.5 !py-1 text-xs">
+                      {c.active ? "Pause" : "Activate"}
+                    </button>
+                  </form>
+                  <form action={deleteCouponAction}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <button type="submit" className="btn-secondary !px-2.5 !py-1 text-xs text-destructive">
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {(topSearches.length > 0 || zeroResult.length > 0) && (

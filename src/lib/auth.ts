@@ -55,6 +55,49 @@ export async function createMagicToken(email: string): Promise<string> {
   return token;
 }
 
+export function githubOAuthConfigured(): boolean {
+  return Boolean(
+    process.env.GITHUB_OAUTH_CLIENT_ID?.trim() &&
+      process.env.GITHUB_OAUTH_CLIENT_SECRET?.trim(),
+  );
+}
+
+// Upserts a user by normalized email, creates a 30-day session, and accepts
+// any pending team invites. Shared by magic-link login and GitHub OAuth.
+export async function createSessionForEmail(rawEmail: string): Promise<string> {
+  const email = normalizeEmail(rawEmail);
+  if (!email) throw new Error("invalid-email");
+  const now = Date.now();
+
+  const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  let userId: number;
+  if (existing[0]) {
+    userId = existing[0].id;
+  } else {
+    const inserted = await db
+      .insert(users)
+      .values({ email, createdAt: now })
+      .returning({ id: users.id });
+    userId = inserted[0].id;
+  }
+
+  const sessionToken = randomToken();
+  await db.insert(sessions).values({
+    userId,
+    tokenHash: sha256(sessionToken),
+    createdAt: now,
+    expiresAt: now + SESSION_TTL_MS,
+  });
+
+  // Tim: undangan yang cocok dengan email ini otomatis diterima saat login.
+  try {
+    await acceptPendingInvitesForUser(email);
+  } catch {
+    // Jangan pernah gagalkan login karena proses invite.
+  }
+  return sessionToken;
+}
+
 // Redeems a magic token atomically: marks it used in a single conditional
 // UPDATE so concurrent requests cannot double-redeem the same token.
 export async function redeemMagicToken(rawToken: string): Promise<string | null> {
@@ -73,33 +116,7 @@ export async function redeemMagicToken(rawToken: string): Promise<string | null>
   const token = claimed[0];
   if (!token) return null;
 
-  const existing = await db.select().from(users).where(eq(users.email, token.email)).limit(1);
-  let userId: number;
-  if (existing[0]) {
-    userId = existing[0].id;
-  } else {
-    const inserted = await db
-      .insert(users)
-      .values({ email: token.email, createdAt: now })
-      .returning({ id: users.id });
-    userId = inserted[0].id;
-  }
-
-  const sessionToken = randomToken();
-  await db.insert(sessions).values({
-    userId,
-    tokenHash: sha256(sessionToken),
-    createdAt: now,
-    expiresAt: now + SESSION_TTL_MS,
-  });
-
-  // Tim: undangan yang cocok dengan email ini otomatis diterima saat login.
-  try {
-    await acceptPendingInvitesForUser(token.email);
-  } catch {
-    // Jangan pernah gagalkan login karena proses invite.
-  }
-  return sessionToken;
+  return createSessionForEmail(token.email);
 }
 
 export interface SessionUser {
