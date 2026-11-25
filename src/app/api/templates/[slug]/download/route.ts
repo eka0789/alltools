@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+import { promises as fs } from "fs";
+import path from "path";
 import { getSessionUser } from "@/lib/auth";
 import { getTemplate } from "@/data/templates";
 import { getUserAccess, canDownloadTemplate } from "@/lib/entitlements";
@@ -27,6 +29,31 @@ export async function GET(
     if (!canDownloadTemplate(access, slug)) {
       return Response.json({ error: "upgrade-required", buyUrl: `/templates/${slug}` }, { status: 402 });
     }
+  }
+
+  // Template berbasis ZIP: stream arsip dari penyimpanan privat. Karena file
+  // tidak ada di public/, tidak bisa diunduh tanpa lolos pengecekan entitlement.
+  if (template.archivePath) {
+    const relative = template.archivePath.replace(/^[./\\]+/, "");
+    const filePath = path.join(process.cwd(), relative);
+    try {
+      const file = await fs.readFile(filePath);
+      return new Response(new Uint8Array(file), {
+        headers: {
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename="${template.slug}.zip"`,
+          "Content-Length": String(file.byteLength),
+          "Cache-Control": "private, no-store",
+        },
+      });
+    } catch (err) {
+      console.error("[template-download] archive unavailable:", filePath, err);
+      return Response.json({ error: "archive-unavailable" }, { status: 500 });
+    }
+  }
+
+  if (!template.preset) {
+    return Response.json({ error: "unsupported-template" }, { status: 500 });
   }
 
   const files = generateBoilerplate({

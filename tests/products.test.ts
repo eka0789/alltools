@@ -40,10 +40,15 @@ describe("templates data integrity", () => {
     const slugs = TEMPLATES.map((t) => t.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
     for (const t of TEMPLATES) {
-      expect(["next", "vite", "express", "hono", "fastapi"]).toContain(t.preset.stack);
-      expect(["none", "postgres", "sqlite", "mysql"]).toContain(t.preset.database);
-      expect(["none", "session", "jwt"]).toContain(t.preset.auth);
       expect(t.priceIdr).toBeGreaterThanOrEqual(0);
+      if (t.preset) {
+        expect(["next", "vite", "express", "hono", "fastapi"]).toContain(t.preset.stack);
+        expect(["none", "postgres", "sqlite", "mysql"]).toContain(t.preset.database);
+        expect(["none", "session", "jwt"]).toContain(t.preset.auth);
+      } else {
+        // Template berbasis ZIP harus punya arsip privat.
+        expect(t.archivePath).toBeTruthy();
+      }
     }
   });
 });

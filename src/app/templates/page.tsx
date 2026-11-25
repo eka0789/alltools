@@ -5,6 +5,7 @@ import { TEMPLATES } from "@/data/templates";
 import { formatIdr, discountPercent } from "@/lib/products";
 import { getSessionUser } from "@/lib/auth";
 import { canDownloadTemplate, getUserAccess } from "@/lib/entitlements";
+import { CustomServiceCta } from "@/components/custom-service-cta";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,7 @@ export default async function TemplatesPage() {
           );
         })}
       </div>
+      <CustomServiceCta />
       <p className="mt-6 text-xs text-muted-foreground">
         Butuh semuanya?{" "}
         <Link href="/pricing" className="text-accent hover:underline">

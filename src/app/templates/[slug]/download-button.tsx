@@ -30,6 +30,19 @@ export function TemplateDownloadButton({ slug }: { slug: string }) {
         setError("Gagal mengunduh. Coba lagi.");
         return;
       }
+      const contentType = res.headers.get("content-type") ?? "";
+      if (contentType.includes("application/zip")) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${slug}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        return;
+      }
       const data = (await res.json()) as { files: Record<string, string> };
       await downloadZip(data.files, `${slug}.zip`);
     } catch {

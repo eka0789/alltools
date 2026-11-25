@@ -16,6 +16,7 @@ import { dokuConfigured, dokuSimulationAllowed } from "@/lib/doku";
 import { getSessionUser } from "@/lib/auth";
 import { getUserAccess } from "@/lib/entitlements";
 import { BuyButton } from "@/components/buy-button";
+import { CustomServiceCta } from "@/components/custom-service-cta";
 
 export const dynamic = "force-dynamic"; // harga & akses personal
 
@@ -207,6 +208,8 @@ export default async function PricingPage() {
           ))}
         </div>
       </section>
+
+      <CustomServiceCta />
 
       {/* For vendors — sponsored listings (tetap ada) */}
       <section className="mt-14">

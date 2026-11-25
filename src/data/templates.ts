@@ -7,8 +7,8 @@ export interface TemplateDef {
   name: string;
   tagline: string;
   description: string;
-  /** Boilerplate-generator preset that produces the base project. */
-  preset: {
+  /** Boilerplate-generator preset that produces the base project. Omitted for ZIP-based templates. */
+  preset?: {
     stack: "next" | "vite" | "express" | "hono" | "fastapi";
     database: "none" | "postgres" | "sqlite" | "mysql";
     auth: "none" | "session" | "jwt";
@@ -18,6 +18,12 @@ export interface TemplateDef {
   priceIdr: number; // 0 = free
   /** Harga normal sebelum promo. Jika diisi dan lebih besar dari priceIdr, UI menampilkan harga coret + badge diskon. */
   compareAtPriceIdr?: number;
+  /** Label teknologi untuk template berbasis ZIP (tanpa preset generator). */
+  stackLabel?: string;
+  /** Path ZIP privat (relatif ke root repo), disajikan lewat route ber-entitlement. */
+  archivePath?: string;
+  /** Ukuran ZIP dalam MB, untuk ditampilkan di UI. */
+  archiveSizeMb?: number;
   tags: string[];
   highlights: string[];
   /** Files merged on top of the generated preset (premium only when paid). */
@@ -474,6 +480,191 @@ export const TEMPLATES: TemplateDef[] = [
     priceIdr: 0,
     tags: ["python", "fastapi", "sqlalchemy"],
     highlights: ["Async SQLAlchemy 2.0", "Pydantic v2 settings", "pytest + httpx", "Docker Compose", "Gratis"],
+  },
+  // ---------------------------------------------------------------------------
+  // Template berbasis ZIP: source code proyek utuh (bukan hasil generator).
+  // Arsip disimpan di private/templates dan hanya bisa diunduh lewat route
+  // /api/templates/[slug]/download setelah entitlement terpenuhi.
+  // ---------------------------------------------------------------------------
+  {
+    slug: "nara",
+    name: "NARA — AI Companion (Flutter)",
+    tagline: "Aplikasi pendamping AI Flutter + Firebase, bilingual ID/EN",
+    description:
+      "Aplikasi Android elegan berbasis Flutter + Firebase: asisten AI hybrid, tugas, catatan, dan kebiasaan dalam satu aplikasi bilingual (Indonesia/Inggris). Termasuk onboarding, login, board, habit tracker, template halaman, dan profil.",
+    priceIdr: 49000,
+    compareAtPriceIdr: 149000,
+    stackLabel: "Flutter + Firebase",
+    archivePath: "private/templates/nara.zip",
+    archiveSizeMb: 1.7,
+    tags: ["flutter", "firebase", "android", "ai"],
+    highlights: [
+      "Asisten AI hybrid bilingual",
+      "Tugas, catatan, kebiasaan & board",
+      "Auth Firebase + onboarding",
+      "UI Flutter elegan + screenshot",
+      "Source code lengkap",
+    ],
+  },
+  {
+    slug: "warehousepro",
+    name: "WarehousePro — Sistem Manajemen Gudang",
+    tagline: "Aplikasi inventori Laravel 12 dengan RBAC & laporan",
+    description:
+      "Aplikasi manajemen gudang bergaya produksi berbasis Laravel 12: katalog produk, gudang & lokasi rak, operasi stok, purchase order, laporan dan ekspor, notifikasi low stock, audit log, hingga pengaturan sistem — semuanya dilindungi role dan permission.",
+    priceIdr: 49000,
+    compareAtPriceIdr: 149000,
+    stackLabel: "Laravel 12 + PHP 8.2",
+    archivePath: "private/templates/warehousepro.zip",
+    archiveSizeMb: 4.0,
+    tags: ["laravel", "php", "inventory", "rbac"],
+    highlights: [
+      "CRUD produk, kategori & supplier",
+      "Multi gudang + lokasi rak",
+      "Purchase order & operasi stok",
+      "Laporan, ekspor & low-stock alert",
+      "262 test passing",
+    ],
+  },
+  {
+    slug: "angkut-dev",
+    name: "Angkut — Logistics OS",
+    tagline: "Platform agregasi logistik AI: Go + Nuxt 4 + PostgreSQL",
+    description:
+      "Satu dasbor untuk mengelola pengiriman multi-kurir, COD, gudang, dan keuangan — dengan asisten AI yang menjawab dari data organisasi Anda sendiri. Backend Go 1.24, frontend Nuxt 4, database PostgreSQL 16.",
+    priceIdr: 49000,
+    compareAtPriceIdr: 149000,
+    stackLabel: "Go + Nuxt 4 + PostgreSQL",
+    archivePath: "private/templates/angkut-dev.zip",
+    archiveSizeMb: 2.7,
+    tags: ["go", "nuxt", "logistics", "postgres"],
+    highlights: [
+      "Multi-kurir & COD",
+      "Command center pengiriman",
+      "Asisten AI atas data sendiri",
+      "Label, manifest & keuangan",
+      "CI + Docker",
+    ],
+  },
+  {
+    slug: "devflow-ai",
+    name: "DevFlow AI — Engineering Workspace",
+    tagline: "Workspace AI untuk planning, backlog, dan eksekusi kode",
+    description:
+      "Personal AI software engineering workspace: rencanakan dengan AI agent, kelola backlog agile, jalankan eksekusi kode AI terhadap repository GitHub, dan rilis melalui Pull Request yang disetujui manusia.",
+    priceIdr: 49000,
+    compareAtPriceIdr: 149000,
+    stackLabel: "TypeScript monorepo (Node ≥22.5)",
+    archivePath: "private/templates/devflow-ai.zip",
+    archiveSizeMb: 1.2,
+    tags: ["typescript", "ai", "github", "monorepo"],
+    highlights: [
+      "AI planning & roadmap",
+      "Kanban sprint board",
+      "Eksekusi kode AI ke GitHub",
+      "Human-approved pull request",
+      "101 test passing",
+    ],
+  },
+  {
+    slug: "forgesight-ai",
+    name: "ForgeSight AI — Industrial Intelligence",
+    tagline: "Platform AI industri: computer vision, predictive maintenance, RAG",
+    description:
+      "Platform intelijen industri: inspeksi computer vision, predictive maintenance, RAG knowledge AI, operations agent, dan MLOps. FastAPI + Next.js 16 + PyTorch + PostgreSQL/pgvector + Redis + MinIO + MLflow + Prometheus/Grafana.",
+    priceIdr: 49000,
+    compareAtPriceIdr: 149000,
+    stackLabel: "FastAPI + Next.js + PyTorch",
+    archivePath: "private/templates/forgesight-ai.zip",
+    archiveSizeMb: 32.3,
+    tags: ["fastapi", "nextjs", "pytorch", "mlops"],
+    highlights: [
+      "Computer vision inspection",
+      "Predictive maintenance",
+      "RAG knowledge AI",
+      "Operations agent",
+      "MLOps + Prometheus/Grafana",
+    ],
+  },
+  {
+    slug: "superpowers",
+    name: "Superpowers — Agent Methodology",
+    tagline: "Metodologi pengembangan software untuk coding agent",
+    description:
+      "Metodologi pengembangan software lengkap untuk coding agent, dibangun dari skill composable dan instruksi awal: alur kerja dan spesifikasi agar agent bekerja konsisten di Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, dan lainnya.",
+    priceIdr: 49000,
+    compareAtPriceIdr: 149000,
+    stackLabel: "Markdown + skills (agent-agnostic)",
+    archivePath: "private/templates/superpowers.zip",
+    archiveSizeMb: 4.6,
+    tags: ["ai-agent", "methodology", "claude-code", "workflow"],
+    highlights: [
+      "Skill composable",
+      "Panduan multi-agent (Claude Code, Cursor, dll.)",
+      "Spesifikasi & alur kerja",
+      "Contoh proyek",
+      "Dokumentasi lengkap",
+    ],
+  },
+  {
+    slug: "klaimcreator",
+    name: "KlaimCreator — Affiliate Ops",
+    tagline: "Dashboard monitoring & klaim username creator TikTok",
+    description:
+      "Dashboard untuk tim TikTok Affiliate: memantau creator dari sumber berotorisasi tiap menit, mendeteksi username berstatus Available, mengelola antrian klaim, dan mengekspor CSV/Excel. Vite + React + Express + SQLite dengan Mock Integration yang berlabel jelas.",
+    priceIdr: 49000,
+    compareAtPriceIdr: 149000,
+    stackLabel: "React + Vite + Express + SQLite",
+    archivePath: "private/templates/klaimcreator.zip",
+    archiveSizeMb: 0.3,
+    tags: ["react", "express", "sqlite", "affiliate"],
+    highlights: [
+      "Monitoring creator real-time",
+      "Deteksi username Available",
+      "Assisted Claim Mode",
+      "Ekspor CSV/Excel",
+      "Scheduler, backup & notifikasi",
+    ],
+  },
+  {
+    slug: "localdeploy",
+    name: "LocalDeploy — Self-Hosted PaaS",
+    tagline: "Platform deploy mandiri: Git → container → domain + SSL",
+    description:
+      "Ubah PC menjadi cloud sendiri: deploy dari Git dengan deteksi runtime otomatis, routing domain + SSL satu klik, database terkelola, monitoring, preview per pull request, auto-scaling, dan API token untuk CI/CD. FastAPI + Next.js + Docker.",
+    priceIdr: 49000,
+    compareAtPriceIdr: 149000,
+    stackLabel: "FastAPI + Next.js + Docker",
+    archivePath: "private/templates/localdeploy.zip",
+    archiveSizeMb: 1.9,
+    tags: ["paas", "docker", "python", "devops"],
+    highlights: [
+      "Deploy dari Git otomatis",
+      "Domain + SSL via Cloudflare",
+      "Database & backup terkelola",
+      "Preview per pull request",
+      "65 test passing",
+    ],
+  },
+  {
+    slug: "nara-voice",
+    name: "NARA Voice — Android AI Assistant",
+    tagline: "Asisten suara AI universal untuk Android (ID/EN)",
+    description:
+      "Asisten suara AI untuk Android: STT streaming + TTS, NLU bilingual offline, deep link WhatsApp/Gmail/Maps/YouTube, kontrol aplikasi lewat accessibility, kontrol perangkat, dan rutinitas harian yang bertahan setelah reboot.",
+    priceIdr: 49000,
+    compareAtPriceIdr: 149000,
+    stackLabel: "Kotlin + Android (on-device)",
+    archivePath: "private/templates/nara-voice.zip",
+    archiveSizeMb: 0.2,
+    tags: ["android", "voice", "ai", "kotlin"],
+    highlights: [
+      "Perintah suara ID/EN",
+      "NLU offline deterministik",
+      "Deep link & kontrol aplikasi",
+      "Rutinitas harian",
+      "Laporan jujur sukses/gagal",
+    ],
   },
 ];
 

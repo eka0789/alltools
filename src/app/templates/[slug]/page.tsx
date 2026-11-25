@@ -10,6 +10,7 @@ import { BuyButton } from "@/components/buy-button";
 import { TemplateDownloadButton } from "./download-button";
 import { TemplateFilePreview, type PreviewFile } from "./file-preview";
 import { generateBoilerplate, slugifyProjectName } from "@/lib/generators/boilerplate";
+import { CustomServiceCta } from "@/components/custom-service-cta";
 
 export function generateStaticParams() {
   return TEMPLATES.map((t) => ({ slug: t.slug }));
@@ -49,14 +50,16 @@ export default async function TemplateDetailPage({
   const promoPct =
     compareAt && compareAt > template.priceIdr ? discountPercent(template.priceIdr, compareAt) : null;
 
-  const generated = generateBoilerplate({
-    projectName: slugifyProjectName(template.slug),
-    stack: template.preset.stack,
-    database: template.preset.database,
-    auth: template.preset.auth,
-    docker: template.preset.docker,
-    tests: template.preset.tests,
-  });
+  const generated = template.preset
+    ? generateBoilerplate({
+        projectName: slugifyProjectName(template.slug),
+        stack: template.preset.stack,
+        database: template.preset.database,
+        auth: template.preset.auth,
+        docker: template.preset.docker,
+        tests: template.preset.tests,
+      })
+    : {};
   const allFiles: Record<string, string> = { ...generated, ...(template.extraFiles ?? {}) };
   const canViewAll = template.priceIdr === 0 || unlocked;
   const previewFiles: PreviewFile[] = Object.keys(allFiles)
@@ -110,23 +113,45 @@ export default async function TemplateDetailPage({
           </section>
           <section className="mt-8">
             <h2 className="text-base font-semibold">Spesifikasi teknis</h2>
-            <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-              {[
-                ["Stack", template.preset.stack],
-                ["Database", template.preset.database],
-                ["Auth", template.preset.auth],
-                ["Docker", template.preset.docker ? "termasuk" : "tidak"],
-                ["Tests", template.preset.tests ? "termasuk" : "tidak"],
-                ["Bahasa", template.preset.stack === "fastapi" ? "Python" : "TypeScript"],
-              ].map(([k, v]) => (
-                <div key={k} className="rounded-lg bg-muted p-3">
-                  <dt className="text-xs text-muted-foreground">{k}</dt>
-                  <dd className="mt-0.5 font-medium capitalize">{v}</dd>
-                </div>
-              ))}
-            </dl>
+            {template.preset ? (
+              <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                {[
+                  ["Stack", template.preset.stack],
+                  ["Database", template.preset.database],
+                  ["Auth", template.preset.auth],
+                  ["Docker", template.preset.docker ? "termasuk" : "tidak"],
+                  ["Tests", template.preset.tests ? "termasuk" : "tidak"],
+                  ["Bahasa", template.preset.stack === "fastapi" ? "Python" : "TypeScript"],
+                ].map(([k, v]) => (
+                  <div key={k} className="rounded-lg bg-muted p-3">
+                    <dt className="text-xs text-muted-foreground">{k}</dt>
+                    <dd className="mt-0.5 font-medium capitalize">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                {[
+                  ["Stack", template.stackLabel ?? template.tags[0] ?? "—"],
+                  ["Format", "ZIP source code"],
+                  ["Ukuran", template.archiveSizeMb ? `±${template.archiveSizeMb} MB` : "—"],
+                ].map(([k, v]) => (
+                  <div key={k} className="rounded-lg bg-muted p-3">
+                    <dt className="text-xs text-muted-foreground">{k}</dt>
+                    <dd className="mt-0.5 font-medium">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {template.archivePath && (
+              <p className="mt-3 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                Paket berisi seluruh source code proyek (ZIP
+                {template.archiveSizeMb ? ` ±${template.archiveSizeMb} MB` : ""}), termasuk
+                dokumentasi dan konfigurasi contoh. Tanpa <code>node_modules</code> atau kredensial.
+              </p>
+            )}
           </section>
-          <TemplateFilePreview files={previewFiles} />
+          {previewFiles.length > 0 && <TemplateFilePreview files={previewFiles} />}
           <section className="mt-8">
             <h2 className="text-base font-semibold">Tags</h2>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -177,6 +202,7 @@ export default async function TemplateDetailPage({
             <li>✓ Unduh ulang kapan pun dari halaman akun</li>
             <li>✓ Garansi 7 hari</li>
           </ul>
+          <CustomServiceCta compact />
         </aside>
       </div>
 
