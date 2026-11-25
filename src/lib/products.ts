@@ -11,6 +11,8 @@ export interface Product {
   kind: ProductKind;
   name: string;
   priceIdr: number;
+  /** Harga normal sebelum promo (untuk tampilan harga coret). */
+  compareAtPriceIdr?: number;
   seats?: number; // untuk kind "team"
   templateSlug?: string; // untuk kind "template"
   description: string;
@@ -52,6 +54,7 @@ export function templateProduct(t: TemplateDef): Product {
     kind: "template",
     name: t.name,
     priceIdr: t.priceIdr,
+    compareAtPriceIdr: t.compareAtPriceIdr,
     templateSlug: t.slug,
     description: t.tagline,
     features: t.highlights,
@@ -75,4 +78,10 @@ export function formatIdr(amount: number): string {
     currency: "IDR",
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+/** Persentase diskon (dibulatkan) bila ada harga coret yang valid, selain itu null. */
+export function discountPercent(priceIdr: number, compareAtPriceIdr?: number): number | null {
+  if (!compareAtPriceIdr || compareAtPriceIdr <= priceIdr) return null;
+  return Math.round((1 - priceIdr / compareAtPriceIdr) * 100);
 }

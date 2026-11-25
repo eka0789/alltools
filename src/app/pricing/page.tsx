@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { getCatalog } from "@/lib/data";
-import { LIFETIME_PRODUCT, TEAM_PRODUCT, TEMPLATE_PRODUCTS, formatIdr } from "@/lib/products";
+import { LIFETIME_PRODUCT, TEAM_PRODUCT, TEMPLATE_PRODUCTS, formatIdr, discountPercent } from "@/lib/products";
 import { dokuConfigured, dokuSimulationAllowed } from "@/lib/doku";
 import { getSessionUser } from "@/lib/auth";
 import { getUserAccess } from "@/lib/entitlements";
@@ -176,8 +176,18 @@ export default async function PricingPage() {
             <div key={p.id} className="card flex flex-col p-6">
               <p className="text-sm font-semibold">{p.name}</p>
               <p className="mt-1 text-xs text-muted-foreground">{p.description}</p>
-              <p className="mt-3 flex items-baseline gap-1">
+              <p className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 <span className="text-2xl font-bold">{formatIdr(p.priceIdr)}</span>
+                {p.compareAtPriceIdr && p.compareAtPriceIdr > p.priceIdr && (
+                  <>
+                    <span className="text-sm text-muted-foreground line-through">
+                      {formatIdr(p.compareAtPriceIdr)}
+                    </span>
+                    <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+                      -{discountPercent(p.priceIdr, p.compareAtPriceIdr)}%
+                    </span>
+                  </>
+                )}
               </p>
               <ul className="mt-4 flex-1 space-y-2">
                 {p.features.slice(0, 4).map((f) => (

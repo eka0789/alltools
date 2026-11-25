@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check, Lock } from "lucide-react";
 import { TEMPLATES, getTemplate } from "@/data/templates";
-import { formatIdr } from "@/lib/products";
+import { formatIdr, discountPercent } from "@/lib/products";
 import { getSessionUser } from "@/lib/auth";
 import { canDownloadTemplate, getUserAccess } from "@/lib/entitlements";
 import { BuyButton } from "@/components/buy-button";
@@ -45,6 +45,9 @@ export default async function TemplateDetailPage({
   const access = await getUserAccess(user?.id ?? null);
   const unlocked = canDownloadTemplate(access, template.slug);
   const related = TEMPLATES.filter((t) => t.slug !== template.slug).slice(0, 3);
+  const compareAt = template.compareAtPriceIdr;
+  const promoPct =
+    compareAt && compareAt > template.priceIdr ? discountPercent(template.priceIdr, compareAt) : null;
 
   const generated = generateBoilerplate({
     projectName: slugifyProjectName(template.slug),
@@ -80,6 +83,14 @@ export default async function TemplateDetailPage({
           >
             {template.priceIdr === 0 ? "Gratis" : formatIdr(template.priceIdr)}
           </span>
+          {promoPct !== null && compareAt && (
+            <>
+              <span className="text-sm text-muted-foreground line-through">{formatIdr(compareAt)}</span>
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+                Hemat {promoPct}%
+              </span>
+            </>
+          )}
         </div>
         <p className="mt-2 text-sm text-muted-foreground">{template.description}</p>
       </header>
@@ -129,10 +140,18 @@ export default async function TemplateDetailPage({
         </div>
 
         <aside className="card h-fit p-6">
+          {promoPct !== null && compareAt && (
+            <p className="text-xs text-muted-foreground line-through">{formatIdr(compareAt)}</p>
+          )}
           <p className="text-sm font-semibold">
             {template.priceIdr === 0 ? "Gratis" : formatIdr(template.priceIdr)}
             {template.priceIdr > 0 && <span className="ml-1 text-xs text-muted-foreground">sekali bayar</span>}
           </p>
+          {promoPct !== null && (
+            <p className="mt-1 inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+              Promo — hemat {promoPct}%
+            </p>
+          )}
           <div className="mt-4">
             {template.priceIdr === 0 || unlocked ? (
               <TemplateDownloadButton slug={template.slug} />

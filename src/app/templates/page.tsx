@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Lock, Unlock } from "lucide-react";
 import { TEMPLATES } from "@/data/templates";
-import { formatIdr } from "@/lib/products";
+import { formatIdr, discountPercent } from "@/lib/products";
 import { getSessionUser } from "@/lib/auth";
 import { canDownloadTemplate, getUserAccess } from "@/lib/entitlements";
 
@@ -56,9 +56,21 @@ export default async function TemplatesPage() {
                   </span>
                 ))}
               </div>
-              <p className="mt-4 text-sm font-semibold">
-                {t.priceIdr === 0 ? "Gratis" : formatIdr(t.priceIdr)}
-              </p>
+              <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-sm font-semibold">
+                  {t.priceIdr === 0 ? "Gratis" : formatIdr(t.priceIdr)}
+                </span>
+                {t.compareAtPriceIdr && t.compareAtPriceIdr > t.priceIdr && (
+                  <>
+                    <span className="text-xs text-muted-foreground line-through">
+                      {formatIdr(t.compareAtPriceIdr)}
+                    </span>
+                    <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
+                      -{discountPercent(t.priceIdr, t.compareAtPriceIdr)}%
+                    </span>
+                  </>
+                )}
+              </div>
             </Link>
           );
         })}

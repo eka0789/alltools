@@ -16,6 +16,8 @@ export interface TemplateDef {
     tests: boolean;
   };
   priceIdr: number; // 0 = free
+  /** Harga normal sebelum promo. Jika diisi dan lebih besar dari priceIdr, UI menampilkan harga coret + badge diskon. */
+  compareAtPriceIdr?: number;
   tags: string[];
   highlights: string[];
   /** Files merged on top of the generated preset (premium only when paid). */
@@ -30,7 +32,8 @@ export const TEMPLATES: TemplateDef[] = [
     description:
       "Proyek Next.js (App Router) siap produksi dengan autentikasi session, dashboard berbayar UI, Drizzle ORM + PostgreSQL, Tailwind, Docker, dan GitHub Actions CI. Titik mulai tercepat untuk membangun produk SaaS bulanan.",
     preset: { stack: "next", database: "postgres", auth: "session", docker: true, tests: true },
-    priceIdr: 149000,
+    priceIdr: 2000,
+    compareAtPriceIdr: 149000,
     tags: ["nextjs", "saas", "typescript", "postgres"],
     highlights: [
       "App Router + server components",
@@ -273,7 +276,8 @@ export const TEMPLATES: TemplateDef[] = [
     description:
       "REST API Express + TypeScript memakai Clean Architecture: domain, use-case, repository, controller terpisah jelas. Lengkap dengan validasi zod, testing Vitest, rate limit, dan Docker. Cocok untuk backend freelancer & tim.",
     preset: { stack: "express", database: "postgres", auth: "jwt", docker: true, tests: true },
-    priceIdr: 99000,
+    priceIdr: 1000,
+    compareAtPriceIdr: 99000,
     tags: ["express", "typescript", "rest", "clean-architecture"],
     highlights: [
       "Layer domain / use-case / adapter / infra",
