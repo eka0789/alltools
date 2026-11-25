@@ -237,7 +237,9 @@ export const orders = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     productId: text("product_id").notNull(), // key in src/lib/products.ts
-    amount: integer("amount").notNull(), // IDR
+    amount: integer("amount").notNull(), // IDR (net paid after discount)
+    couponCode: text("coupon_code"),
+    discountAmount: integer("discount_amount").notNull().default(0),
     status: text("status").notNull().default("pending"),
     provider: text("provider").notNull().default("doku"),
     paymentUrl: text("payment_url"), // DOKU payment page redirect
@@ -331,6 +333,39 @@ export const teamInvites = sqliteTable(
   (t) => [index("team_invites_email_idx").on(t.email), index("team_invites_team_idx").on(t.teamId)],
 );
 
+// Promo / voucher coupons managed from /admin and validated at checkout.
+export const coupons = sqliteTable("coupons", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  code: text("code").notNull().unique(), // uppercase trimmed, e.g. LAUNCH20
+  discountType: text("discount_type").notNull().default("percent"), // percent | fixed
+  discountValue: integer("discount_value").notNull(), // 1-95 for percent, IDR for fixed
+  minAmountIdr: integer("min_amount_idr").notNull().default(0),
+  maxUses: integer("max_uses"), // null = unlimited
+  usedCount: integer("used_count").notNull().default(0),
+  expiresAt: integer("expires_at"), // unix ms, null = never expires
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at").notNull(),
+});
+
+// Shareable public stacks created by users from /stacks/custom or /favorites.
+export const sharedStacks = sqliteTable("shared_stacks", {
+  id: text("id").primaryKey(), // short url-safe slug
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  slugs: text("slugs").notNull().default("[]"), // JSON string[] of tool slugs
+  authorLabel: text("author_label"), // optional display name (never raw email)
+  views: integer("views").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+});
+
+// Persistent fixed-window rate-limit buckets (survives restarts & shared across
+// serverless instances when backed by Turso).
+export const rateLimits = sqliteTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull().default(1),
+  resetAt: integer("reset_at").notNull(),
+});
+
 export type Tool = typeof tools.$inferSelect;
 export type NewTool = typeof tools.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -350,3 +385,6 @@ export type Entitlement = typeof entitlements.$inferSelect;
 export type Team = typeof teams.$inferSelect;
 export type TeamMember = typeof teamMembers.$inferSelect;
 export type AiUsage = typeof aiUsage.$inferSelect;
+export type Coupon = typeof coupons.$inferSelect;
+export type SharedStack = typeof sharedStacks.$inferSelect;
+export type RateLimitRow = typeof rateLimits.$inferSelect;
