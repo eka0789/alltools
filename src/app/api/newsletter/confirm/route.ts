@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { subscribers } from "@/db/schema";
+import { siteUrl } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,5 +22,5 @@ export async function GET(req: NextRequest) {
         ),
       );
   }
-  return NextResponse.redirect(new URL("/whats-new?subscribed=1", req.nextUrl.origin));
+  return NextResponse.redirect(new URL("/whats-new?subscribed=1", siteUrl()));
 }

@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { subscribers } from "@/db/schema";
 import { normalizeSubscriberEmail, verifyUnsubscribeSignature } from "@/lib/newsletter";
+import { siteUrl } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
       .update(subscribers)
       .set({ unsubscribedAt: Date.now() })
       .where(eq(subscribers.email, email));
-    return NextResponse.redirect(new URL("/whats-new?unsubscribed=1", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/whats-new?unsubscribed=1", siteUrl()));
   }
 
   const token = (req.nextUrl.searchParams.get("token") ?? "").slice(0, 200);
@@ -27,5 +28,5 @@ export async function GET(req: NextRequest) {
       .set({ unsubscribedAt: Date.now() })
       .where(eq(subscribers.tokenHash, createHash("sha256").update(token).digest("hex")));
   }
-  return NextResponse.redirect(new URL("/whats-new?unsubscribed=1", req.nextUrl.origin));
+  return NextResponse.redirect(new URL("/whats-new?unsubscribed=1", siteUrl()));
 }
