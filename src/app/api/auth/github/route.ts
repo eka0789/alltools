@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import { githubOAuthConfigured, sanitizeNextPath } from "@/lib/auth";
+import { githubOAuthConfigured, sanitizeNextPath, cookieDomain } from "@/lib/auth";
 import { siteUrl } from "@/lib/email";
 
 export const runtime = "nodejs";
@@ -25,12 +25,14 @@ export async function GET(req: NextRequest) {
   authorizeUrl.searchParams.set("state", state);
 
   const res = NextResponse.redirect(authorizeUrl);
+  const domain = cookieDomain();
   res.cookies.set(STATE_COOKIE, JSON.stringify({ state, next }), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 600,
+    ...(domain ? { domain } : {}),
   });
   return res;
 }

@@ -28,6 +28,8 @@ const ERRORS: Record<string, string> = {
   github_denied: "GitHub sign-in was cancelled.",
   github_state: "GitHub sign-in session expired. Please try again.",
   github_no_email: "Your GitHub account needs a verified email address to sign in.",
+  github_email_scope:
+    "GitHub didn't return an email address. Enable the 'Email addresses: Read-only' permission on the GitHub App, or sign in with an email magic link instead.",
   github_failed: "Failed to complete GitHub sign-in. Please try again.",
 };
 

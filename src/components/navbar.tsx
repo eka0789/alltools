@@ -181,9 +181,6 @@ export function Navbar() {
               }`}
             >
               <UserRound className="h-3.5 w-3.5" />
-              {signedIn && (
-                <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-success ring-2 ring-background" />
-              )}
             </Link>
             <ThemeToggle />
             <Link href="/submit" className="btn-primary hidden lg:inline-flex !py-1.5 text-xs">

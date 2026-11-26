@@ -154,23 +154,44 @@ export async function destroySession(raw: string): Promise<void> {
   }
 }
 
+// Cookies are scoped to the canonical domain (from NEXT_PUBLIC_SITE_URL) so a
+// sign-in started on www. still works when the OAuth callback returns on the
+// apex domain. Skipped for localhost/IP hosts where Domain is not allowed.
+export function cookieDomain(): string | undefined {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return undefined;
+  try {
+    const host = new URL(raw).hostname;
+    if (!host || host === "localhost" || host.includes(":") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+      return undefined;
+    }
+    return host;
+  } catch {
+    return undefined;
+  }
+}
+
 export function sessionCookieOptions() {
+  const domain = cookieDomain();
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_TTL_MS / 1000,
+    ...(domain ? { domain } : {}),
   };
 }
 
 export function sessionHintCookieOptions() {
+  const domain = cookieDomain();
   return {
     httpOnly: false,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_TTL_MS / 1000,
+    ...(domain ? { domain } : {}),
   };
 }
 
