@@ -172,26 +172,22 @@ export function cookieDomain(): string | undefined {
 }
 
 export function sessionCookieOptions() {
-  const domain = cookieDomain();
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_TTL_MS / 1000,
-    ...(domain ? { domain } : {}),
   };
 }
 
 export function sessionHintCookieOptions() {
-  const domain = cookieDomain();
   return {
     httpOnly: false,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_TTL_MS / 1000,
-    ...(domain ? { domain } : {}),
   };
 }
 
