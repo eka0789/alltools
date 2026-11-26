@@ -125,7 +125,13 @@ export async function GET(req: NextRequest) {
       return fail(base, "github_email_scope");
     }
 
-    const sessionToken = await createSessionForEmail(email);
+    let sessionToken: string;
+    try {
+      sessionToken = await createSessionForEmail(email);
+    } catch (err) {
+      console.error("[github-oauth] failed to create account session", err);
+      return fail(base, "auth_unavailable");
+    }
     const domain = cookieDomain();
     const res = NextResponse.redirect(new URL(nextPath, base));
     res.cookies.delete(STATE_COOKIE);

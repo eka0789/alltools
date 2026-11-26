@@ -31,7 +31,13 @@ export async function requestMagicLinkAction(formData: FormData) {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   if (!email) redirect(`/login?error=invalid_email${nextSuffix}`);
 
-  const token = await createMagicToken(email);
+  let token: string;
+  try {
+    token = await createMagicToken(email);
+  } catch (err) {
+    console.error("[auth] failed to create magic-link token", err);
+    redirect(`/login?error=auth_unavailable${nextSuffix}`);
+  }
   const verifyUrl = `${siteUrl()}/api/auth/verify?token=${encodeURIComponent(token)}${nextSuffix}`;
 
   if (emailConfigured()) {

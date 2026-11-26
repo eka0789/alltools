@@ -23,6 +23,8 @@ const ERRORS: Record<string, string> = {
     "Email delivery isn't configured on this deployment yet — set RESEND_API_KEY to enable sign-in.",
   email_failed:
     "Failed to send sign-in email. Please verify your Resend domain configuration and try again shortly.",
+  auth_unavailable:
+    "Sign-in is temporarily unavailable. Please try again shortly. If this continues, contact support.",
   verify_invalid: "That sign-in link is invalid, already used, or expired. Request a new one.",
   github_not_configured: "GitHub sign-in isn't configured on this deployment.",
   github_denied: "GitHub sign-in was cancelled.",

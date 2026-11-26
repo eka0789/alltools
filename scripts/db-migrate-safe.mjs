@@ -22,6 +22,36 @@ const client = createClient({
 });
 
 const ddl = [
+  `CREATE TABLE IF NOT EXISTS users (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    email text NOT NULL,
+    created_at integer NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (email)`,
+  `CREATE TABLE IF NOT EXISTS sessions (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash text NOT NULL,
+    created_at integer NOT NULL,
+    expires_at integer NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS sessions_token_hash_unique ON sessions (token_hash)`,
+  `CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id)`,
+  `CREATE TABLE IF NOT EXISTS auth_tokens (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    email text NOT NULL,
+    token_hash text NOT NULL,
+    created_at integer NOT NULL,
+    expires_at integer NOT NULL,
+    used_at integer
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS auth_tokens_token_hash_unique ON auth_tokens (token_hash)`,
+  `CREATE TABLE IF NOT EXISTS user_lists (
+    user_id integer PRIMARY KEY NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    favorites text DEFAULT '[]' NOT NULL,
+    compare text DEFAULT '[]' NOT NULL,
+    updated_at integer NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS coupons (
     id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
     code text NOT NULL,
