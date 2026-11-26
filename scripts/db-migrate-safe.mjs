@@ -87,11 +87,13 @@ async function columnsOf(table) {
 }
 
 const orderColumns = await columnsOf("orders");
-if (!orderColumns.has("coupon_code")) {
-  ddl.push("ALTER TABLE `orders` ADD `coupon_code` text");
-}
-if (!orderColumns.has("discount_amount")) {
-  ddl.push("ALTER TABLE `orders` ADD `discount_amount` integer NOT NULL DEFAULT 0");
+if (orderColumns.size > 0) {
+  if (!orderColumns.has("coupon_code")) {
+    ddl.push("ALTER TABLE `orders` ADD `coupon_code` text");
+  }
+  if (!orderColumns.has("discount_amount")) {
+    ddl.push("ALTER TABLE `orders` ADD `discount_amount` integer NOT NULL DEFAULT 0");
+  }
 }
 
 for (const statement of ddl) {
@@ -99,7 +101,9 @@ for (const statement of ddl) {
   console.log("✓", statement.split("\n")[0].trim());
 }
 
-const finalColumns = await columnsOf("orders");
-const ordersCount = await client.execute("SELECT COUNT(*) AS c FROM orders");
-console.log("orders columns:", [...finalColumns].join(", "));
-console.log("orders rows (preserved):", ordersCount.rows[0].c);
+if (orderColumns.size > 0) {
+  const finalColumns = await columnsOf("orders");
+  const ordersCount = await client.execute("SELECT COUNT(*) AS c FROM orders");
+  console.log("orders columns:", [...finalColumns].join(", "));
+  console.log("orders rows (preserved):", ordersCount.rows[0].c);
+}

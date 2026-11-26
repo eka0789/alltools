@@ -1,9 +1,60 @@
 import { cookies } from "next/headers";
 import { createHash, randomBytes } from "crypto";
 import { and, eq, gt, isNull, lt } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, dbClient } from "@/db/client";
 import { authTokens, sessions, users, userLists } from "@/db/schema";
 import { acceptPendingInvitesForUser } from "@/lib/entitlements";
+
+const AUTH_SCHEMA_DDL = [
+  `CREATE TABLE IF NOT EXISTS users (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    email text NOT NULL,
+    created_at integer NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (email)`,
+  `CREATE TABLE IF NOT EXISTS sessions (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash text NOT NULL,
+    created_at integer NOT NULL,
+    expires_at integer NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS sessions_token_hash_unique ON sessions (token_hash)`,
+  `CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id)`,
+  `CREATE TABLE IF NOT EXISTS auth_tokens (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    email text NOT NULL,
+    token_hash text NOT NULL,
+    created_at integer NOT NULL,
+    expires_at integer NOT NULL,
+    used_at integer
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS auth_tokens_token_hash_unique ON auth_tokens (token_hash)`,
+  `CREATE TABLE IF NOT EXISTS user_lists (
+    user_id integer PRIMARY KEY NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    favorites text DEFAULT '[]' NOT NULL,
+    compare text DEFAULT '[]' NOT NULL,
+    updated_at integer NOT NULL
+  )`,
+];
+
+let authSchemaReady: Promise<void> | null = null;
+
+// Self-healing bootstrap: ensures auth tables exist before any sign-in write,
+// so sign-in works immediately even if a manual DB migration hasn't run yet.
+export async function ensureAuthSchema(): Promise<void> {
+  if (!authSchemaReady) {
+    authSchemaReady = (async () => {
+      for (const stmt of AUTH_SCHEMA_DDL) {
+        await dbClient.execute(stmt);
+      }
+    })().catch((err) => {
+      authSchemaReady = null;
+      throw err;
+    });
+  }
+  await authSchemaReady;
+}
 
 // Passwordless accounts. No password column exists anywhere: a magic link
 // proves email ownership once, then an opaque session token (stored as a
@@ -44,6 +95,7 @@ export function sanitizeNextPath(raw: string | null | undefined): string | null 
 // Creates a single-use magic-link token for the email and returns the raw
 // token to embed in the URL (only the hash is persisted).
 export async function createMagicToken(email: string): Promise<string> {
+  await ensureAuthSchema();
   const token = randomToken();
   const now = Date.now();
   await db.insert(authTokens).values({
@@ -67,19 +119,13 @@ export function githubOAuthConfigured(): boolean {
 export async function createSessionForEmail(rawEmail: string): Promise<string> {
   const email = normalizeEmail(rawEmail);
   if (!email) throw new Error("invalid-email");
+  await ensureAuthSchema();
   const now = Date.now();
 
+  await db.insert(users).values({ email, createdAt: now }).onConflictDoNothing();
   const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  let userId: number;
-  if (existing[0]) {
-    userId = existing[0].id;
-  } else {
-    const inserted = await db
-      .insert(users)
-      .values({ email, createdAt: now })
-      .returning({ id: users.id });
-    userId = inserted[0].id;
-  }
+  const userId = existing[0]?.id;
+  if (!userId) throw new Error("user-upsert-failed");
 
   const sessionToken = randomToken();
   await db.insert(sessions).values({
@@ -101,6 +147,7 @@ export async function createSessionForEmail(rawEmail: string): Promise<string> {
 // Redeems a magic token atomically: marks it used in a single conditional
 // UPDATE so concurrent requests cannot double-redeem the same token.
 export async function redeemMagicToken(rawToken: string): Promise<string | null> {
+  await ensureAuthSchema();
   const now = Date.now();
   const claimed = await db
     .update(authTokens)
@@ -193,6 +240,7 @@ export function sessionHintCookieOptions() {
 
 // ── Per-user list sync ────────────────────────────────────────────────────
 export async function getUserLists(userId: number): Promise<{ favorites: string[]; compare: string[] }> {
+  await ensureAuthSchema();
   const rows = await db.select().from(userLists).where(eq(userLists.userId, userId)).limit(1);
   const parse = (v: string | undefined): string[] => {
     try {
@@ -209,6 +257,7 @@ export async function putUserLists(
   userId: number,
   lists: { favorites: string[]; compare: string[] },
 ): Promise<void> {
+  await ensureAuthSchema();
   const now = Date.now();
   await db
     .insert(userLists)

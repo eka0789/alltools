@@ -41,12 +41,13 @@ function toLocalFileUrl(dbPath: string): string {
 }
 
 type LibsqlDb = ReturnType<typeof drizzle<typeof schema>>;
+type LibsqlClient = ReturnType<typeof createClient>;
 
 const globalForDb = globalThis as unknown as {
-  __alltoolsDb?: { db: LibsqlDb; active: boolean; remote: boolean };
+  __alltoolsDb?: { db: LibsqlDb; client: LibsqlClient; active: boolean; remote: boolean };
 };
 
-function openDb(): { db: LibsqlDb; active: boolean; remote: boolean } {
+function openDb(): { db: LibsqlDb; client: LibsqlClient; active: boolean; remote: boolean } {
   if (IS_REMOTE) {
     const client = createClient({
       url: REMOTE_URL!,
@@ -54,6 +55,7 @@ function openDb(): { db: LibsqlDb; active: boolean; remote: boolean } {
     });
     return {
       db: drizzle(client, { schema }),
+      client,
       active: true,
       remote: true,
     };
@@ -70,10 +72,12 @@ function openDb(): { db: LibsqlDb; active: boolean; remote: boolean } {
     // Enforce FK constraints (off by default in SQLite): no orphaned
     // link_checks rows when a tool is deleted.
     void client.execute("PRAGMA foreign_keys = ON").catch(() => {});
-    return { db: drizzle(client, { schema }), active: true, remote: false };
+    return { db: drizzle(client, { schema }), client, active: true, remote: false };
   } catch {
+    const client = createClient({ url: ":memory:" });
     return {
-      db: drizzle(createClient({ url: ":memory:" }), { schema }),
+      db: drizzle(client, { schema }),
+      client,
       active: false,
       remote: false,
     };
@@ -87,5 +91,6 @@ if (!globalForDb.__alltoolsDb) {
 
 export const DB_ACTIVE = opened.active;
 export const DB_IS_REMOTE = opened.remote;
+export const dbClient = opened.client;
 export const db = opened.db;
 export { schema };

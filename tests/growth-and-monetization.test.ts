@@ -7,6 +7,12 @@ import {
   parseComparePair,
 } from "@/lib/compare-seo";
 import { rateLimitPersistent } from "@/lib/rate-limit";
+import {
+  createMagicToken,
+  createSessionForEmail,
+  getSessionUserByToken,
+  redeemMagicToken,
+} from "@/lib/auth";
 
 describe("Promo coupons", () => {
   it("normalizes coupon codes to uppercase alphanumeric", () => {
@@ -105,5 +111,25 @@ describe("Persistent rate limiter", () => {
     expect(r2.ok).toBe(true);
     expect(r3.ok).toBe(false);
     expect(r3.retryAfter).toBeGreaterThan(0);
+  });
+});
+
+describe("Self-healing auth schema", () => {
+  it("creates missing auth tables automatically on sign-in and round-trips magic link + session", async () => {
+    const email = `auth-test-${Date.now()}@example.com`;
+    const magic = await createMagicToken(email);
+    expect(magic.length).toBeGreaterThan(10);
+
+    const sessionToken = await redeemMagicToken(magic);
+    expect(sessionToken).not.toBeNull();
+
+    const user = await getSessionUserByToken(sessionToken!);
+    expect(user?.email).toBe(email);
+
+    // OAuth / direct session creation also works idempotently for the same email
+    const oauthSession = await createSessionForEmail(email);
+    const oauthUser = await getSessionUserByToken(oauthSession);
+    expect(oauthUser?.email).toBe(email);
+    expect(oauthUser?.id).toBe(user?.id);
   });
 });
