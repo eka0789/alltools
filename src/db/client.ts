@@ -13,10 +13,18 @@ import * as schema from "./schema";
 // read-only filesystem, or Vitest hermetic mode ALLTOOLS_DB="."), fall back to
 // an empty in-memory database. data.ts detects this via DB_ACTIVE and serves
 // the statically-imported catalog JSON.
-const REMOTE_URL = process.env.ALLTOOLS_DB_URL;
-const REMOTE_TOKEN = process.env.ALLTOOLS_DB_AUTH_TOKEN;
+const REMOTE_URL = process.env.ALLTOOLS_DB_URL?.trim();
+const REMOTE_TOKEN = process.env.ALLTOOLS_DB_AUTH_TOKEN?.trim();
 const IS_REMOTE =
   !!REMOTE_URL && !/^file:/i.test(REMOTE_URL) && !REMOTE_URL.endsWith(".db");
+
+// Use stateless HTTPS transport instead of WebSocket (libsql:// -> https://).
+// WebSocket connections to Turso frequently drop with ECONNRESET on long-lived
+// Node/Windows servers and certain proxies/ISPs, whereas HTTPS pipeline is
+// stateless and reliable across serverless and PM2 deployments.
+function normalizeRemoteUrl(url: string): string {
+  return url.replace(/^libsql:\/\//i, "https://");
+}
 
 // Resolve the local db across environments: local cwd, Vercel serverless
 // bundles (traced files sit relative to the function root, which varies per
@@ -50,7 +58,7 @@ const globalForDb = globalThis as unknown as {
 function openDb(): { db: LibsqlDb; client: LibsqlClient; active: boolean; remote: boolean } {
   if (IS_REMOTE) {
     const client = createClient({
-      url: REMOTE_URL!,
+      url: normalizeRemoteUrl(REMOTE_URL!),
       authToken: REMOTE_TOKEN || undefined,
     });
     return {

@@ -12,7 +12,8 @@ import { createClient } from "@libsql/client";
 function resolveUrl() {
   const raw = process.env.ALLTOOLS_DB_URL?.trim() || process.env.ALLTOOLS_DB?.trim();
   if (!raw) throw new Error("ALLTOOLS_DB_URL (or ALLTOOLS_DB) is required");
-  if (/^(libsql|https?|file):/i.test(raw)) return raw;
+  if (/^libsql:\/\//i.test(raw)) return raw.replace(/^libsql:\/\//i, "https://");
+  if (/^(https?|file):/i.test(raw)) return raw;
   return pathToFileURL(path.resolve(raw)).href;
 }
 
