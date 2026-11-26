@@ -23,7 +23,7 @@ export const LIFETIME_PRODUCT: Product = {
   id: "pro_lifetime",
   kind: "lifetime",
   name: "Pro Lifetime Access",
-  priceIdr: 299000,
+  priceIdr: 199000,
   description: "Sekali bayar, akses semua template premium + AI review tanpa batas selamanya.",
   features: [
     "Semua template premium (sekarang & mendatang)",
@@ -37,7 +37,7 @@ export const TEAM_PRODUCT: Product = {
   id: "team_10",
   kind: "team",
   name: "Paket Tim — 10 seat",
-  priceIdr: 1290000,
+  priceIdr: 790000,
   seats: 10,
   description: "Untuk tim engineering: 10 seat berisi semua benefit Pro, plus kolaborasi template & invite anggota.",
   features: [

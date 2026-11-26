@@ -229,7 +229,7 @@ export default async function PricingPage() {
               Verified Listing
             </p>
             <p className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold">{formatIdr(299000)}</span>
+              <span className="text-3xl font-bold">{formatIdr(99000)}</span>
               <span className="text-xs text-muted-foreground">sekali bayar</span>
             </p>
             <ul className="mt-5 space-y-2.5">
@@ -253,7 +253,7 @@ export default async function PricingPage() {
               Featured Placement
             </p>
             <p className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold">{formatIdr(799000)}</span>
+              <span className="text-3xl font-bold">{formatIdr(299000)}</span>
               <span className="text-xs text-muted-foreground">/tool /bulan</span>
             </p>
             <ul className="mt-5 space-y-2.5">
@@ -275,7 +275,7 @@ export default async function PricingPage() {
               Category Sponsorship
             </p>
             <p className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold">{formatIdr(2490000)}</span>
+              <span className="text-3xl font-bold">{formatIdr(1490000)}</span>
               <span className="text-xs text-muted-foreground">/bulan</span>
             </p>
             <ul className="mt-5 space-y-2.5">
