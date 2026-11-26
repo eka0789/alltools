@@ -1,7 +1,8 @@
 import { db, DB_ACTIVE } from "@/db/client";
+import { ensureAdminSchema } from "@/db/ensure-admin-schema";
 import { categories, subcategories, toolClicks, tools } from "@/db/schema";
 import type { Category, Subcategory, Tool } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, isNull, and } from "drizzle-orm";
 import catalogJson from "@/data/catalog.generated.json";
 
 type ToolJsonField =
@@ -95,7 +96,9 @@ function buildCatalog(
   const catById = new Map(catRows.map((c) => [c.id as number, c]));
   const subById = new Map(subRows.map((s) => [s.id as number, s]));
 
-  const toolsWithMeta: ToolWithMeta[] = toolRows.map((t) => {
+  const toolsWithMeta: ToolWithMeta[] = toolRows
+    .filter((t) => !t.deletedAt) // soft-deleted tools stay in the DB but never in the public catalog
+    .map((t) => {
     const cat = catById.get(t.categoryId as number);
     const sub = t.subcategoryId ? subById.get(t.subcategoryId as number) : undefined;
     return {
@@ -210,6 +213,14 @@ function attachClicks(toolRows: RawRow[], clickRows: RawRow[]) {
 // Rebuild the in-memory catalog from the database. Awaited by admin
 // mutations so the next rendered page already reflects them.
 export async function refreshCatalogFromDb(): Promise<void> {
+  // Guarantee additive admin columns exist before `select *` — the live
+  // database may predate the soft-delete/rejection columns on first deploy.
+  try {
+    await ensureAdminSchema();
+  } catch {
+    // If the DDL check fails the queries below will error and the caller
+    // keeps the current snapshot; no need to abort here.
+  }
   const catRows = (await db.select().from(categories)) as unknown as RawRow[];
   const subRows = (await db.select().from(subcategories)) as unknown as RawRow[];
   const toolRows = (await db.select().from(tools)) as unknown as RawRow[];
@@ -308,7 +319,7 @@ export async function needsReviewCount(): Promise<number> {
     const rows = await db
       .select({ n: sql<number>`count(*)` })
       .from(tools)
-      .where(eq(tools.status, "needs_review"));
+      .where(and(eq(tools.status, "needs_review"), isNull(tools.deletedAt)));
     return rows[0]?.n ?? 0;
   } catch {
     return 0;

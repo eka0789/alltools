@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 import { reviewCode, llmReviewEnabled } from "@/lib/ai-review";
 import { checkReviewQuota, recordUsage } from "@/lib/quota";
 import { clientIp, rateLimitPersistent } from "@/lib/rate-limit";
+import { isAiReviewEnabled } from "@/lib/settings";
 
 export const runtime = "nodejs";
 
@@ -48,6 +49,10 @@ export async function POST(req: NextRequest) {
   const ip = clientIp(req);
   if (!(await rateLimitPersistent(`review:${ip}`, 30, 60_000)).ok) {
     return Response.json({ error: "rate-limited" }, { status: 429 });
+  }
+  // Admin kill switch (Settings → AI Code Review aktif).
+  if (!(await isAiReviewEnabled())) {
+    return Response.json({ error: "ai-review-disabled" }, { status: 503 });
   }
 
   let body: {

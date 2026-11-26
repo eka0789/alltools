@@ -80,6 +80,10 @@ export const tools = sqliteTable(
     githubPushedAt: integer("github_pushed_at"), // unix ms of last push
     githubLicense: text("github_license"),
     featured: integer("featured", { mode: "boolean" }).notNull().default(false),
+    // Soft delete: the admin "Delete" action moves a tool to the trash
+    // instead of destroying it. Public catalog builders skip these rows;
+    // /admin/tools/trash can restore or purge them.
+    deletedAt: integer("deleted_at"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -101,6 +105,7 @@ export const submissions = sqliteTable("submissions", {
   pricing: text("pricing").notNull().default("free"),
   tags: text("tags").notNull().default("[]"),
   status: text("status").notNull().default("pending"), // pending | approved | rejected
+  rejectionReason: text("rejection_reason"), // internal note when rejected
   createdAt: integer("created_at").notNull(),
   reviewedAt: integer("reviewed_at"),
 });
@@ -366,6 +371,31 @@ export const rateLimits = sqliteTable("rate_limits", {
   resetAt: integer("reset_at").notNull(),
 });
 
+// ── Admin operations ────────────────────────────────────────────────────
+// Audit trail: one row per mutating admin action. Shows who did what when —
+// the admin login itself stays passwordless (token based), so this table is
+// the only record of operator activity.
+export const adminAudit = sqliteTable(
+  "admin_audit",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    actor: text("actor").notNull(), // "<role>:<name>" from the matched admin token
+    action: text("action").notNull(), // e.g. tools.bulk, order.mark_paid
+    target: text("target").notNull().default(""), // e.g. order:AK-20260101-AB12
+    detail: text("detail").notNull().default(""), // short human-readable summary
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("admin_audit_created_idx").on(t.createdAt)],
+);
+
+// Key/value site settings toggled from /admin/settings (feature flags,
+// checkout switch, announcement). Values are plain strings.
+export const siteSettings = sqliteTable("site_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export type Tool = typeof tools.$inferSelect;
 export type NewTool = typeof tools.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -388,3 +418,5 @@ export type AiUsage = typeof aiUsage.$inferSelect;
 export type Coupon = typeof coupons.$inferSelect;
 export type SharedStack = typeof sharedStacks.$inferSelect;
 export type RateLimitRow = typeof rateLimits.$inferSelect;
+export type AdminAudit = typeof adminAudit.$inferSelect;
+export type SiteSetting = typeof siteSettings.$inferSelect;

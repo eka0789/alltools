@@ -12,6 +12,7 @@ import {
   reconcileOrdersAction,
   grantProAction,
   createCouponAction,
+  updateCouponAction,
   toggleCouponAction,
   deleteCouponAction,
 } from "./actions";
@@ -227,6 +228,11 @@ export default async function AdminPage({
             : "Invalid coupon parameters (code min 3 chars, percent 1-95 or fixed > 0)."}
         </p>
       )}
+      {typeof sp.coupon_updated === "string" && (
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          Coupon updated.
+        </p>
+      )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-5">
@@ -238,11 +244,19 @@ export default async function AdminPage({
         </div>
         <div className="card p-5">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Needs review</p>
-          <p className={`mt-1 text-3xl font-bold ${needsReview > 0 ? "text-warning" : ""}`}>
+          <Link
+            href="/admin/link-health"
+            className={`mt-1 block text-3xl font-bold hover:underline ${
+              needsReview > 0 ? "text-warning" : ""
+            }`}
+          >
             {needsReview}
-          </p>
+          </Link>
           <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-            <AlertTriangle className="h-3 w-3" /> flagged by the link checker
+            <AlertTriangle className="h-3 w-3" />
+            <Link href="/admin/link-health" className="hover:underline">
+              flagged by the link checker
+            </Link>
           </p>
         </div>
         <div className="card p-5">
@@ -294,6 +308,13 @@ export default async function AdminPage({
         </Link>
         <Link href="/admin/tools" className="btn-secondary">All tools</Link>
         <Link href="/admin/submissions" className="btn-secondary">Submissions</Link>
+        <Link href="/admin/link-health" className="btn-secondary">Link Health</Link>
+        <Link href="/admin/feedback" className="btn-secondary">Reports</Link>
+        <Link href="/admin/orders" className="btn-secondary">Orders</Link>
+        <Link href="/admin/users" className="btn-secondary">Users</Link>
+        <Link href="/admin/newsletter" className="btn-secondary">Newsletter</Link>
+        <Link href="/admin/analytics" className="btn-secondary">Analytics</Link>
+        <Link href="/admin/ops" className="btn-secondary">Ops</Link>
       </div>
 
       {/* Manual Pro Grant + Recent Orders */}
@@ -444,6 +465,48 @@ export default async function AdminPage({
                     </button>
                   </form>
                 </div>
+                <details className="w-full basis-full text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Edit kupon
+                  </summary>
+                  <form action={updateCouponAction} className="mt-2 flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="id" value={c.id} />
+                    <select
+                      name="discountType"
+                      defaultValue={c.discountType}
+                      className="input !w-auto !py-1 text-xs"
+                    >
+                      <option value="percent">Percent (%)</option>
+                      <option value="fixed">Fixed (IDR)</option>
+                    </select>
+                    <input
+                      name="discountValue"
+                      type="number"
+                      min={1}
+                      defaultValue={c.discountValue}
+                      className="input !w-24 !py-1 text-xs"
+                    />
+                    <input
+                      name="maxUses"
+                      type="number"
+                      min={1}
+                      defaultValue={c.maxUses ?? ""}
+                      placeholder="max uses"
+                      className="input !w-24 !py-1 text-xs"
+                    />
+                    <input
+                      name="expiresAt"
+                      type="date"
+                      defaultValue={
+                        c.expiresAt ? new Date(c.expiresAt).toISOString().slice(0, 10) : ""
+                      }
+                      className="input !w-auto !py-1 text-xs"
+                    />
+                    <button type="submit" className="btn-secondary !px-2.5 !py-1 text-xs">
+                      Save
+                    </button>
+                  </form>
+                </details>
               </li>
             ))}
           </ul>

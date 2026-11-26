@@ -10,6 +10,7 @@ import { createDokuPayment, dokuConfig, dokuConfigured, dokuSimulationAllowed } 
 import { siteUrl } from "@/lib/email";
 import { clientIp, rateLimitPersistent } from "@/lib/rate-limit";
 import { validateCoupon } from "@/lib/coupons";
+import { isCheckoutEnabled } from "@/lib/settings";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,10 @@ export async function POST(req: NextRequest) {
   }
   if (!(await rateLimitPersistent(`checkout:${clientIp(req)}`, 10, 60_000)).ok) {
     return Response.json({ error: "rate-limited" }, { status: 429 });
+  }
+  // Admin kill switch (Settings → Checkout aktif). Missing setting = enabled.
+  if (!(await isCheckoutEnabled())) {
+    return Response.json({ error: "checkout-disabled" }, { status: 503 });
   }
 
   let productId = "";

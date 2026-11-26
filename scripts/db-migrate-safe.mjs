@@ -80,6 +80,20 @@ const ddl = [
     count integer DEFAULT 1 NOT NULL,
     reset_at integer NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS admin_audit (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    actor text NOT NULL,
+    action text NOT NULL,
+    target text DEFAULT '' NOT NULL,
+    detail text DEFAULT '' NOT NULL,
+    created_at integer NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS admin_audit_created_idx ON admin_audit (created_at)`,
+  `CREATE TABLE IF NOT EXISTS site_settings (
+    key text PRIMARY KEY NOT NULL,
+    value text NOT NULL,
+    updated_at integer NOT NULL
+  )`,
 ];
 
 async function columnsOf(table) {
@@ -95,6 +109,16 @@ if (orderColumns.size > 0) {
   if (!orderColumns.has("discount_amount")) {
     ddl.push("ALTER TABLE `orders` ADD `discount_amount` integer NOT NULL DEFAULT 0");
   }
+}
+
+// Admin expansion: soft delete for tools + rejection notes for submissions.
+const toolColumns = await columnsOf("tools");
+if (toolColumns.size > 0 && !toolColumns.has("deleted_at")) {
+  ddl.push("ALTER TABLE `tools` ADD `deleted_at` integer");
+}
+const submissionColumns = await columnsOf("submissions");
+if (submissionColumns.size > 0 && !submissionColumns.has("rejection_reason")) {
+  ddl.push("ALTER TABLE `submissions` ADD `rejection_reason` text");
 }
 
 for (const statement of ddl) {

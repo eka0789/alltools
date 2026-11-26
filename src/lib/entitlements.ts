@@ -89,7 +89,7 @@ export async function finalizeOrderIfPaid(
   return { alreadyPaid: false, granted: true };
 }
 
-async function sendReceiptEmail(order: Order): Promise<void> {
+export async function sendReceiptEmail(order: Order): Promise<void> {
   const product = getProduct(order.productId);
   const rows = await db.select({ email: users.email }).from(users).where(eq(users.id, order.userId)).limit(1);
   const to = rows[0]?.email;

@@ -17,6 +17,34 @@ export function generateUniqueSlug(name: string, excludeId?: number): string {
   return slug;
 }
 
+// Soft-deleted tools stay in the table and keep holding their unique slug,
+// so slug generation for new/edited tools must consider every row — not just
+// the active catalog — or the INSERT hits the unique index and 500s.
+export async function generateUniqueSlugIncludingTrash(
+  name: string,
+  excludeId?: number,
+): Promise<string> {
+  const base = slugify(name) || "tool";
+  const used = new Set<string>();
+  try {
+    const rows = await db.select({ id: tools.id, slug: tools.slug }).from(tools);
+    for (const row of rows) {
+      if (row.id !== excludeId) used.add(row.slug);
+    }
+  } catch {
+    for (const [slug, tool] of getCatalog().bySlug) {
+      if (tool.id !== excludeId) used.add(slug);
+    }
+  }
+  let slug = base;
+  let n = 2;
+  while (used.has(slug)) {
+    slug = `${base}-${n}`;
+    n += 1;
+  }
+  return slug;
+}
+
 export function touchData() {
   invalidateCatalog();
   invalidateSearchIndex();

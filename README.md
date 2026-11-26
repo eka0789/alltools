@@ -63,8 +63,17 @@ boilerplate/API docs/deployment config generators, and AI code review).
 - **Submission system** (`/submit`) with moderator approval, honeypot +
   rate limiting + duplicate-URL detection.
 - **Admin CMS** (`/admin`) for CRUD, featuring, reviewing submissions and
-  community reports. Login fails closed without `ADMIN_TOKEN` — there is no
-  default token.
+  community reports, plus an operator console: sidebar shell, tools with bulk
+  actions/filters/soft-delete trash and duplicate detection, submissions with
+  edit-before-approve + rejection reasons, an on-demand link-health center,
+  orders (manual mark-paid, refund with entitlement revocation, receipt
+  resend), users/teams support views, newsletter manager (manual digest),
+  community-report inbox, shared-stack moderation, search/click analytics,
+  AI-usage insights, an audit log of every admin mutation, an Ops center
+  (catalog cache refresh, GitHub stats batch, config status) and feature flags
+  (checkout / AI review kill switches). Multi-admin tokens with roles
+  (`ADMIN_TOKENS`); login fails closed without `ADMIN_TOKEN`/`ADMIN_TOKENS` —
+  there is no default token.
 - **Automated link health checker** that verifies every URL and flags broken
   ones as `needs_review` (never auto-deletes). Works against local SQLite
   *and* Turso; runnable via CI or the bundled Vercel Cron endpoint.
@@ -117,6 +126,7 @@ Open http://localhost:3000 (or your chosen port).
 | `ALLTOOLS_DB_AUTH_TOKEN` | —                     | Auth token for the remote database |
 | `ALLTOOLS_DB_DRIVER`   | auto                    | Force `libsql` driver against a local file (testing) |
 | `ADMIN_TOKEN`          | — (login disabled)      | Token for `/admin` login. **Required in production** — there is no default |
+| `ADMIN_TOKENS`         | —                       | Optional multi-admin list: `name:role:token,...` (roles: `owner`, `editor`, `moderator`). Each token logs in as its own named admin; `ADMIN_TOKEN` still works as owner `admin`. Role gates: moderator = moderation only, editor = catalog/content, owner = everything (billing, users, settings, audit). |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical URLs, sitemap, OpenGraph |
 | `CRON_SECRET`          | —                       | Bearer token protecting `/api/cron/check-links` (Vercel Cron) |
 | `GITHUB_TOKEN`         | —                       | GitHub API token for `scripts/fetch-github-stats.mjs` |
