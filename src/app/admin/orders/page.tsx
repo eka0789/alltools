@@ -40,6 +40,7 @@ export default async function AdminOrdersPage({
   const sp = await searchParams;
   const status = String(sp.status ?? "");
   const product = String(sp.product ?? "");
+  const coupon = String(sp.coupon ?? "").trim();
   const q = String(sp.q ?? "").trim();
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 
@@ -64,6 +65,7 @@ export default async function AdminOrdersPage({
     const conditions = [];
     if (status) conditions.push(eq(orders.status, status));
     if (product) conditions.push(eq(orders.productId, product));
+    if (coupon) conditions.push(eq(orders.couponCode, coupon.toUpperCase()));
     if (q) {
       conditions.push(
         or(
@@ -126,6 +128,7 @@ export default async function AdminOrdersPage({
   const queryBase = new URLSearchParams();
   if (status) queryBase.set("status", status);
   if (product) queryBase.set("product", product);
+  if (coupon) queryBase.set("coupon", coupon);
   if (q) queryBase.set("q", q);
 
   return (
@@ -169,6 +172,15 @@ export default async function AdminOrdersPage({
         </p>
       )}
 
+      {coupon && (
+        <p className="mt-4 rounded-lg border border-accent/30 bg-accent-soft px-3 py-2 text-xs text-accent">
+          Filter kupon <code className="font-mono">{coupon.toUpperCase()}</code> ·{" "}
+          <Link href="/admin/orders" className="underline">
+            hapus filter
+          </Link>
+        </p>
+      )}
+
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-4">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Revenue (paid)</p>
@@ -199,6 +211,12 @@ export default async function AdminOrdersPage({
           defaultValue={q}
           placeholder="Cari invoice / email…"
           className="input max-w-xs"
+        />
+        <input
+          name="coupon"
+          defaultValue={coupon}
+          placeholder="Kupon (opsional)"
+          className="input max-w-[160px] font-mono text-xs uppercase"
         />
         <select name="status" defaultValue={status} className="input !w-auto text-sm">
           <option value="">Semua status</option>
@@ -242,7 +260,11 @@ export default async function AdminOrdersPage({
             ) : (
               rows.map((o) => (
                 <tr key={o.id} className="border-b border-border last:border-0 align-top">
-                  <td className="px-4 py-2.5 font-mono text-xs">{o.invoiceNo}</td>
+                  <td className="px-4 py-2.5 font-mono text-xs">
+                    <Link href={`/admin/orders/${o.invoiceNo}`} className="text-accent hover:underline">
+                      {o.invoiceNo}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2.5">
                     <span className="font-medium">{getProduct(o.productId)?.name ?? o.productId}</span>
                     {o.couponCode && (
@@ -259,6 +281,12 @@ export default async function AdminOrdersPage({
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">{formatDate(o.createdAt)}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      <Link
+                        href={`/admin/orders/${o.invoiceNo}`}
+                        className="btn-secondary !px-2 !py-1 text-xs"
+                      >
+                        Detail
+                      </Link>
                       {o.status === "pending" && (
                         <>
                           <form action={markOrderPaidAction}>

@@ -11,7 +11,27 @@ import { ensureOpsSchema } from "./admin";
 export const SETTING_KEYS = {
   checkoutEnabled: "checkout_enabled",
   aiReviewEnabled: "ai_review_enabled",
+  announcement: "announcement",
+  announcementLevel: "announcement_level",
 } as const;
+
+export type AnnouncementLevel = "info" | "warning" | "success";
+
+export interface Announcement {
+  text: string;
+  level: AnnouncementLevel;
+}
+
+export async function getAnnouncement(): Promise<Announcement> {
+  const [text, level] = await Promise.all([
+    getSetting(SETTING_KEYS.announcement),
+    getSetting(SETTING_KEYS.announcementLevel),
+  ]);
+  return {
+    text: text ?? "",
+    level: level === "warning" || level === "success" ? level : "info",
+  };
+}
 
 export async function getSetting(key: string): Promise<string | null> {
   try {

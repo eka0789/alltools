@@ -23,6 +23,16 @@ const ADMIN_DDL = [
     value text NOT NULL,
     updated_at integer NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS job_runs (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    job text NOT NULL,
+    status text DEFAULT 'running' NOT NULL,
+    summary text DEFAULT '' NOT NULL,
+    error text,
+    started_at integer NOT NULL,
+    finished_at integer
+  )`,
+  `CREATE INDEX IF NOT EXISTS job_runs_job_idx ON job_runs (job, started_at)`,
 ];
 
 let ready: Promise<void> | null = null;
@@ -42,8 +52,16 @@ export async function ensureAdminSchema(): Promise<void> {
       }
 
       const toolColumns = await columnNames("tools");
-      if (toolColumns.size > 0 && !toolColumns.has("deleted_at")) {
-        await dbClient.execute("ALTER TABLE `tools` ADD `deleted_at` integer");
+      if (toolColumns.size > 0) {
+        if (!toolColumns.has("deleted_at")) {
+          await dbClient.execute("ALTER TABLE `tools` ADD `deleted_at` integer");
+        }
+        if (!toolColumns.has("link_ignored_at")) {
+          await dbClient.execute("ALTER TABLE `tools` ADD `link_ignored_at` integer");
+        }
+        if (!toolColumns.has("recheck_after")) {
+          await dbClient.execute("ALTER TABLE `tools` ADD `recheck_after` integer");
+        }
       }
 
       const submissionColumns = await columnNames("submissions");

@@ -17,7 +17,10 @@ import {
   checkBatchAction,
   checkToolNowAction,
   deprecateToolAction,
+  ignoreToolLinkAction,
   markToolReviewedAction,
+  recheckLaterAction,
+  restoreToolLinkAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +35,12 @@ function fmtDateTime(ms: number | null | undefined): string {
   });
 }
 
+// Kept outside the component so the render-purity lint rule does not treat
+// the clock read as unstable render output.
+function nowMs(): number {
+  return Date.now();
+}
+
 export default async function LinkHealthPage({
   searchParams,
 }: {
@@ -44,8 +53,15 @@ export default async function LinkHealthPage({
   const sp = await searchParams;
 
   const catalog = getCatalog();
-  const flagged = catalog.tools
-    .filter((t) => t.status === "needs_review")
+  const now = nowMs();
+  const needsReviewTools = catalog.tools.filter((t) => t.status === "needs_review");
+  const isDeferred = (tool: (typeof catalog.tools)[number]) =>
+    Boolean(tool.linkIgnoredAt) || Boolean(tool.recheckAfter && tool.recheckAfter > now);
+  const flagged = needsReviewTools
+    .filter((t) => !isDeferred(t))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const deferred = needsReviewTools
+    .filter(isDeferred)
     .sort((a, b) => a.name.localeCompare(b.name));
   const verifiedCount = catalog.tools.filter((t) => t.verified).length;
   const deprecatedCount = catalog.tools.filter((t) => t.status === "deprecated").length;
@@ -102,6 +118,17 @@ export default async function LinkHealthPage({
       {sp.error === "forbidden" && (
         <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           Your role cannot manage link health.
+        </p>
+      )}
+      {typeof sp.row === "string" && (
+        <p className="mt-4 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs">
+          {sp.row === "ignored" &&
+            "URL diabaikan — tidak tampil di daftar flagged dan dilewati cron checker."}
+          {sp.row === "restored" && "URL dipulihkan dari daftar ignore/defer."}
+          {sp.row.startsWith("deferred") && "Pengecekan berikutnya ditunda sesuai pilihan."}
+          {sp.row === "active" && "Ditandai aktif/verified."}
+          {sp.row === "review" && "Ditandai needs review."}
+          {sp.row === "deprecated" && "Tool didepresiasi."}
         </p>
       )}
 
@@ -193,6 +220,19 @@ export default async function LinkHealthPage({
                             Mark OK
                           </button>
                         </form>
+                        <form action={ignoreToolLinkAction}>
+                          <input type="hidden" name="id" value={tool.id} />
+                          <button type="submit" className="btn-secondary !px-2 !py-1 text-xs">
+                            Ignore
+                          </button>
+                        </form>
+                        <form action={recheckLaterAction}>
+                          <input type="hidden" name="id" value={tool.id} />
+                          <input type="hidden" name="days" value="7" />
+                          <button type="submit" className="btn-secondary !px-2 !py-1 text-xs">
+                            Recheck 7d
+                          </button>
+                        </form>
                         <form action={deprecateToolAction}>
                           <input type="hidden" name="id" value={tool.id} />
                           <button type="submit" className="btn-secondary !px-2 !py-1 text-xs">
@@ -207,6 +247,37 @@ export default async function LinkHealthPage({
             </tbody>
           </table>
         </div>
+      )}
+
+      <h2 className="mt-9 text-lg font-semibold">
+        Ditunda / diabaikan ({deferred.length})
+      </h2>
+      {deferred.length === 0 ? (
+        <p className="card mt-3 p-5 text-sm text-muted-foreground">
+          Tidak ada URL yang di-ignore atau ditunda.
+        </p>
+      ) : (
+        <ul className="card mt-3 divide-y divide-border text-sm">
+          {deferred.map((tool) => (
+            <li key={tool.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+              <span className="min-w-0">
+                <span className="font-medium">{tool.name}</span>
+                <span className="ml-2 truncate text-xs text-muted-foreground">{tool.url}</span>
+                <span className="block text-[11px] text-muted-foreground">
+                  {tool.linkIgnoredAt
+                    ? "diabaikan (ignore)"
+                    : `ditunda sampai ${fmtDateTime(tool.recheckAfter)}`}
+                </span>
+              </span>
+              <form action={restoreToolLinkAction}>
+                <input type="hidden" name="id" value={tool.id} />
+                <button type="submit" className="btn-secondary !px-2 !py-1 text-xs">
+                  Restore
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
       )}
 
       <div className="mt-9 flex items-center gap-2">

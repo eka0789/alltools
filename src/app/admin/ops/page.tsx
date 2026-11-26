@@ -7,9 +7,27 @@ import { adminTokenCount, getAdminIdentity, roleCan } from "@/lib/admin";
 import { dokuConfigured } from "@/lib/doku";
 import { emailConfigured } from "@/lib/email";
 import { llmEnabled } from "@/lib/chat/llm";
+import { latestJobRuns, latestPerJob, TRACKED_JOBS } from "@/lib/job-runs";
 import { refreshCatalogAction, runGithubStatsAction } from "./actions";
 
 export const dynamic = "force-dynamic";
+
+function fmtDateTime(ms: number | null | undefined): string {
+  if (!ms) return "—";
+  return new Date(ms).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function jobStatusClass(status: string): string {
+  if (status === "success") return "text-success";
+  if (status === "failed") return "text-warning";
+  if (status === "running") return "text-accent";
+  return "text-muted-foreground";
+}
 
 export default async function OpsPage({
   searchParams,
@@ -47,6 +65,9 @@ export default async function OpsPage({
     { label: "GitHub token (stats)", ok: Boolean(process.env.GITHUB_TOKEN?.trim()) },
     { label: "Site URL", ok: Boolean(process.env.NEXT_PUBLIC_SITE_URL?.trim()), note: process.env.NEXT_PUBLIC_SITE_URL ?? "not set" },
   ];
+
+  const jobRuns = await latestJobRuns(60);
+  const latestByJob = latestPerJob(jobRuns);
 
   return (
     <div className="py-2">
@@ -94,6 +115,60 @@ export default async function OpsPage({
                 <td className="px-4 py-2.5 text-xs text-muted-foreground">{check.note ?? "—"}</td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card mt-6 overflow-x-auto">
+        <div className="px-4 pt-4">
+          <h2 className="font-semibold">Cron terakhir</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Riwayat run terakhir per job (tabel <code className="rounded bg-muted px-1 py-0.5">job_runs</code>).
+            Kegagalan cron sekarang terlihat di sini, bukan diam-diam.
+          </p>
+        </div>
+        <table className="mt-3 w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+              <th className="px-4 py-2">Job</th>
+              <th className="px-4 py-2">Status</th>
+              <th className="px-4 py-2">Run terakhir</th>
+              <th className="px-4 py-2">Ringkasan</th>
+            </tr>
+          </thead>
+          <tbody>
+            {TRACKED_JOBS.map(({ key, label }) => {
+              const run = latestByJob.get(key);
+              return (
+                <tr key={key} className="border-b border-border last:border-0">
+                  <td className="px-4 py-2.5">
+                    <span className="font-medium">{label}</span>
+                    <span className="block font-mono text-[10px] text-muted-foreground">{key}</span>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">
+                    {run ? (
+                      <span className={`font-semibold ${jobStatusClass(run.status)}`}>{run.status}</span>
+                    ) : (
+                      <span className="text-muted-foreground">belum pernah</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                    {run ? fmtDateTime(run.finishedAt ?? run.startedAt) : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">
+                    {run ? (
+                      run.error ? (
+                        <span className="text-warning">{run.error}</span>
+                      ) : (
+                        run.summary || "—"
+                      )
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

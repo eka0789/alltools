@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAdminIdentity, roleCan } from "@/lib/admin";
-import { isAiReviewEnabled, isCheckoutEnabled } from "@/lib/settings";
+import { getAnnouncement, isAiReviewEnabled, isCheckoutEnabled } from "@/lib/settings";
 import { updateSettingsAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,7 @@ export default async function SettingsPage({
   const sp = await searchParams;
   const checkoutEnabled = await isCheckoutEnabled();
   const aiReviewEnabled = await isAiReviewEnabled();
+  const announcement = await getAnnouncement();
 
   return (
     <div className="py-2">
@@ -66,15 +67,39 @@ export default async function SettingsPage({
           </span>
         </label>
 
+        <div className="space-y-3 border-t border-border pt-4">
+          <span className="block text-sm font-medium">Banner pengumuman (publik)</span>
+          <p className="text-xs text-muted-foreground">
+            Tampil di atas navbar untuk pengunjung (bukan admin). Kosongkan untuk
+            menyembunyikan. Perubahan terlihat dalam ±60 detik.
+          </p>
+          <textarea
+            name="announcement"
+            defaultValue={announcement.text}
+            maxLength={300}
+            rows={2}
+            placeholder="Contoh: Promo Pro Lifetime 199rb berlaku sampai akhir bulan."
+            className="input text-sm"
+          />
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            Level
+            <select name="announcementLevel" defaultValue={announcement.level} className="input !w-auto !py-1 text-xs">
+              <option value="info">Info</option>
+              <option value="warning">Peringatan</option>
+              <option value="success">Sukses</option>
+            </select>
+          </label>
+        </div>
+
         <div className="flex justify-end border-t border-border pt-4">
           <button type="submit" className="btn-primary">Simpan</button>
         </div>
       </form>
 
       <p className="mt-4 text-xs text-muted-foreground">
-        Catatan: banner/maintenance global belum di-wire ke halaman publik agar ISR tetap
-        statis. Flag disimpan di tabel <code className="rounded bg-muted px-1 py-0.5">site_settings</code>{" "}
-        dan bisa dibaca via <code className="rounded bg-muted px-1 py-0.5">getSetting()</code>.
+        Flag disimpan di tabel <code className="rounded bg-muted px-1 py-0.5">site_settings</code>{" "}
+        dan dibaca via <code className="rounded bg-muted px-1 py-0.5">getSetting()</code>. Banner
+        dirender oleh client component sehingga halaman tetap ISR/statis.
       </p>
     </div>
   );

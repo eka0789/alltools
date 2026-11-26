@@ -94,6 +94,16 @@ const ddl = [
     value text NOT NULL,
     updated_at integer NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS job_runs (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    job text NOT NULL,
+    status text DEFAULT 'running' NOT NULL,
+    summary text DEFAULT '' NOT NULL,
+    error text,
+    started_at integer NOT NULL,
+    finished_at integer
+  )`,
+  `CREATE INDEX IF NOT EXISTS job_runs_job_idx ON job_runs (job, started_at)`,
 ];
 
 async function columnsOf(table) {
@@ -113,8 +123,16 @@ if (orderColumns.size > 0) {
 
 // Admin expansion: soft delete for tools + rejection notes for submissions.
 const toolColumns = await columnsOf("tools");
-if (toolColumns.size > 0 && !toolColumns.has("deleted_at")) {
-  ddl.push("ALTER TABLE `tools` ADD `deleted_at` integer");
+if (toolColumns.size > 0) {
+  if (!toolColumns.has("deleted_at")) {
+    ddl.push("ALTER TABLE `tools` ADD `deleted_at` integer");
+  }
+  if (!toolColumns.has("link_ignored_at")) {
+    ddl.push("ALTER TABLE `tools` ADD `link_ignored_at` integer");
+  }
+  if (!toolColumns.has("recheck_after")) {
+    ddl.push("ALTER TABLE `tools` ADD `recheck_after` integer");
+  }
 }
 const submissionColumns = await columnsOf("submissions");
 if (submissionColumns.size > 0 && !submissionColumns.has("rejection_reason")) {

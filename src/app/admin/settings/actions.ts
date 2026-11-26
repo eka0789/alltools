@@ -15,14 +15,19 @@ export async function updateSettingsAction(formData: FormData) {
   await requireSystem();
   const checkout = formData.get("checkoutEnabled") === "on";
   const ai = formData.get("aiReviewEnabled") === "on";
+  const announcement = String(formData.get("announcement") ?? "").trim().slice(0, 300);
+  const levelRaw = String(formData.get("announcementLevel") ?? "info");
+  const level = levelRaw === "warning" || levelRaw === "success" ? levelRaw : "info";
 
   await setSetting(SETTING_KEYS.checkoutEnabled, checkout ? "true" : "false");
   await setSetting(SETTING_KEYS.aiReviewEnabled, ai ? "true" : "false");
+  await setSetting(SETTING_KEYS.announcement, announcement);
+  await setSetting(SETTING_KEYS.announcementLevel, level);
 
   await logAudit(
     "settings.update",
     "settings",
-    `checkout=${checkout} ai_review=${ai}`,
+    `checkout=${checkout} ai_review=${ai} announcement=${announcement ? "set" : "cleared"}`,
   );
   revalidatePath("/admin/settings");
   redirect("/admin/settings?ok=1");

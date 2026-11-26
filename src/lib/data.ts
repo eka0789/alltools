@@ -319,7 +319,13 @@ export async function needsReviewCount(): Promise<number> {
     const rows = await db
       .select({ n: sql<number>`count(*)` })
       .from(tools)
-      .where(and(eq(tools.status, "needs_review"), isNull(tools.deletedAt)));
+      .where(
+        and(
+          eq(tools.status, "needs_review"),
+          isNull(tools.deletedAt),
+          isNull(tools.linkIgnoredAt),
+        ),
+      );
     return rows[0]?.n ?? 0;
   } catch {
     return 0;

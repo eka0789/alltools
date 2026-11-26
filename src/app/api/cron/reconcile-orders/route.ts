@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { reconcilePendingOrders } from "@/lib/reconcile";
 import { safeEqual } from "@/lib/admin";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { finishJobRun, startJobRun } from "@/lib/job-runs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,8 +21,24 @@ export async function POST(req: NextRequest) {
   if (!rateLimit(`cron-reconcile:${clientIp(req)}`, 4, 60_000).ok) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
-  const result = await reconcilePendingOrders(25);
-  return NextResponse.json({ ok: true, ...result });
+
+  const runId = await startJobRun("reconcile-orders");
+  try {
+    const result = await reconcilePendingOrders(25);
+    await finishJobRun(runId, {
+      status: result.skipped ? "skipped" : "success",
+      summary: `checked=${result.checked} paid=${result.paid} expired=${result.expired} pending=${result.stillPending}${
+        result.skipped ? ` skipped=${result.skipped}` : ""
+      }`,
+    });
+    return NextResponse.json({ ok: true, ...result });
+  } catch (error) {
+    await finishJobRun(runId, {
+      status: "failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 // Vercel Cron mengirim GET — alias ke handler yang sama.

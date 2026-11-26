@@ -266,6 +266,7 @@ const BULK_ACTIONS = new Set([
   "unfeature",
   "verify",
   "unverify",
+  "flag_incomplete",
 ]);
 
 export async function bulkToolAction(formData: FormData) {
@@ -299,6 +300,13 @@ export async function bulkToolAction(formData: FormData) {
       .where(inArray(tools.id, ids));
   } else if (action === "unverify") {
     await db.update(tools).set({ verified: false, updatedAt: now }).where(inArray(tools.id, ids));
+  } else if (action === "flag_incomplete") {
+    // Completeness workflow: incomplete tools are queued for review and lose
+    // their verified badge until the missing docs/GitHub/install links land.
+    await db
+      .update(tools)
+      .set({ status: "needs_review", verified: false, updatedAt: now })
+      .where(inArray(tools.id, ids));
   }
 
   await logAudit("tools.bulk", `tools:${ids.length}`, `${action}: ${ids.join(",")}`);

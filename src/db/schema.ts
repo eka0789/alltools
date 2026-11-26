@@ -84,6 +84,11 @@ export const tools = sqliteTable(
     // instead of destroying it. Public catalog builders skip these rows;
     // /admin/tools/trash can restore or purge them.
     deletedAt: integer("deleted_at"),
+    // Link-health workflow: an ignored URL is hidden from the flagged list
+    // and skipped by automated checks; recheckAfter defers the next check
+    // until a chosen timestamp (admin "Recheck later").
+    linkIgnoredAt: integer("link_ignored_at"),
+    recheckAfter: integer("recheck_after"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -396,6 +401,23 @@ export const siteSettings = sqliteTable("site_settings", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+// Cron/background job history. Written by the cron routes (and manual ops
+// actions) so the Ops center can show the last run and surface silent
+// failures instead of waiting for someone to notice.
+export const jobRuns = sqliteTable(
+  "job_runs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    job: text("job").notNull(), // check-links | reconcile-orders | weekly-digest | github-stats
+    status: text("status").notNull().default("running"), // running | success | failed | skipped
+    summary: text("summary").notNull().default(""),
+    error: text("error"),
+    startedAt: integer("started_at").notNull(),
+    finishedAt: integer("finished_at"),
+  },
+  (t) => [index("job_runs_job_idx").on(t.job, t.startedAt)],
+);
+
 export type Tool = typeof tools.$inferSelect;
 export type NewTool = typeof tools.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -420,3 +442,4 @@ export type SharedStack = typeof sharedStacks.$inferSelect;
 export type RateLimitRow = typeof rateLimits.$inferSelect;
 export type AdminAudit = typeof adminAudit.$inferSelect;
 export type SiteSetting = typeof siteSettings.$inferSelect;
+export type JobRun = typeof jobRuns.$inferSelect;

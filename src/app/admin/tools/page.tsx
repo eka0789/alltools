@@ -10,6 +10,21 @@ import { SelectAllCheckbox } from "./bulk-select";
 
 export const dynamic = "force-dynamic";
 
+// "Complete" means a curator filled in the three fields that make a tool page
+// actually useful beyond a name+link: source repo, docs, and a copy-paste
+// install command.
+function missingFields(tool: {
+  githubUrl: string | null;
+  documentationUrl: string | null;
+  installCommand: string | null;
+}): string[] {
+  const missing: string[] = [];
+  if (!tool.githubUrl) missing.push("GitHub");
+  if (!tool.documentationUrl) missing.push("Docs");
+  if (!tool.installCommand) missing.push("Install");
+  return missing;
+}
+
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
@@ -25,6 +40,7 @@ export default async function AdminToolsPage({ searchParams }: Props) {
   const category = String(sp.category ?? "");
   const featured = String(sp.featured ?? "");
   const verified = String(sp.verified ?? "");
+  const completeness = String(sp.completeness ?? "");
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
   const perPage = 30;
 
@@ -47,6 +63,9 @@ export default async function AdminToolsPage({ searchParams }: Props) {
       if (featured === "no" && t.featured) return false;
       if (verified === "yes" && !t.verified) return false;
       if (verified === "no" && t.verified) return false;
+      const missing = missingFields(t);
+      if (completeness === "incomplete" && missing.length === 0) return false;
+      if (completeness === "complete" && missing.length > 0) return false;
       return true;
     })
     .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
@@ -60,6 +79,7 @@ export default async function AdminToolsPage({ searchParams }: Props) {
   if (category) params.set("category", category);
   if (featured) params.set("featured", featured);
   if (verified) params.set("verified", verified);
+  if (completeness) params.set("completeness", completeness);
   const pageHref = (n: number) => `/admin/tools?${params.toString()}&page=${n}`;
 
   return (
@@ -147,13 +167,25 @@ export default async function AdminToolsPage({ searchParams }: Props) {
           <option value="yes">Verified</option>
           <option value="no">Not verified</option>
         </select>
+        <select name="completeness" defaultValue={completeness} className="input !w-auto text-sm">
+          <option value="">Kelengkapan: semua</option>
+          <option value="complete">Lengkap (docs + GitHub + install)</option>
+          <option value="incomplete">Belum lengkap</option>
+        </select>
         <button type="submit" className="btn-secondary">Filter</button>
-        {(q || status || category || featured || verified) && (
+        {(q || status || category || featured || verified || completeness) && (
           <Link href="/admin/tools" className="text-xs text-muted-foreground hover:underline">
             Reset
           </Link>
         )}
       </form>
+
+      {completeness === "incomplete" && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Tip: centang semua di header tabel, lalu pilih <strong>Tandai belum lengkap</strong> di
+          aksi massal untuk memasukkannya ke antrean review.
+        </p>
+      )}
 
       <form id="bulk-form" action={bulkToolAction} className="mt-4 flex flex-wrap items-center gap-2">
         <select name="bulkAction" defaultValue="" required className="input !w-auto text-sm">
@@ -167,6 +199,7 @@ export default async function AdminToolsPage({ searchParams }: Props) {
           <option value="unfeature">Unfeature</option>
           <option value="verify">Tandai verified</option>
           <option value="unverify">Hapus verified</option>
+          <option value="flag_incomplete">Tandai belum lengkap (needs review + unverify)</option>
           <option value="trash">Pindahkan ke trash</option>
         </select>
         <button type="submit" className="btn-primary text-xs">
@@ -187,6 +220,7 @@ export default async function AdminToolsPage({ searchParams }: Props) {
               <th className="px-4 py-3">Pricing</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Verified</th>
+              <th className="px-4 py-3">Kelengkapan</th>
               <th className="px-4 py-3">Featured</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
@@ -194,7 +228,7 @@ export default async function AdminToolsPage({ searchParams }: Props) {
           <tbody>
             {slice.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   Tidak ada tool untuk filter ini.
                 </td>
               </tr>
@@ -242,6 +276,25 @@ export default async function AdminToolsPage({ searchParams }: Props) {
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {(() => {
+                      const missing = missingFields(t);
+                      return missing.length === 0 ? (
+                        <span className="text-[10px] font-semibold text-success">Lengkap</span>
+                      ) : (
+                        <span className="flex flex-wrap gap-1">
+                          {missing.map((field) => (
+                            <span
+                              key={field}
+                              className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] text-warning"
+                            >
+                              tanpa {field}
+                            </span>
+                          ))}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-2.5">
                     <form action={toggleFeaturedAction}>

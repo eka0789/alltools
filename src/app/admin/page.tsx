@@ -110,6 +110,7 @@ export default async function AdminPage({
   let pendingOrdersCount = 0;
   let confirmedSubscriberCount = 0;
   let allCoupons: Coupon[] = [];
+  let couponStats: { code: string; uses: number; revenue: number }[] = [];
 
   if (db) {
     try {
@@ -190,7 +191,31 @@ export default async function AdminPage({
     } catch {
       // coupons table may not exist yet — degrade cleanly
     }
+
+    try {
+      // Paid orders grouped by coupon: how often each coupon actually sold.
+      const rows = await db
+        .select({
+          code: orders.couponCode,
+          uses: sql<number>`count(*)`,
+          revenue: sql<number>`coalesce(sum(${orders.amount}), 0)`,
+        })
+        .from(orders)
+        .where(and(isNotNull(orders.couponCode), eq(orders.status, "paid")))
+        .groupBy(orders.couponCode);
+      couponStats = rows
+        .filter((row) => row.code)
+        .map((row) => ({
+          code: row.code as string,
+          uses: Number(row.uses),
+          revenue: Number(row.revenue),
+        }));
+    } catch {
+      // orders table unavailable — coupon stats stay empty
+    }
   }
+
+  const couponStatByCode = new Map(couponStats.map((stat) => [stat.code, stat]));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -448,9 +473,20 @@ export default async function AdminPage({
                     Used {c.usedCount}
                     {c.maxUses != null ? `/${c.maxUses}` : "×"}
                     {c.expiresAt ? ` · Expires ${formatDate(c.expiresAt)}` : ""}
+                    {couponStatByCode.get(c.code)
+                      ? ` · ${couponStatByCode.get(c.code)!.uses} order lunas · ${formatIdr(
+                          couponStatByCode.get(c.code)!.revenue,
+                        )}`
+                      : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">
+                  <Link
+                    href={`/admin/orders?coupon=${encodeURIComponent(c.code)}`}
+                    className="btn-secondary !px-2.5 !py-1 text-xs"
+                  >
+                    Orders
+                  </Link>
                   <form action={toggleCouponAction}>
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="active" value={c.active ? "0" : "1"} />

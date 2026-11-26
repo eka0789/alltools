@@ -129,12 +129,12 @@ export async function runCheckForTool(tool: CheckableTool): Promise<CheckResult>
     if (tool.status === "needs_review") {
       await db
         .update(tools)
-        .set({ verified: true, lastVerifiedAt: now, status: "active", updatedAt: now })
+        .set({ verified: true, lastVerifiedAt: now, status: "active", recheckAfter: null, updatedAt: now })
         .where(eq(tools.id, tool.id));
     } else {
       await db
         .update(tools)
-        .set({ verified: true, lastVerifiedAt: now, updatedAt: now })
+        .set({ verified: true, lastVerifiedAt: now, recheckAfter: null, updatedAt: now })
         .where(eq(tools.id, tool.id));
     }
   } else if (result.outcome === "needs_review") {
