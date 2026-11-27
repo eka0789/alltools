@@ -27,7 +27,11 @@ export async function proxy(request: NextRequest) {
 
   const target = await lookupRedirect(pathname);
   if (target) {
-    return NextResponse.redirect(new URL(target, request.url), 301);
+    // Use the canonical public origin: behind Cloudflare/PM2 `request.url`
+    // is the internal server address (e.g. 0.0.0.0:3000).
+    const base = process.env.NEXT_PUBLIC_SITE_URL?.trim() || request.nextUrl.origin;
+    const url = new URL(target, base.endsWith("/") ? base : `${base}/`);
+    return NextResponse.redirect(url, 301);
   }
   return NextResponse.next();
 }
