@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Heart, Search, Sparkles, UserRound } from "lucide-react";
+import { ChevronDown, Heart, Plus, Search, Sparkles, UserRound } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { CommandPalette } from "./command-palette";
 import { useFavorites } from "@/lib/client-store";
@@ -96,7 +96,7 @@ export function Navbar() {
                   key={l.href}
                   href={l.href}
                   aria-current={active ? "page" : undefined}
-                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
+                  className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm transition-colors xl:px-2.5 ${
                     active
                       ? "bg-accent-soft font-medium text-accent"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -116,7 +116,7 @@ export function Navbar() {
                 type="button"
                 onClick={() => setMoreOpen((v) => !v)}
                 aria-expanded={moreOpen}
-                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
+                className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm transition-colors xl:px-2.5 ${
                   moreIsActive || moreOpen
                     ? "bg-accent-soft font-medium text-accent"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -145,7 +145,7 @@ export function Navbar() {
             </div>
           </nav>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
               onClick={() => window.dispatchEvent(new Event("alltools:open-palette"))}
@@ -153,8 +153,8 @@ export function Navbar() {
               className="inline-flex h-8 items-center gap-2 rounded-lg border border-border px-2.5 text-xs text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
             >
               <Search className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Search…</span>
-              <kbd className="hidden rounded border border-border bg-muted px-1 font-mono text-[10px] md:inline">
+              <span className="hidden sm:inline lg:hidden xl:inline">Search…</span>
+              <kbd className="hidden rounded border border-border bg-muted px-1 font-mono text-[10px] md:inline lg:hidden xl:inline">
                 ⌘K
               </kbd>
             </button>
@@ -183,7 +183,11 @@ export function Navbar() {
               <UserRound className="h-3.5 w-3.5" />
             </Link>
             <ThemeToggle />
-            <Link href="/submit" className="btn-primary hidden lg:inline-flex !py-1.5 text-xs">
+            <Link
+              href="/submit"
+              className="btn-primary hidden h-8 shrink-0 whitespace-nowrap !px-3 !py-0 !text-xs lg:inline-flex"
+            >
+              <Plus className="h-3.5 w-3.5" />
               Submit Tool
             </Link>
             <button
