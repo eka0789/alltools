@@ -87,23 +87,27 @@ export default function FavoritesPage() {
             Saved locally in this browser — no account needed.
           </p>
         </div>
-        {favorites.length > 0 && (
-          <div className="flex shrink-0 flex-wrap justify-end gap-2">
-            <ShareStackButton
-              slugs={favorites}
-              defaultTitle="My Shortlist Stack"
-              label="Share Stack"
-            />
-            <button type="button" onClick={exportFavorites} className="btn-secondary !py-1.5 text-xs">
-              Export
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
-              className="btn-secondary !py-1.5 text-xs"
-            >
-              Import
-            </button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          {favorites.length > 0 && (
+            <>
+              <ShareStackButton
+                slugs={favorites}
+                defaultTitle="My Shortlist Stack"
+                label="Share Stack"
+              />
+              <button type="button" onClick={exportFavorites} className="btn-secondary !py-1.5 text-xs">
+                Export
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            className="btn-secondary !py-1.5 text-xs"
+          >
+            Import
+          </button>
+          {favorites.length > 0 && (
             <button
               type="button"
               onClick={() => favorites.forEach(toggle)}
@@ -112,8 +116,8 @@ export default function FavoritesPage() {
               <X className="h-3 w-3" />
               Clear all
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       {importMsg && (

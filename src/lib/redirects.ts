@@ -9,8 +9,10 @@ import { ensureAdminSchema } from "@/db/ensure-admin-schema";
 
 function normalizePath(path: string): string {
   const trimmed = path.trim();
-  if (!trimmed) return "";
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  if (!trimmed || trimmed.includes("\\") || /[\u0000-\u001f\u007f]/.test(trimmed)) return "";
+  const normalized = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  if (normalized.startsWith("//")) return "";
+  return normalized;
 }
 
 export async function recordRedirect(fromPath: string, toPath: string): Promise<void> {

@@ -199,7 +199,15 @@ export function ChatPanel({ variant }: { variant: "page" | "widget" }) {
     void Promise.resolve().then(() => {
       if (cancelled) return;
       const stored = loadStoredMessages();
-      if (stored) setMessages(stored);
+      if (stored) {
+        for (const msg of stored) {
+          const match = /^m-(\d+)$/.exec(msg.id);
+          if (match) {
+            idCounter.current = Math.max(idCounter.current, Number(match[1]));
+          }
+        }
+        setMessages(stored);
+      }
       setHydrated(true);
     });
     return () => {

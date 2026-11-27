@@ -24,7 +24,7 @@ export function TrackedOutboundLink({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug }),
         keepalive: true,
-      });
+      }).catch(() => undefined);
     } catch {
       // tracking must never break navigation
     }

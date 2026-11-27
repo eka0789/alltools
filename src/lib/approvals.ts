@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { approvals, type Approval } from "@/db/schema";
 import { ensureAdminSchema } from "@/db/ensure-admin-schema";
@@ -92,10 +92,22 @@ export async function decideApproval(
         decidedAt: Date.now(),
         note: note?.slice(0, 500) ?? null,
       })
-      .where(eq(approvals.id, id));
-    return Boolean(updated);
+      .where(and(eq(approvals.id, id), eq(approvals.status, "pending")))
+      .returning({ id: approvals.id });
+    return updated.length > 0;
   } catch {
     return false;
+  }
+}
+
+export async function revertApprovalToPending(id: number): Promise<void> {
+  try {
+    await db
+      .update(approvals)
+      .set({ status: "pending", decidedBy: null, decidedAt: null, note: null })
+      .where(eq(approvals.id, id));
+  } catch {
+    // ignore
   }
 }
 

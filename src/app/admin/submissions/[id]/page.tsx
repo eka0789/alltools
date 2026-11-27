@@ -32,7 +32,7 @@ export default async function EditSubmissionPage({
     notFound();
   }
   if (!sub) notFound();
-  if (sub.status !== "pending") redirect("/admin/submissions");
+  if (sub.status !== "pending" && sub.status !== "reviewing") redirect("/admin/submissions");
 
   const catalog = getCatalog();
   const categories = catalog.categories.map((c) => ({ slug: c.slug, name: c.name }));

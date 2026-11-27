@@ -63,8 +63,8 @@ function parseEntries(): TokenEntry[] {
         const name = bits[0].trim();
         const roleRaw = bits[1].trim();
         const token = bits.slice(2).join(":").trim();
-        if (name && token) {
-          entries.push({ name, role: isAdminRole(roleRaw) ? roleRaw : "owner", token });
+        if (name && token && isAdminRole(roleRaw)) {
+          entries.push({ name, role: roleRaw, token });
         }
       } else if (bits.length === 2) {
         const name = bits[0].trim();
@@ -207,7 +207,8 @@ async function identityFromSession(rawToken: string): Promise<AdminIdentity | nu
       .set({ lastSeenAt: Date.now() })
       .where(eq(adminSessions.id, session.id))
       .catch(() => undefined);
-    return { name: session.actor, role: isAdminRole(session.role) ? session.role : "owner" };
+    if (!isAdminRole(session.role)) return null;
+    return { name: session.actor, role: session.role };
   } catch {
     return null;
   }

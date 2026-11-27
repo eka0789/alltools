@@ -18,7 +18,7 @@ import {
   Wallet,
   Wrench,
 } from "lucide-react";
-import { isAdmin, adminToken } from "@/lib/admin";
+import { getAdminIdentity, roleCan, adminToken } from "@/lib/admin";
 import { getCatalog, needsReviewCount } from "@/lib/data";
 import { formatDate } from "@/lib/slug";
 import {
@@ -113,9 +113,9 @@ export default async function AdminPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const authed = await isAdmin();
+  const identity = await getAdminIdentity();
 
-  if (!authed) {
+  if (!identity) {
     return (
       <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center px-4 py-16">
         <div className="card p-6">
@@ -163,6 +163,8 @@ export default async function AdminPage({
     );
   }
 
+  const canBilling = roleCan(identity.role, "billing");
+  const canCatalog = roleCan(identity.role, "catalog");
   const catalog = getCatalog();
   const needsReview = await needsReviewCount();
 
@@ -217,78 +219,87 @@ export default async function AdminPage({
       // tables missing / db unavailable — dashboard stays up
     }
 
-    try {
-      // Accurate SQL aggregation across ALL orders (never truncated by .limit()).
-      const [paidAgg, pendingAgg, recent, subsAgg] = await Promise.all([
-        db
+    if (canBilling) {
+      try {
+        // Accurate SQL aggregation across ALL orders (never truncated by .limit()).
+        const [paidAgg, pendingAgg, recent] = await Promise.all([
+          db
+            .select({
+              count: sql<number>`COUNT(*)`,
+              revenue: sql<number>`COALESCE(SUM(${orders.amount} - ${orders.refundedAmount}), 0)`,
+            })
+            .from(orders)
+            .where(eq(orders.status, "paid")),
+          db
+            .select({ count: sql<number>`COUNT(*)` })
+            .from(orders)
+            .where(eq(orders.status, "pending")),
+          db
+            .select({
+              id: orders.id,
+              invoiceNo: orders.invoiceNo,
+              productId: orders.productId,
+              amount: orders.amount,
+              status: orders.status,
+              createdAt: orders.createdAt,
+              email: users.email,
+            })
+            .from(orders)
+            .innerJoin(users, eq(users.id, orders.userId))
+            .orderBy(desc(orders.createdAt))
+            .limit(10),
+        ]);
+        paidOrdersCount = Number(paidAgg[0]?.count ?? 0);
+        totalRevenueIdr = Number(paidAgg[0]?.revenue ?? 0);
+        pendingOrdersCount = Number(pendingAgg[0]?.count ?? 0);
+        recentOrders = recent;
+      } catch {
+        // Pro tables may not exist yet — degrade cleanly
+      }
+
+      try {
+        allCoupons = await db
+          .select()
+          .from(coupons)
+          .orderBy(desc(coupons.createdAt))
+          .limit(50);
+      } catch {
+        // coupons table may not exist yet — degrade cleanly
+      }
+
+      try {
+        // Paid orders grouped by coupon: how often each coupon actually sold.
+        const rows = await db
           .select({
-            count: sql<number>`COUNT(*)`,
-            revenue: sql<number>`COALESCE(SUM(${orders.amount} - ${orders.refundedAmount}), 0)`,
+            code: orders.couponCode,
+            uses: sql<number>`count(*)`,
+            revenue: sql<number>`coalesce(sum(${orders.amount}), 0)`,
           })
           .from(orders)
-          .where(eq(orders.status, "paid")),
-        db
-          .select({ count: sql<number>`COUNT(*)` })
-          .from(orders)
-          .where(eq(orders.status, "pending")),
-        db
-          .select({
-            id: orders.id,
-            invoiceNo: orders.invoiceNo,
-            productId: orders.productId,
-            amount: orders.amount,
-            status: orders.status,
-            createdAt: orders.createdAt,
-            email: users.email,
-          })
-          .from(orders)
-          .innerJoin(users, eq(users.id, orders.userId))
-          .orderBy(desc(orders.createdAt))
-          .limit(10),
-        db
+          .where(and(isNotNull(orders.couponCode), eq(orders.status, "paid")))
+          .groupBy(orders.couponCode);
+        couponStats = rows
+          .filter((row) => row.code)
+          .map((row) => ({
+            code: row.code as string,
+            uses: Number(row.uses),
+            revenue: Number(row.revenue),
+          }));
+      } catch {
+        // orders table unavailable — coupon stats stay empty
+      }
+    }
+
+    if (canCatalog) {
+      try {
+        const subsAgg = await db
           .select({ count: sql<number>`COUNT(*)` })
           .from(subscribers)
-          .where(and(isNotNull(subscribers.confirmedAt), isNull(subscribers.unsubscribedAt))),
-      ]);
-      paidOrdersCount = Number(paidAgg[0]?.count ?? 0);
-      totalRevenueIdr = Number(paidAgg[0]?.revenue ?? 0);
-      pendingOrdersCount = Number(pendingAgg[0]?.count ?? 0);
-      recentOrders = recent;
-      confirmedSubscriberCount = Number(subsAgg[0]?.count ?? 0);
-    } catch {
-      // Pro/newsletter tables may not exist yet — degrade cleanly
-    }
-
-    try {
-      allCoupons = await db
-        .select()
-        .from(coupons)
-        .orderBy(desc(coupons.createdAt))
-        .limit(50);
-    } catch {
-      // coupons table may not exist yet — degrade cleanly
-    }
-
-    try {
-      // Paid orders grouped by coupon: how often each coupon actually sold.
-      const rows = await db
-        .select({
-          code: orders.couponCode,
-          uses: sql<number>`count(*)`,
-          revenue: sql<number>`coalesce(sum(${orders.amount}), 0)`,
-        })
-        .from(orders)
-        .where(and(isNotNull(orders.couponCode), eq(orders.status, "paid")))
-        .groupBy(orders.couponCode);
-      couponStats = rows
-        .filter((row) => row.code)
-        .map((row) => ({
-          code: row.code as string,
-          uses: Number(row.uses),
-          revenue: Number(row.revenue),
-        }));
-    } catch {
-      // orders table unavailable — coupon stats stay empty
+          .where(and(isNotNull(subscribers.confirmedAt), isNull(subscribers.unsubscribedAt)));
+        confirmedSubscriberCount = Number(subsAgg[0]?.count ?? 0);
+      } catch {
+        // newsletter table may not exist yet
+      }
     }
   }
 
@@ -383,44 +394,52 @@ export default async function AdminPage({
       </div>
 
       {/* Monetization & Growth overview */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="card p-5">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Revenue (Net)</p>
-            <span className="rounded-lg bg-success/10 p-1.5 text-success">
-              <Wallet className="h-4 w-4" />
-            </span>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-success">{formatIdr(totalRevenueIdr)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{paidOrdersCount} paid order(s) · net of refunds</p>
+      {(canBilling || canCatalog) && (
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {canBilling && (
+            <>
+              <div className="card p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Revenue (Net)</p>
+                  <span className="rounded-lg bg-success/10 p-1.5 text-success">
+                    <Wallet className="h-4 w-4" />
+                  </span>
+                </div>
+                <p className="mt-2 text-2xl font-bold text-success">{formatIdr(totalRevenueIdr)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{paidOrdersCount} paid order(s) · net of refunds</p>
+              </div>
+              <div className="card p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending Orders</p>
+                  <span className="rounded-lg bg-warning/10 p-1.5 text-warning">
+                    <Clock className="h-4 w-4" />
+                  </span>
+                </div>
+                <p className={`mt-2 text-2xl font-bold ${pendingOrdersCount > 0 ? "text-warning" : ""}`}>
+                  {pendingOrdersCount}
+                </p>
+                <form action={reconcileOrdersAction} className="mt-2">
+                  <button type="submit" className="text-xs font-medium text-accent hover:underline">
+                    Reconcile with DOKU now →
+                  </button>
+                </form>
+              </div>
+            </>
+          )}
+          {canCatalog && (
+            <div className="card p-5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Newsletter Subscribers</p>
+                <span className="rounded-lg bg-accent-soft p-1.5 text-accent">
+                  <Mail className="h-4 w-4" />
+                </span>
+              </div>
+              <p className="mt-2 text-2xl font-bold">{confirmedSubscriberCount}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Confirmed double opt-in</p>
+            </div>
+          )}
         </div>
-        <div className="card p-5">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending Orders</p>
-            <span className="rounded-lg bg-warning/10 p-1.5 text-warning">
-              <Clock className="h-4 w-4" />
-            </span>
-          </div>
-          <p className={`mt-2 text-2xl font-bold ${pendingOrdersCount > 0 ? "text-warning" : ""}`}>
-            {pendingOrdersCount}
-          </p>
-          <form action={reconcileOrdersAction} className="mt-2">
-            <button type="submit" className="text-xs font-medium text-accent hover:underline">
-              Reconcile with DOKU now →
-            </button>
-          </form>
-        </div>
-        <div className="card p-5">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Newsletter Subscribers</p>
-            <span className="rounded-lg bg-accent-soft p-1.5 text-accent">
-              <Mail className="h-4 w-4" />
-            </span>
-          </div>
-          <p className="mt-2 text-2xl font-bold">{confirmedSubscriberCount}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Confirmed double opt-in</p>
-        </div>
-      </div>
+      )}
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {QUICK_ACTIONS.map(({ href, label, icon: Icon }) => (
@@ -438,8 +457,10 @@ export default async function AdminPage({
         ))}
       </div>
 
-      {/* Manual Pro Grant + Recent Orders */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-3">
+      {/* Manual Pro Grant + Recent Orders (owner/billing only) */}
+      {canBilling && (
+        <>
+          <div className="mt-8 grid gap-6 lg:grid-cols-3">
         <div className="card p-5">
           <h2 className="font-semibold">Grant Pro Manually</h2>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -644,6 +665,8 @@ export default async function AdminPage({
           </ul>
         )}
       </div>
+        </>
+      )}
 
       {(topSearches.length > 0 || zeroResult.length > 0) && (
         <div className="card mt-8 p-5">

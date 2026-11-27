@@ -16,7 +16,7 @@ function escapeXml(s: string): string {
 
 // RSS 2.0 feed of the newest catalog entries — a low-friction follow channel
 // that doesn't need an account or a deployed newsletter.
-export async function GET(_req: Request) {
+export async function GET() {
   const base = siteUrl();
   const { tools, total } = getCatalog();
 
@@ -43,7 +43,7 @@ export async function GET(_req: Request) {
     <title>AktifKoding — Developer Tools Pro</title>
     <link>${base}</link>
     <atom:link href="${base}/feed.xml" rel="self" type="application/rss+xml" />
-    <description>Newest of ${total} curated developer tools, resources and AI services. Curated collections: ${COLLECTIONS.map((c) => c.title).join(", ")}.</description>
+    <description>Newest of ${total} curated developer tools, resources and AI services. Curated collections: ${escapeXml(COLLECTIONS.map((c) => c.title).join(", "))}.</description>
     <language>en</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
 ${items}

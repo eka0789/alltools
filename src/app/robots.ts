@@ -6,11 +6,12 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        allow: ["/", "/compare/"],
         // /search produces unbounded near-duplicate query URLs — keep
         // crawlers on the canonical browsable pages instead. /favorites and
-        // /compare render per-visitor (localStorage) shells.
-        disallow: ["/admin", "/api", "/search", "/favorites", "/compare", "/stacks/custom"],
+        // /compare (exact) render per-visitor (localStorage) shells, while
+        // /compare/[pair] are indexable SEO comparison pages in sitemap.xml.
+        disallow: ["/admin", "/api", "/search", "/favorites", "/compare$", "/stacks/custom"],
       },
     ],
     sitemap: `${base}/sitemap.xml`,

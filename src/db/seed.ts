@@ -219,6 +219,7 @@ async function main() {
     const newSubId = p.subSlug
       ? subIdBySlug.get(`${p.categorySlug}/${p.subSlug}`) ?? null
       : null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _id, categoryId: _cat, subcategoryId: _sub, ...rest } = p.row;
     try {
       const orphanTags: unknown = JSON.parse(rest.tags);

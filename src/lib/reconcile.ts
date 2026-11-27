@@ -44,12 +44,16 @@ export async function reconcilePendingOrders(limit = 25): Promise<{
       await finalizeOrderIfPaid(order, JSON.stringify({ source: "reconcile", ts: Date.now() }));
       paid += 1;
     } else if (status === "EXPIRED" || status === "FAILED") {
-      await db
+      const nextStatus = status === "FAILED" ? "failed" : "expired";
+      const updated = await db
         .update(orders)
-        .set({ status: "expired", updatedAt: Date.now() })
-        .where(eq(orders.id, order.id));
-      await logOrderEvent(order.id, "expired", `Reconciled as ${status}`);
-      expired += 1;
+        .set({ status: nextStatus, updatedAt: Date.now() })
+        .where(and(eq(orders.id, order.id), eq(orders.status, "pending")))
+        .returning({ id: orders.id });
+      if (updated.length > 0) {
+        await logOrderEvent(order.id, nextStatus, `Reconciled as ${status}`);
+        expired += 1;
+      }
     } else {
       stillPending += 1;
     }

@@ -30,7 +30,16 @@ export function isPrivateHost(hostname: string): boolean {
     if (host === "::1" || host === "::") return true;
     if (host.startsWith("fe8") || host.startsWith("fe9") || host.startsWith("fea") || host.startsWith("feb")) return true;
     if (host.startsWith("fc") || host.startsWith("fd")) return true;
-    if (host.startsWith("::ffff:")) return isPrivateHost(host.slice(7));
+    if (host.startsWith("::ffff:")) {
+      const mapped = host.slice(7);
+      const hex = mapped.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+      if (hex) {
+        const hi = parseInt(hex[1], 16);
+        const lo = parseInt(hex[2], 16);
+        return isPrivateHost(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+      }
+      return isPrivateHost(mapped);
+    }
     return false;
   }
   const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
@@ -44,4 +53,39 @@ export function isPrivateHost(hostname: string): boolean {
     if (a >= 224) return true; // multicast / reserved
   }
   return false;
+}
+
+export function isAllowedPublicUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    return !isPrivateHost(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+// Fetches a public HTTP(S) URL while following up to `maxRedirects` hops
+// manually so every redirect target is re-validated against `isPrivateHost`.
+export async function fetchPublicUrl(
+  rawUrl: string,
+  init: Omit<RequestInit, "redirect">,
+  maxRedirects = 5,
+): Promise<Response> {
+  let current = rawUrl;
+  for (let hop = 0; hop <= maxRedirects; hop += 1) {
+    if (!isAllowedPublicUrl(current)) {
+      throw new Error("blocked_private_host");
+    }
+    const res = await fetch(current, { ...init, redirect: "manual" });
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (!location) return res;
+      if (hop === maxRedirects) return res;
+      current = new URL(location, current).toString();
+      continue;
+    }
+    return res;
+  }
+  throw new Error("too_many_redirects");
 }

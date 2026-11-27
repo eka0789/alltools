@@ -35,7 +35,8 @@ const EXPORTS = new Set([
   "audit",
 ]);
 
-const OWNER_ONLY = new Set(["orders", "users", "user", "audit"]);
+const OWNER_ONLY = new Set(["orders", "users", "user", "audit", "coupons"]);
+const CATALOG_ONLY = new Set(["tools", "subscribers", "searches", "clicks"]);
 
 // GET /admin/export?type=tools — CSV download for operators. Bounded rows so
 // a large table can't tie up a serverless/PM2 request; the dataset is small
@@ -47,6 +48,9 @@ export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get("type") ?? "";
   if (!EXPORTS.has(type)) return new Response("Unknown export type", { status: 400 });
   if (OWNER_ONLY.has(type) && !roleCan(identity.role, "billing")) {
+    return new Response("Forbidden", { status: 403 });
+  }
+  if (CATALOG_ONLY.has(type) && !roleCan(identity.role, "catalog")) {
     return new Response("Forbidden", { status: 403 });
   }
 

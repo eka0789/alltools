@@ -85,14 +85,23 @@ export default async function LoginPage({
               Link sent — check your inbox (and spam folder). It expires in 15 minutes.
             </p>
           )}
-          {one("dev_link") && (
-            <div className="mt-4 rounded-lg border border-accent/30 bg-accent-soft px-3 py-2 text-xs">
-              <p className="font-medium text-accent">Dev mode (no RESEND_API_KEY):</p>
-              <Link href={one("dev_link") as string} className="break-all text-accent underline">
-                open the sign-in link
-              </Link>
-            </div>
-          )}
+          {process.env.NODE_ENV !== "production" &&
+            (() => {
+              const devLink = one("dev_link");
+              if (!devLink) return null;
+              const isSafeVerify =
+                devLink.startsWith("/api/auth/verify") ||
+                /^https?:\/\/localhost(?::\d+)?\/api\/auth\/verify/.test(devLink);
+              if (!isSafeVerify) return null;
+              return (
+                <div className="mt-4 rounded-lg border border-accent/30 bg-accent-soft px-3 py-2 text-xs">
+                  <p className="font-medium text-accent">Dev mode (no RESEND_API_KEY):</p>
+                  <Link href={devLink} className="break-all text-accent underline">
+                    open the sign-in link
+                  </Link>
+                </div>
+              );
+            })()}
           {one("signedin") && (
             <p className="mt-4 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
               <CheckCircle2 className="h-3.5 w-3.5" />

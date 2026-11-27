@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
-import { isAdmin } from "@/lib/admin";
+import { getAdminIdentity, roleCan } from "@/lib/admin";
 import { ToolForm } from "../tool-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewToolPage() {
-  if (!(await isAdmin())) redirect("/admin");
+  const identity = await getAdminIdentity();
+  if (!identity) redirect("/admin");
+  if (!roleCan(identity.role, "catalog")) redirect("/admin?error=forbidden");
   return (
     <div className="mx-auto max-w-3xl py-2">
       <h1 className="text-2xl font-bold tracking-tight">Add Tool</h1>

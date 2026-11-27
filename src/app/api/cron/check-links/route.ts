@@ -4,7 +4,7 @@ import { linkChecks, tools } from "@/db/schema";
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { safeEqual } from "@/lib/admin";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { isPrivateHost } from "@/lib/url-check";
+import { fetchPublicUrl, isAllowedPublicUrl } from "@/lib/url-check";
 import { finishJobRun, startJobRun } from "@/lib/job-runs";
 
 export const runtime = "nodejs";
@@ -66,13 +66,7 @@ export async function POST(req: NextRequest) {
       targets.map(async (tool) => {
         const started = Date.now(); // per-check: batch timing must not leak in
         // SSRF guard: never fetch private-network hosts from approved URLs.
-        let privateHost = false;
-        try {
-          privateHost = isPrivateHost(new URL(tool.url).hostname);
-        } catch {
-          privateHost = true;
-        }
-        if (privateHost) {
+        if (!isAllowedPublicUrl(tool.url)) {
           await db.insert(linkChecks).values({
             toolId: tool.id,
             url: tool.url,
@@ -91,9 +85,8 @@ export async function POST(req: NextRequest) {
         let success = false;
         let error: string | null = null;
         try {
-          const res = await fetch(tool.url, {
+          const res = await fetchPublicUrl(tool.url, {
             method: "GET",
-            redirect: "follow",
             signal: controller.signal,
             headers: {
               "User-Agent":

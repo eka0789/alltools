@@ -64,7 +64,7 @@ export function AnnouncementBanner() {
     };
   }, [pathname]);
 
-  if (!data || !data.text || hidden) return null;
+  if (pathname.startsWith("/admin") || !data || !data.text || hidden) return null;
   const style = STYLES[data.level] ?? STYLES.info;
 
   return (

@@ -86,7 +86,19 @@ export function normalizeEmail(email: string): string | null {
 export function sanitizeNextPath(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
-  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes("\\")) {
+  if (
+    !trimmed.startsWith("/") ||
+    trimmed.startsWith("//") ||
+    trimmed.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(trimmed)
+  ) {
+    return null;
+  }
+  try {
+    if (new URL(trimmed, "http://local.invalid").origin !== "http://local.invalid") {
+      return null;
+    }
+  } catch {
     return null;
   }
   return trimmed.slice(0, 300);

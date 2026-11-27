@@ -253,22 +253,26 @@ function workflow(c: DeployConfig): string {
 }
 
 function ecosystemPm2(c: DeployConfig): string {
-  return JSON.stringify(
-    {
-      apps: [
-        {
-          name: c.projectName || "app",
-          script: c.stack === "python" ? ".venv/bin/uvicorn" : "dist/index.js",
-          ...(c.stack === "python" ? { args: "src.main:app --port 8000" } : {}),
-          instances: "max",
-          exec_mode: "cluster",
-          env: { NODE_ENV: "production", PORT: 3000 },
-        },
-      ],
-    },
-    null,
-    2,
-  ) + "\n";
+  return (
+    "module.exports = " +
+    JSON.stringify(
+      {
+        apps: [
+          {
+            name: c.projectName || "app",
+            script: c.stack === "python" ? ".venv/bin/uvicorn" : "dist/index.js",
+            ...(c.stack === "python" ? { args: "src.main:app --port 8000" } : {}),
+            instances: "max",
+            exec_mode: "cluster",
+            env: { NODE_ENV: "production", PORT: 3000 },
+          },
+        ],
+      },
+      null,
+      2,
+    ) +
+    ";\n"
+  );
 }
 
 function vercelJson(c: DeployConfig): string {

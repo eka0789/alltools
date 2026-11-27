@@ -15,7 +15,14 @@ export async function createRedirectAction(formData: FormData) {
   await requireCatalog();
   const from = String(formData.get("fromPath") ?? "").trim();
   const to = String(formData.get("toPath") ?? "").trim();
-  if (!from.startsWith("/") || !to.startsWith("/")) {
+  if (
+    !from.startsWith("/") ||
+    from.startsWith("//") ||
+    from.includes("\\") ||
+    !to.startsWith("/") ||
+    to.startsWith("//") ||
+    to.includes("\\")
+  ) {
     redirect("/admin/redirects?error=validation");
   }
   await recordRedirect(from, to);

@@ -6,11 +6,11 @@ import { useEffect, useRef } from "react";
 // prefetches never inflate the counter. A ref guards React StrictMode's
 // double-invoked effects in development.
 export function TrackView({ slug }: { slug: string }) {
-  const sent = useRef(false);
+  const sentSlug = useRef<string | null>(null);
 
   useEffect(() => {
-    if (sent.current) return;
-    sent.current = true;
+    if (sentSlug.current === slug) return;
+    sentSlug.current = slug;
     const payload = JSON.stringify({ slug });
     try {
       if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
 import { dokuConfig, verifyDokuSignature, fetchDokuOrderStatus } from "@/lib/doku";
@@ -22,11 +22,15 @@ export async function POST(req: NextRequest) {
     transaction?: { status?: string };
   };
   try {
-    body = JSON.parse(raw) as typeof body;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return Response.json({ error: "bad-json" }, { status: 400 });
+    }
+    body = parsed as typeof body;
   } catch {
     return Response.json({ error: "bad-json" }, { status: 400 });
   }
-  const invoice = body.order?.invoice_number ?? "";
+  const invoice = typeof body.order?.invoice_number === "string" ? body.order.invoice_number : "";
   if (!invoice) return Response.json({ error: "missing-invoice" }, { status: 400 });
 
   const rows = await db.select().from(orders).where(eq(orders.invoiceNo, invoice)).limit(1);
@@ -35,10 +39,12 @@ export async function POST(req: NextRequest) {
 
   if (order.status === "paid") return Response.json({ ok: true, alreadyPaid: true });
 
-  const reportedAmount = Number(body.order?.amount ?? 0);
-  if (reportedAmount > 0 && reportedAmount !== order.amount) {
-    console.warn("[doku] amount mismatch", { invoice, expected: order.amount, got: reportedAmount });
-    return Response.json({ ok: true, ignored: true });
+  if (body.order?.amount !== undefined) {
+    const reportedAmount = Number(body.order.amount);
+    if (!Number.isFinite(reportedAmount) || reportedAmount !== order.amount) {
+      console.warn("[doku] amount mismatch", { invoice, expected: order.amount, got: body.order.amount });
+      return Response.json({ ok: true, ignored: true });
+    }
   }
 
   const config = dokuConfig();
@@ -75,7 +81,7 @@ export async function POST(req: NextRequest) {
   if (!trusted) return Response.json({ ok: true, ignored: true });
 
   const reportedStatus = (body.transaction?.status ?? "").toUpperCase();
-  const paidStatuses = new Set(["SUCCESS", "PAID", "COMPLETED", "FINISH", ""]);
+  const paidStatuses = new Set(["SUCCESS", "PAID", "COMPLETED", "FINISH"]);
   const failedStatuses = new Set(["FAILED", "DENIED", "CANCELED", "CANCELLED"]);
   const expiredStatuses = new Set(["EXPIRED", "ORDER_EXPIRED"]);
 
@@ -92,14 +98,18 @@ export async function POST(req: NextRequest) {
     statusApiResult === "FAILED" || (statusApiResult === null && failedStatuses.has(reportedStatus));
   if (isExpired || isFailed) {
     const nextStatus = isExpired ? "expired" : "failed";
-    await db
+    const updated = await db
       .update(orders)
       .set({
         status: nextStatus,
         providerPayload: raw,
         updatedAt: Date.now(),
       })
-      .where(eq(orders.id, order.id));
+      .where(and(eq(orders.id, order.id), eq(orders.status, "pending")))
+      .returning({ id: orders.id });
+    if (updated.length === 0) {
+      return Response.json({ ok: true, alreadyFinalized: true });
+    }
     await logOrderEvent(order.id, nextStatus, `DOKU reported ${nextStatus}`);
     await notifyAdmin({
       type: "payment_failed",

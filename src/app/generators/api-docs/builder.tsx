@@ -13,6 +13,28 @@ import { downloadZip } from "@/lib/zip";
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
+function ParamTextInput({
+  initialValue,
+  onParse,
+  className,
+}: {
+  initialValue: string;
+  onParse: (raw: string) => void;
+  className: string;
+}) {
+  const [raw, setRaw] = useState(initialValue);
+  return (
+    <input
+      value={raw}
+      onChange={(e) => {
+        setRaw(e.target.value);
+        onParse(e.target.value);
+      }}
+      className={className}
+    />
+  );
+}
+
 export function ApiDocsBuilder() {
   const [title, setTitle] = useState("My API");
   const [serverUrl, setServerUrl] = useState("https://api.example.com");
@@ -139,17 +161,17 @@ export function ApiDocsBuilder() {
               <label className="text-xs font-semibold text-muted-foreground">
                 Path params (format: id:integer, slug:string)
               </label>
-              <input
-                value={ep.pathParams.map((p) => `${p.name}:${p.type}`).join(", ")}
-                onChange={(e) =>
+              <ParamTextInput
+                initialValue={ep.pathParams.map((p) => `${p.name}:${p.type}`).join(", ")}
+                onParse={(val) =>
                   update(i, {
-                    pathParams: e.target.value
+                    pathParams: val
                       .split(",")
                       .map((s) => s.trim())
                       .filter(Boolean)
                       .map((pair) => {
                         const [n, t] = pair.split(":");
-                        return { name: n.trim(), type: (t ?? "string").trim(), required: true };
+                        return { name: n.trim(), type: (t ?? "string").trim() || "string", required: true };
                       }),
                   })
                 }
@@ -160,11 +182,11 @@ export function ApiDocsBuilder() {
               <label className="text-xs font-semibold text-muted-foreground">
                 Query params (format: page:integer:halaman ke-n)
               </label>
-              <input
-                value={ep.queryParams.map((p) => `${p.name}:${p.type}:${p.description}`).join(", ")}
-                onChange={(e) =>
+              <ParamTextInput
+                initialValue={ep.queryParams.map((p) => `${p.name}:${p.type}:${p.description}`).join(", ")}
+                onParse={(val) =>
                   update(i, {
-                    queryParams: e.target.value
+                    queryParams: val
                       .split(",")
                       .map((s) => s.trim())
                       .filter(Boolean)
@@ -172,7 +194,7 @@ export function ApiDocsBuilder() {
                         const [n, t, ...rest] = pair.split(":");
                         return {
                           name: n.trim(),
-                          type: (t ?? "string").trim(),
+                          type: (t ?? "string").trim() || "string",
                           required: false,
                           description: rest.join(":").trim(),
                         };

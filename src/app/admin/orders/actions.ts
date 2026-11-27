@@ -84,6 +84,10 @@ export async function voidOrderAction(formData: FormData) {
     redirect("/admin/orders?ok=refunded");
   }
 
+  if (order.status !== "pending") {
+    redirect("/admin/orders?error=not_pending");
+  }
+
   await db.update(orders).set({ status: "failed", updatedAt: now }).where(eq(orders.id, id));
   await logOrderEvent(order.id, "failed", "Cancelled by admin");
   await logAudit("order.void", `order:${order.invoiceNo}`, "Cancelled pending order");

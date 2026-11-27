@@ -1,12 +1,17 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
 import { getAdminIdentity, logAudit, roleCan, type AdminIdentity } from "@/lib/admin";
-import { decideApproval, getApproval, parsePayload } from "@/lib/approvals";
+import {
+  decideApproval,
+  getApproval,
+  parsePayload,
+  revertApprovalToPending,
+} from "@/lib/approvals";
 import { performFullRefund, performPartialRefund } from "@/lib/order-ops";
 import {
   clearProductOverride,
@@ -47,20 +52,44 @@ export async function decideApprovalAction(formData: FormData) {
   }
 
   if (decision === "reject") {
-    await decideApproval(id, identity.name, "rejected", note);
+    const claimed = await decideApproval(id, identity.name, "rejected", note);
+    if (!claimed) redirect("/admin/approvals?error=not_pending");
     await logAudit("approval.reject", `approval:${id}`, `${approval.kind} ${approval.target}`);
     revalidatePath("/admin/approvals");
     redirect("/admin/approvals?ok=rejected");
   }
 
+  // Validate payload before claiming the approval row so malformed payloads
+  // leave the queue state clean.
+  let refundExec: { order: typeof orders.$inferSelect; payload: RefundPayload } | null = null;
+  let pricePayload: (ProductOverrideInput & { reset?: boolean }) | null = null;
+
+  if (approval.kind === "refund") {
+    const payload = parsePayload<RefundPayload>(approval.payload);
+    if (!payload?.orderId) redirect("/admin/approvals?error=payload");
+    const order = (
+      await db.select().from(orders).where(eq(orders.id, payload.orderId)).limit(1)
+    )[0];
+    if (!order) redirect("/admin/approvals?error=missing");
+    refundExec = { order, payload };
+  } else if (approval.kind === "price") {
+    const payload = parsePayload<ProductOverrideInput & { reset?: boolean }>(approval.payload);
+    if (!payload?.productId) redirect("/admin/approvals?error=payload");
+    pricePayload = payload;
+  } else {
+    redirect("/admin/approvals?error=unknown");
+  }
+
+  // Atomically claim the pending approval before executing side effects so
+  // concurrent approvals cannot double-refund an order.
+  const claimed = await decideApproval(id, identity.name, "approved", note);
+  if (!claimed) {
+    redirect("/admin/approvals?error=not_pending");
+  }
+
   try {
-    if (approval.kind === "refund") {
-      const payload = parsePayload<RefundPayload>(approval.payload);
-      if (!payload?.orderId) redirect("/admin/approvals?error=payload");
-      const order = (
-        await db.select().from(orders).where(eq(orders.id, payload.orderId)).limit(1)
-      )[0];
-      if (!order) redirect("/admin/approvals?error=missing");
+    if (refundExec) {
+      const { order, payload } = refundExec;
       if (payload.mode === "full") {
         await performFullRefund(order);
       } else {
@@ -69,25 +98,22 @@ export async function decideApprovalAction(formData: FormData) {
       revalidatePath("/admin/orders");
       revalidatePath(`/admin/orders/${order.invoiceNo}`);
       revalidatePath("/admin/users");
-    } else if (approval.kind === "price") {
-      const payload = parsePayload<ProductOverrideInput & { reset?: boolean }>(approval.payload);
-      if (!payload?.productId) redirect("/admin/approvals?error=payload");
-      if (payload.reset) {
-        await clearProductOverride(payload.productId);
+    } else if (pricePayload) {
+      if (pricePayload.reset) {
+        await clearProductOverride(pricePayload.productId);
       } else {
-        await setProductOverride(payload);
+        await setProductOverride(pricePayload);
       }
       revalidatePath("/admin/products");
       revalidatePath("/pricing");
       revalidatePath("/templates");
-    } else {
-      redirect("/admin/approvals?error=unknown");
     }
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
+    await revertApprovalToPending(id);
     redirect("/admin/approvals?error=execute");
   }
 
-  await decideApproval(id, identity.name, "approved", note);
   await logAudit(
     "approval.approve",
     `approval:${id}`,

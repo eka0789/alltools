@@ -20,7 +20,11 @@ export async function POST(req: NextRequest) {
     authorLabel?: string;
   };
   try {
-    body = (await req.json()) as typeof body;
+    const parsed: unknown = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return Response.json({ error: "bad-json" }, { status: 400 });
+    }
+    body = parsed as typeof body;
   } catch {
     return Response.json({ error: "bad-json" }, { status: 400 });
   }

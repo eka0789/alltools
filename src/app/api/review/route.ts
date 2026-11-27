@@ -63,14 +63,18 @@ export async function POST(req: NextRequest) {
     focus?: string;
   };
   try {
-    body = (await req.json()) as typeof body;
+    const parsed: unknown = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return Response.json({ error: "bad-json" }, { status: 400 });
+    }
+    body = parsed as typeof body;
   } catch {
     return Response.json({ error: "bad-json" }, { status: 400 });
   }
 
-  let code = (body.code ?? "").slice(0, MAX_CHARS);
+  let code = (typeof body.code === "string" ? body.code : "").slice(0, MAX_CHARS);
 
-  if (!code.trim() && body.sourceUrl) {
+  if (!code.trim() && typeof body.sourceUrl === "string" && body.sourceUrl) {
     const rawUrl = resolveSafeGithubRawUrl(body.sourceUrl);
     if (!rawUrl) {
       return Response.json({ error: "invalid-source-url" }, { status: 400 });

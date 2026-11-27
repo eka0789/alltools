@@ -69,18 +69,22 @@ export async function listGlossaryRows() {
 }
 
 export async function getAllCollections(): Promise<Collection[]> {
-  const rows = (await listCollectionRows()).filter((row) => row.active);
+  const rows = await listCollectionRows();
   const bySlug = new Map(rows.map((row) => [row.slug, row]));
   const result: Collection[] = [];
   const seen = new Set<string>();
 
   for (const base of COLLECTIONS) {
     const override = bySlug.get(base.slug);
-    result.push(override ? rowToCollection(override) : base);
     seen.add(base.slug);
+    if (override) {
+      if (override.active) result.push(rowToCollection(override));
+    } else {
+      result.push(base);
+    }
   }
   for (const row of rows) {
-    if (!seen.has(row.slug)) {
+    if (row.active && !seen.has(row.slug)) {
       result.push(rowToCollection(row));
       seen.add(row.slug);
     }
@@ -89,18 +93,22 @@ export async function getAllCollections(): Promise<Collection[]> {
 }
 
 export async function getAllGlossaryTerms(): Promise<GlossaryTerm[]> {
-  const rows = (await listGlossaryRows()).filter((row) => row.active);
+  const rows = await listGlossaryRows();
   const bySlug = new Map(rows.map((row) => [row.slug, row]));
   const result: GlossaryTerm[] = [];
   const seen = new Set<string>();
 
   for (const base of GLOSSARY) {
     const override = bySlug.get(base.slug);
-    result.push(override ? rowToGlossaryTerm(override) : base);
     seen.add(base.slug);
+    if (override) {
+      if (override.active) result.push(rowToGlossaryTerm(override));
+    } else {
+      result.push(base);
+    }
   }
   for (const row of rows) {
-    if (!seen.has(row.slug)) {
+    if (row.active && !seen.has(row.slug)) {
       result.push(rowToGlossaryTerm(row));
       seen.add(row.slug);
     }

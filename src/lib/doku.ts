@@ -112,12 +112,17 @@ export function verifyDokuSignature(
   const requestId = headers["request-id"] ?? "";
   if (!given || !clientId || !ts || !requestId) return false;
 
+  const clientBuf = Buffer.from(clientId);
+  const expectedClientBuf = Buffer.from(config.clientId);
+  if (clientBuf.length !== expectedClientBuf.length || !timingSafeEqual(clientBuf, expectedClientBuf)) {
+    return false;
+  }
+
   const digest = digestBase64(rawBody);
   const candidates = [
     stringToSign(config, requestId, ts, requestTarget, rawBody, true),
-    stringToSign(config, requestId, ts, requestTarget, rawBody, false),
-    // Tanpa Request-Target (varian lama sebagian integration)
-    `Client-Id:${clientId}\nRequest-Id:${requestId}\nRequest-Timestamp:${ts}\nDigest:${digest}`,
+    // Tanpa Request-Target (varian lama sebagian integration), tetap wajib Digest
+    `Client-Id:${config.clientId}\nRequest-Id:${requestId}\nRequest-Timestamp:${ts}\nDigest:${digest}`,
   ];
   const givenBuf = Buffer.from(given);
   return candidates.some((c) => {

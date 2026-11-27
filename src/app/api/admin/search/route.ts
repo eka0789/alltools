@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { and, desc, eq, like, or } from "drizzle-orm";
 import { db, DB_ACTIVE } from "@/db/client";
 import { orders, submissions, users } from "@/db/schema";
-import { getAdminIdentity } from "@/lib/admin";
+import { getAdminIdentity, roleCan } from "@/lib/admin";
 import { getCatalog } from "@/lib/data";
 
 export const runtime = "nodejs";
@@ -19,22 +19,27 @@ export async function GET(req: NextRequest) {
     return Response.json({ tools: [], submissions: [], orders: [], users: [] });
   }
 
+  const canCatalog = roleCan(identity.role, "catalog");
+  const canBilling = roleCan(identity.role, "billing");
+
   const catalog = getCatalog();
   const needle = q.toLowerCase();
-  const tools = catalog.tools
-    .filter(
-      (tool) =>
-        tool.name.toLowerCase().includes(needle) ||
-        tool.slug.includes(needle) ||
-        tool.url.toLowerCase().includes(needle),
-    )
-    .slice(0, 6)
-    .map((tool) => ({
-      id: tool.id,
-      title: tool.name,
-      subtitle: tool.categoryName,
-      href: `/admin/tools/${tool.id}`,
-    }));
+  const tools = canCatalog
+    ? catalog.tools
+        .filter(
+          (tool) =>
+            tool.name.toLowerCase().includes(needle) ||
+            tool.slug.includes(needle) ||
+            tool.url.toLowerCase().includes(needle),
+        )
+        .slice(0, 6)
+        .map((tool) => ({
+          id: tool.id,
+          title: tool.name,
+          subtitle: tool.categoryName,
+          href: `/admin/tools/${tool.id}`,
+        }))
+    : [];
 
   let submissionsResult: { id: number; title: string; subtitle: string; href: string }[] = [];
   let ordersResult: { id: number; title: string; subtitle: string; href: string }[] = [];
@@ -57,29 +62,33 @@ export async function GET(req: NextRequest) {
           )
           .orderBy(desc(submissions.createdAt))
           .limit(5),
-        db
-          .select({
-            id: orders.id,
-            invoiceNo: orders.invoiceNo,
-            status: orders.status,
-            email: users.email,
-          })
-          .from(orders)
-          .innerJoin(users, eq(users.id, orders.userId))
-          .where(
-            or(
-              like(orders.invoiceNo, `%${q.toUpperCase()}%`),
-              like(users.email, `%${needle}%`),
-            ),
-          )
-          .orderBy(desc(orders.createdAt))
-          .limit(5),
-        db
-          .select({ id: users.id, email: users.email })
-          .from(users)
-          .where(like(users.email, `%${needle}%`))
-          .orderBy(desc(users.createdAt))
-          .limit(5),
+        canBilling
+          ? db
+              .select({
+                id: orders.id,
+                invoiceNo: orders.invoiceNo,
+                status: orders.status,
+                email: users.email,
+              })
+              .from(orders)
+              .innerJoin(users, eq(users.id, orders.userId))
+              .where(
+                or(
+                  like(orders.invoiceNo, `%${q.toUpperCase()}%`),
+                  like(users.email, `%${needle}%`),
+                ),
+              )
+              .orderBy(desc(orders.createdAt))
+              .limit(5)
+          : Promise.resolve([]),
+        canBilling
+          ? db
+              .select({ id: users.id, email: users.email })
+              .from(users)
+              .where(like(users.email, `%${needle}%`))
+              .orderBy(desc(users.createdAt))
+              .limit(5)
+          : Promise.resolve([]),
       ]);
       submissionsResult = subRows.map((row) => ({
         id: row.id,

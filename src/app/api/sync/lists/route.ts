@@ -30,7 +30,11 @@ export async function POST(req: NextRequest) {
 
   let body: { favorites?: unknown; compare?: unknown };
   try {
-    body = await req.json();
+    const parsed: unknown = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "invalid json" }, { status: 400 });
+    }
+    body = parsed as typeof body;
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }

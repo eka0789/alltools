@@ -1,7 +1,7 @@
 import { db } from "@/db/client";
 import { linkChecks, tools } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { isPrivateHost } from "./url-check";
+import { fetchPublicUrl, isAllowedPublicUrl } from "./url-check";
 
 // On-demand link verification for the admin UI. Mirrors the CLI checker
 // (scripts/check-links.mjs) at a smaller scale: HEAD then GET fallback,
@@ -29,9 +29,8 @@ async function attempt(url: string, method: string, ua: string): Promise<Respons
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, {
+    return await fetchPublicUrl(url, {
       method,
-      redirect: "follow",
       signal: controller.signal,
       headers: {
         "User-Agent": ua,
@@ -47,13 +46,7 @@ async function attempt(url: string, method: string, ua: string): Promise<Respons
 export async function checkUrl(url: string): Promise<CheckResult> {
   const started = Date.now();
 
-  let blocked = false;
-  try {
-    blocked = isPrivateHost(new URL(url).hostname);
-  } catch {
-    blocked = true;
-  }
-  if (blocked) {
+  if (!isAllowedPublicUrl(url)) {
     return { outcome: "blocked", httpStatus: null, responseTimeMs: 0, error: "blocked_private_host" };
   }
 

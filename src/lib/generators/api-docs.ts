@@ -130,10 +130,11 @@ function emitYaml(value: unknown, indent = 0): string {
   if (typeof value === "string") return JSON.stringify(value);
   if (typeof value === "number" || typeof value === "boolean" || value === null) return String(value);
   if (Array.isArray(value)) {
+    if (value.length === 0) return " []";
     return value.map((item) => `\n${pad}- ${emitYaml(item, indent + 1).trimStart()}`).join("");
   }
   const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined);
-  if (entries.length === 0) return "{}";
+  if (entries.length === 0) return " {}";
   return entries
     .map(([k, v]) => {
       const nested = v !== null && typeof v === "object";

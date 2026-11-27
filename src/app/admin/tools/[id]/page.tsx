@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { isAdmin } from "@/lib/admin";
+import { getAdminIdentity, roleCan } from "@/lib/admin";
 import { getCatalog, getToolMetaByIdFromDb } from "@/lib/data";
 import { ToolForm } from "../tool-form";
 
@@ -10,7 +10,9 @@ export default async function EditToolPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!(await isAdmin())) redirect("/admin");
+  const identity = await getAdminIdentity();
+  if (!identity) redirect("/admin");
+  if (!roleCan(identity.role, "catalog")) redirect("/admin?error=forbidden");
   const { id } = await params;
   const tool =
     getCatalog().byId.get(Number(id)) ?? (await getToolMetaByIdFromDb(Number(id)));

@@ -3,6 +3,10 @@ import { sanitizeNextPath } from "@/lib/auth";
 import { escapeHtml } from "@/lib/email";
 import { signUnsubscribe, unsubscribeUrl, verifyUnsubscribeSignature } from "@/lib/newsletter";
 import { generateBoilerplate } from "@/lib/generators/boilerplate";
+import { generateOpenApi, EMPTY_ENDPOINT } from "@/lib/generators/api-docs";
+import { generateDeployConfig } from "@/lib/generators/deploy";
+import { isPrivateHost } from "@/lib/url-check";
+import { campaignToken, verifyCampaignToken } from "@/lib/campaigns";
 import { heuristicReview } from "@/lib/ai-review";
 import { getTemplate } from "@/data/templates";
 import { buildHref, activeFilterChips } from "@/components/filters";
@@ -14,7 +18,68 @@ describe("auth redirect sanitizer", () => {
     expect(sanitizeNextPath("https://evil.com")).toBeNull();
     expect(sanitizeNextPath("//evil.com/phish")).toBeNull();
     expect(sanitizeNextPath("/\\evil.com")).toBeNull();
+    expect(sanitizeNextPath("/\t/evil.com")).toBeNull();
+    expect(sanitizeNextPath("/\n/evil.com")).toBeNull();
     expect(sanitizeNextPath("")).toBeNull();
+  });
+});
+
+describe("SSRF & campaign token hardening", () => {
+  it("blocks IPv4-mapped IPv6 private hosts (both dotted and hex normalized)", () => {
+    expect(isPrivateHost("[::ffff:127.0.0.1]")).toBe(true);
+    expect(isPrivateHost(new URL("http://[::ffff:127.0.0.1]/").hostname)).toBe(true);
+    expect(isPrivateHost(new URL("http://[::ffff:169.254.169.254]/").hostname)).toBe(true);
+    expect(isPrivateHost("example.com")).toBe(false);
+  });
+
+  it("binds campaign click tokens to the target URL", () => {
+    const token = campaignToken(7, "dev@example.com", "https://aktifkoding.biz.id/pricing");
+    expect(
+      verifyCampaignToken(7, "dev@example.com", token, "https://aktifkoding.biz.id/pricing"),
+    ).toBe(true);
+    expect(verifyCampaignToken(7, "dev@example.com", token, "https://evil.example")).toBe(false);
+  });
+});
+
+describe("generator output validity", () => {
+  it("emits valid unquoted dependency keys in Next.js boilerplate package.json", () => {
+    const files = generateBoilerplate({
+      projectName: "demo-next",
+      stack: "next",
+      database: "postgres",
+      auth: "none",
+      docker: false,
+      tests: true,
+    });
+    const pkg = JSON.parse(files["package.json"]) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    expect(pkg.dependencies.next).toBeDefined();
+    expect(pkg.devDependencies.vitest).toBeDefined();
+    expect(Object.keys(pkg.dependencies).some((k) => k.includes('"'))).toBe(false);
+  });
+
+  it("emits valid YAML for empty arrays/objects in OpenAPI and valid CommonJS for PM2", () => {
+    const yaml = generateOpenApi([{ ...EMPTY_ENDPOINT, auth: true, responseJson: '{"items":[]}' }], {
+      title: "Test API",
+      version: "1.0.0",
+      serverUrl: "https://api.example.com",
+      bearer: true,
+    });
+    expect(yaml).toContain("bearerAuth: []");
+    expect(yaml).not.toContain("items:{}");
+
+    const deploy = generateDeployConfig({
+      projectName: "demo",
+      stack: "node",
+      target: "vps-pm2",
+      domain: "demo.example.com",
+      database: "none",
+      ci: "github-actions",
+    });
+    const pm2 = deploy.find((f) => f.path === "ecosystem.config.js");
+    expect(pm2?.content).toMatch(/^module\.exports = \{/);
   });
 });
 

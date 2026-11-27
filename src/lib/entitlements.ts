@@ -221,7 +221,7 @@ export async function acceptTeamInvitesForTeam(teamId: number): Promise<void> {
       continue;
     }
     if (free <= 0) break;
-    await db
+    const inserted = await db
       .insert(teamMembers)
       .values({
         teamId,
@@ -229,19 +229,22 @@ export async function acceptTeamInvitesForTeam(teamId: number): Promise<void> {
         role: "member",
         createdAt: Date.now(),
       })
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: teamMembers.id });
     memberUserIds.add(memberUserId);
-    await db.insert(entitlements).values({
-      userId: memberUserId,
-      productId: "pro_all",
-      teamId,
-      createdAt: Date.now(),
-    });
+    if (inserted.length > 0) {
+      await db.insert(entitlements).values({
+        userId: memberUserId,
+        productId: "pro_all",
+        teamId,
+        createdAt: Date.now(),
+      });
+      free -= 1;
+    }
     await db
       .update(teamInvites)
       .set({ acceptedAt: Date.now() })
-      .where(eq(teamInvites.id, invite.id));
-    free -= 1;
+      .where(and(eq(teamInvites.id, invite.id), isNull(teamInvites.acceptedAt)));
   }
 }
 

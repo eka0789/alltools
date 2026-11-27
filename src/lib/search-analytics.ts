@@ -49,7 +49,11 @@ async function topQueries(
         ),
       )
       .groupBy(searchQueries.query)
-      .having(sql`count(*) >= ${minHits}${withResults ? "" : ` and sum(case when ${searchQueries.resultCount} = 0 then 1 else 0 end) >= 1`}`)
+      .having(
+        withResults
+          ? sql`count(*) >= ${minHits}`
+          : sql`count(*) >= ${minHits} and sum(case when ${searchQueries.resultCount} = 0 then 1 else 0 end) >= 1`,
+      )
       .orderBy(sql`count(*) desc`)
       .limit(limit);
     return rows.map((r) => ({ query: r.query, hits: Number(r.hits) }));

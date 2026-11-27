@@ -68,8 +68,14 @@ function sortDeps(inner: string): Record<string, string> {
   if (!inner) return {};
   const obj: Record<string, string> = {};
   for (const pair of inner.split(",")) {
-    const [k, v] = pair.trim().split(": ");
-    obj[k] = JSON.parse(v.replace(/^"/, '"'));
+    const trimmed = pair.trim();
+    if (!trimmed) continue;
+    const sep = trimmed.indexOf(": ");
+    if (sep === -1) continue;
+    const rawKey = trimmed.slice(0, sep).trim();
+    const rawVal = trimmed.slice(sep + 2).trim();
+    const key = rawKey.startsWith('"') ? (JSON.parse(rawKey) as string) : rawKey;
+    obj[key] = JSON.parse(rawVal) as string;
   }
   return obj;
 }

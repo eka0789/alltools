@@ -227,7 +227,11 @@ export async function POST(req: NextRequest) {
     params?: { protocolVersion?: string; _meta?: unknown; name?: string; arguments?: Record<string, unknown> };
   };
   try {
-    body = await req.json();
+    const parsed: unknown = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return rpcError(null, -32600, "Invalid Request");
+    }
+    body = parsed as typeof body;
   } catch {
     return rpcError(null, -32700, "Parse error");
   }

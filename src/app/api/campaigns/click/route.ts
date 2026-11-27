@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
   // be an open redirect for anyone who can craft a URL. Use the canonical site
   // URL: `req.url` is the internal origin (e.g. 0.0.0.0:3000) behind the proxy.
   const valid =
-    campaignId > 0 && email.length > 0 && verifyCampaignToken(campaignId, email, token);
+    campaignId > 0 &&
+    email.length > 0 &&
+    rawUrl.length > 0 &&
+    verifyCampaignToken(campaignId, email, token, rawUrl);
   if (!valid) {
     return NextResponse.redirect(`${siteUrl()}/`, 302);
   }
