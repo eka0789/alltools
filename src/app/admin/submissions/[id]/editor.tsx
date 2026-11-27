@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  saveSubmissionMetaAction,
   suggestSubmissionMetaAction,
   updateSubmissionAndApproveAction,
   type MetaSuggestion,
@@ -18,15 +19,25 @@ interface Props {
     tags: string;
     githubUrl: string | null;
     documentationUrl: string | null;
+    submitterEmail: string | null;
+    assignedTo: string | null;
+    internalNotes: string | null;
+    status: string;
   };
   categories: { slug: string; name: string }[];
   error?: string;
+  saved?: boolean;
 }
 
-export function SubmissionEditor({ submission, categories, error }: Props) {
+export function SubmissionEditor({ submission, categories, error, saved }: Props) {
   const [name, setName] = useState(submission.name);
   const [description, setDescription] = useState(submission.description);
   const [categorySlug, setCategorySlug] = useState(submission.categorySlug);
+  const [assignedTo, setAssignedTo] = useState(submission.assignedTo ?? "");
+  const [internalNotes, setInternalNotes] = useState(submission.internalNotes ?? "");
+  const [status, setStatus] = useState(
+    submission.status === "reviewing" ? "reviewing" : "pending",
+  );
   const [tags, setTags] = useState(() => {
     try {
       const parsed = JSON.parse(submission.tags);
@@ -75,6 +86,18 @@ export function SubmissionEditor({ submission, categories, error }: Props) {
           {error === "duplicate" && "URL sudah terdaftar pada tool lain."}
           {error === "url" && "URL tidak valid."}
           {error === "save" && "Gagal menyimpan tool (slug duplikat?)."}
+        </p>
+      )}
+      {saved && (
+        <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          Triage tersimpan.
+        </p>
+      )}
+
+      {submission.submitterEmail && (
+        <p className="text-xs text-muted-foreground">
+          Email submitter: <span className="font-mono">{submission.submitterEmail}</span>{" "}
+          (otomatis diberi tahu saat approve/reject)
         </p>
       )}
 
@@ -210,7 +233,47 @@ export function SubmissionEditor({ submission, categories, error }: Props) {
         </label>
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-border pt-4">
+      <div className="grid gap-5 sm:grid-cols-2">
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">Assignee</span>
+          <input
+            name="assignedTo"
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
+            placeholder="Nama admin yang menangani"
+            className="input"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">Status review</span>
+          <select
+            name="status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="input"
+          >
+            <option value="pending">pending</option>
+            <option value="reviewing">reviewing</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium">Catatan internal</span>
+        <textarea
+          name="internalNotes"
+          rows={3}
+          value={internalNotes}
+          onChange={(e) => setInternalNotes(e.target.value)}
+          placeholder="Konteks review, alasan, follow-up…"
+          className="input"
+        />
+      </label>
+
+      <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+        <button type="submit" formAction={saveSubmissionMetaAction} className="btn-secondary">
+          Simpan triage
+        </button>
         <button type="submit" className="btn-primary">Approve &amp; publish</button>
       </div>
     </form>

@@ -7,7 +7,8 @@ import { db, DB_ACTIVE } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { getAdminIdentity, roleCan } from "@/lib/admin";
 import { formatIdr, getProduct } from "@/lib/products";
-import { markOrderPaidAction, resendReceiptAction, voidOrderAction } from "../actions";
+import { ORDER_EVENT_LABEL, getOrderEvents } from "@/lib/order-events";
+import { markOrderPaidAction, partialRefundAction, resendReceiptAction, voidOrderAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -47,14 +48,17 @@ function statusClass(status: string): string {
 
 export default async function OrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ invoice: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const identity = await getAdminIdentity();
   if (!identity) redirect("/admin");
   if (!roleCan(identity.role, "billing")) redirect("/admin?error=forbidden");
 
   const { invoice } = await params;
+  const sp = await searchParams;
 
   let row:
     | {
@@ -71,6 +75,8 @@ export default async function OrderDetailPage({
         createdAt: number;
         updatedAt: number;
         paidAt: number | null;
+        refundedAmount: number;
+        refundReason: string | null;
         email: string;
         userId: number;
       }
@@ -95,6 +101,8 @@ export default async function OrderDetailPage({
               createdAt: orders.createdAt,
               updatedAt: orders.updatedAt,
               paidAt: orders.paidAt,
+              refundedAmount: orders.refundedAmount,
+              refundReason: orders.refundReason,
               email: users.email,
               userId: users.id,
             })
@@ -112,21 +120,51 @@ export default async function OrderDetailPage({
 
   const product = getProduct(row.productId);
   const subtotal = row.amount + (row.discountAmount ?? 0);
+  const netPaid = row.amount - row.refundedAmount;
   const payload = prettyJson(row.providerPayload);
 
-  const timeline: { label: string; at: number; tone: "neutral" | "success" | "warning" }[] = [
-    { label: "Order dibuat", at: row.createdAt, tone: "neutral" },
-  ];
-  if (row.paidAt) {
-    timeline.push({ label: "Pembayaran diterima — entitlement aktif", at: row.paidAt, tone: "success" });
-  }
-  if (row.status !== "pending" && row.status !== "paid") {
-    timeline.push({
-      label: `Status akhir: ${STATUS_LABEL[row.status] ?? row.status}`,
-      at: row.updatedAt,
-      tone: "warning",
-    });
-  }
+  const events = await getOrderEvents(row.id);
+  const timeline: {
+    label: string;
+    detail?: string;
+    at: number;
+    tone: "neutral" | "success" | "warning";
+  }[] =
+    events.length > 0
+      ? events.map((event) => ({
+          label: ORDER_EVENT_LABEL[event.type] ?? event.type,
+          detail: event.detail,
+          at: event.createdAt,
+          tone:
+            event.type === "paid"
+              ? "success"
+              : event.type.includes("refund") ||
+                  event.type === "failed" ||
+                  event.type === "expired"
+                ? "warning"
+                : "neutral",
+        }))
+      : [
+          { label: "Order dibuat", at: row.createdAt, tone: "neutral" },
+          ...(row.paidAt
+            ? [
+                {
+                  label: "Pembayaran diterima — entitlement aktif",
+                  at: row.paidAt,
+                  tone: "success" as const,
+                },
+              ]
+            : []),
+          ...(row.status !== "pending" && row.status !== "paid"
+            ? [
+                {
+                  label: `Status akhir: ${STATUS_LABEL[row.status] ?? row.status}`,
+                  at: row.updatedAt,
+                  tone: "warning" as const,
+                },
+              ]
+            : []),
+        ];
 
   return (
     <div className="py-2">
@@ -176,6 +214,22 @@ export default async function OrderDetailPage({
         </div>
       </div>
 
+      {sp.ok === "refunded" && (
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          Refund dicatat. Entitlement dicabut hanya bila refund penuh.
+        </p>
+      )}
+      {sp.error === "refund_amount" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Jumlah refund tidak valid (harus &gt; 0 dan ≤ sisa yang bisa direfund).
+        </p>
+      )}
+      {sp.error === "not_paid" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Refund hanya untuk order lunas.
+        </p>
+      )}
+
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <div className="card p-5">
           <h2 className="font-semibold">Detail order</h2>
@@ -218,6 +272,16 @@ export default async function OrderDetailPage({
               }
             />
             <Row label="Total dibayar" value={<span className="font-semibold">{formatIdr(row.amount)}</span>} />
+            {row.refundedAmount > 0 && (
+              <>
+                <Row label="Refund" value={`− ${formatIdr(row.refundedAmount)}`} />
+                <Row
+                  label="Net diterima"
+                  value={<span className="font-semibold">{formatIdr(netPaid)}</span>}
+                />
+              </>
+            )}
+            {row.refundReason && <Row label="Alasan refund" value={row.refundReason} />}
             <Row label="Kupon" value={row.couponCode ?? "—"} />
             {row.couponCode && (
               <Row
@@ -253,12 +317,42 @@ export default async function OrderDetailPage({
               />
               <span>
                 <span className="block text-sm">{event.label}</span>
+                {event.detail && (
+                  <span className="block text-[11px] text-muted-foreground">{event.detail}</span>
+                )}
                 <span className="block text-[11px] text-muted-foreground">{fmtDateTime(event.at)}</span>
               </span>
             </li>
           ))}
         </ol>
       </div>
+
+      {(row.status === "paid" || row.status === "refunded") && netPaid > 0 && (
+        <div className="card mt-4 p-5">
+          <h2 className="font-semibold">Refund sebagian</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Sisa yang bisa direfund: {formatIdr(netPaid)}. Refund penuh otomatis mencabut entitlement.
+          </p>
+          <form action={partialRefundAction} className="mt-3 flex flex-wrap items-end gap-2">
+            <input type="hidden" name="id" value={row.id} />
+            <input
+              name="amount"
+              type="number"
+              min={1}
+              max={netPaid}
+              required
+              placeholder="Jumlah IDR"
+              className="input !w-40 text-sm"
+            />
+            <input
+              name="reason"
+              placeholder="Alasan refund"
+              className="input min-w-[200px] flex-1 text-sm"
+            />
+            <button type="submit" className="btn-secondary text-xs">Refund</button>
+          </form>
+        </div>
+      )}
 
       <details className="card mt-4 p-5">
         <summary className="cursor-pointer font-semibold">

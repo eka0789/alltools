@@ -3,6 +3,7 @@ import { db, DB_ACTIVE } from "@/db/client";
 import { feedback } from "@/db/schema";
 import { getCatalog } from "@/lib/data";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { notifyAdmin } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,6 +62,14 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
+
+  await notifyAdmin({
+    type: "feedback",
+    severity: type === "broken_link" ? "warning" : "info",
+    title: type === "broken_link" ? "Laporan broken link" : "Saran edit",
+    body: `${toolSlug}${message.trim() ? ` — ${message.trim().slice(0, 200)}` : ""}`,
+    link: "/admin/feedback",
+  });
 
   return NextResponse.json({ ok: true });
 }

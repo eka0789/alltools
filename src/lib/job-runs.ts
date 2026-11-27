@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { jobRuns, type JobRun } from "@/db/schema";
 import { ensureAdminSchema } from "@/db/ensure-admin-schema";
+import { notifyAdmin } from "@/lib/notifications";
 
 // Cron/background-job history. Cron routes wrap their work in
 // startJobRun/finishJobRun; the Ops center reads the latest row per job so a
@@ -46,6 +47,22 @@ export async function finishJobRun(
       .where(eq(jobRuns.id, id));
   } catch {
     // ignore
+  }
+
+  if (update.status === "failed") {
+    try {
+      const rows = await db.select({ job: jobRuns.job }).from(jobRuns).where(eq(jobRuns.id, id)).limit(1);
+      const job = rows[0]?.job ?? "job";
+      await notifyAdmin({
+        type: "job_failed",
+        severity: "warning",
+        title: `Cron gagal: ${job}`,
+        body: update.error ?? "Lihat riwayat job untuk detail.",
+        link: "/admin/jobs",
+      });
+    } catch {
+      // ignore
+    }
   }
 }
 

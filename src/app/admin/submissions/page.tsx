@@ -36,8 +36,8 @@ export default async function AdminSubmissionsPage({
       all = [];
     }
   }
-  const pending = all.filter((s) => s.status === "pending");
-  const reviewed = all.filter((s) => s.status !== "pending");
+  const pending = all.filter((s) => s.status === "pending" || s.status === "reviewing");
+  const reviewed = all.filter((s) => s.status !== "pending" && s.status !== "reviewing");
 
   return (
     <div className="py-2">
@@ -124,7 +124,14 @@ export default async function AdminSubmissionsPage({
                       aria-label={`Select ${s.name}`}
                     />
                     <div className="min-w-0">
-                      <p className="font-medium">{s.name}</p>
+                      <p className="font-medium">
+                        {s.name}
+                        {s.status === "reviewing" && (
+                          <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
+                            reviewing
+                          </span>
+                        )}
+                      </p>
                       {href ? (
                         <a
                           href={href}
@@ -143,6 +150,17 @@ export default async function AdminSubmissionsPage({
                         {s.tags.length > 2 && <>Tags: {JSON.parse(s.tags).join(", ")} · </>}
                         {formatDate(s.createdAt)}
                       </p>
+                      {(s.assignedTo || s.submitterEmail) && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {s.assignedTo && <span>PIC: {s.assignedTo} · </span>}
+                          {s.submitterEmail && <span>{s.submitterEmail}</span>}
+                        </p>
+                      )}
+                      {s.internalNotes && (
+                        <p className="mt-1 text-[11px] text-muted-foreground/80">
+                          Catatan: {s.internalNotes}
+                        </p>
+                      )}
                       {(s.githubUrl || s.documentationUrl) && (
                         <p className="mt-1 text-xs text-muted-foreground">
                           {s.githubUrl && <span>GitHub: {s.githubUrl} </span>}

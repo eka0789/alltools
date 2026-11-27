@@ -33,7 +33,8 @@ export default async function ImportToolsPage({
 
       {typeof sp.done === "string" && (
         <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
-          Import selesai: {sp.done.replace("created-", "").replace("-skipped-", " dibuat · ").replace("-invalid-", " dilewati · ")} tidak valid.
+          {sp.dry === "1" ? "Dry run (tidak ada yang disimpan): " : "Import selesai: "}
+          {sp.done.replace("created-", "").replace("-skipped-", " dibuat · ").replace("-invalid-", " dilewati · ")} tidak valid.
         </p>
       )}
       {sp.error === "empty" && (
@@ -67,7 +68,11 @@ Another Tool,https://example.com,Short description,development-tools,free,cli|op
             className="input font-mono text-xs"
           />
         </label>
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" name="dryRun" className="h-4 w-4" />
+            Dry run — preview jumlah tanpa menyimpan
+          </label>
           <button type="submit" className="btn-primary">Import</button>
         </div>
       </form>

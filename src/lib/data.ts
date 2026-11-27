@@ -2,7 +2,7 @@ import { db, DB_ACTIVE } from "@/db/client";
 import { ensureAdminSchema } from "@/db/ensure-admin-schema";
 import { categories, subcategories, toolClicks, tools } from "@/db/schema";
 import type { Category, Subcategory, Tool } from "@/db/schema";
-import { eq, sql, isNull, and } from "drizzle-orm";
+import { eq, sql, isNull, and, gt } from "drizzle-orm";
 import catalogJson from "@/data/catalog.generated.json";
 
 type ToolJsonField =
@@ -86,6 +86,35 @@ export function normalizeUrlKey(url: string): string {
   }
 }
 
+function mapToolRow(
+  t: RawRow,
+  catById: Map<number, RawRow>,
+  subById: Map<number, RawRow>,
+): ToolWithMeta {
+  const cat = catById.get(t.categoryId as number);
+  const sub = t.subcategoryId ? subById.get(t.subcategoryId as number) : undefined;
+  return {
+    ...(t as unknown as Tool),
+    tags: parseJsonArray(t.tags),
+    platforms: parseJsonArray(t.platforms),
+    languages: parseJsonArray(t.languages),
+    frameworks: parseJsonArray(t.frameworks),
+    useCases: parseJsonArray(t.useCases),
+    pros: parseJsonArray(t.pros),
+    cons: parseJsonArray(t.cons),
+    alternatives: parseJsonArray(t.alternatives),
+    relatedTools: parseJsonArray(t.relatedTools),
+    categoryName: (cat?.name as string) ?? "Uncategorized",
+    categorySlug: (cat?.slug as string) ?? "uncategorized",
+    categoryIcon: (cat?.icon as string) ?? "Box",
+    subcategoryName: sub ? (sub.name as string) : null,
+    subcategorySlug: sub ? (sub.slug as string) : null,
+    clicks: Number(t.clicks ?? 0),
+    weeklyClicks: Number(t.weeklyClicks ?? 0),
+    weekStart: Number(t.weekStart ?? 0) || null,
+  };
+}
+
 // Shared row → meta mapping, used for both the SQLite source and the
 // statically-imported catalog JSON (serverless fallback).
 function buildCatalog(
@@ -95,33 +124,17 @@ function buildCatalog(
 ): Catalog {
   const catById = new Map(catRows.map((c) => [c.id as number, c]));
   const subById = new Map(subRows.map((s) => [s.id as number, s]));
+  const now = Date.now();
 
   const toolsWithMeta: ToolWithMeta[] = toolRows
-    .filter((t) => !t.deletedAt) // soft-deleted tools stay in the DB but never in the public catalog
-    .map((t) => {
-    const cat = catById.get(t.categoryId as number);
-    const sub = t.subcategoryId ? subById.get(t.subcategoryId as number) : undefined;
-    return {
-      ...(t as unknown as Tool),
-      tags: parseJsonArray(t.tags),
-      platforms: parseJsonArray(t.platforms),
-      languages: parseJsonArray(t.languages),
-      frameworks: parseJsonArray(t.frameworks),
-      useCases: parseJsonArray(t.useCases),
-      pros: parseJsonArray(t.pros),
-      cons: parseJsonArray(t.cons),
-      alternatives: parseJsonArray(t.alternatives),
-      relatedTools: parseJsonArray(t.relatedTools),
-      categoryName: (cat?.name as string) ?? "Uncategorized",
-      categorySlug: (cat?.slug as string) ?? "uncategorized",
-      categoryIcon: (cat?.icon as string) ?? "Box",
-      subcategoryName: sub ? (sub.name as string) : null,
-      subcategorySlug: sub ? (sub.slug as string) : null,
-      clicks: Number(t.clicks ?? 0),
-      weeklyClicks: Number(t.weeklyClicks ?? 0),
-      weekStart: Number(t.weekStart ?? 0) || null,
-    };
-  });
+    .filter(
+      (t) =>
+        // Soft-deleted tools stay in the DB but never in the public catalog.
+        !t.deletedAt &&
+        // Scheduled tools are hidden until their publishAt timestamp.
+        (!t.publishAt || Number(t.publishAt) <= now),
+    )
+    .map((t) => mapToolRow(t, catById, subById));
 
   const counts = new Map<number, number>();
   for (const t of toolsWithMeta) {
@@ -329,5 +342,49 @@ export async function needsReviewCount(): Promise<number> {
     return rows[0]?.n ?? 0;
   } catch {
     return 0;
+  }
+}
+
+// Admin-only helpers for rows the public catalog hides: scheduled tools
+// (publishAt in the future) and a single tool by id regardless of schedule.
+// Reuses the same row→meta mapping so the admin edit form sees full data.
+async function loadTaxonomy(): Promise<{
+  catById: Map<number, RawRow>;
+  subById: Map<number, RawRow>;
+}> {
+  const catRows = (await db.select().from(categories)) as unknown as RawRow[];
+  const subRows = (await db.select().from(subcategories)) as unknown as RawRow[];
+  return {
+    catById: new Map(catRows.map((c) => [c.id as number, c])),
+    subById: new Map(subRows.map((s) => [s.id as number, s])),
+  };
+}
+
+export async function getScheduledTools(): Promise<ToolWithMeta[]> {
+  if (!DB_ACTIVE) return [];
+  try {
+    await ensureAdminSchema();
+    const rows = (await db
+      .select()
+      .from(tools)
+      .where(and(isNull(tools.deletedAt), gt(tools.publishAt, Date.now())))) as unknown as RawRow[];
+    if (rows.length === 0) return [];
+    const { catById, subById } = await loadTaxonomy();
+    return rows.map((row) => mapToolRow(row, catById, subById));
+  } catch {
+    return [];
+  }
+}
+
+export async function getToolMetaByIdFromDb(id: number): Promise<ToolWithMeta | null> {
+  if (!DB_ACTIVE) return null;
+  try {
+    await ensureAdminSchema();
+    const rows = (await db.select().from(tools).where(eq(tools.id, id)).limit(1)) as unknown as RawRow[];
+    if (!rows[0]) return null;
+    const { catById, subById } = await loadTaxonomy();
+    return mapToolRow(rows[0], catById, subById);
+  } catch {
+    return null;
   }
 }

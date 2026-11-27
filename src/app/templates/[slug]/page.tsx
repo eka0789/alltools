@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Check, Lock } from "lucide-react";
 import { TEMPLATES, getTemplate } from "@/data/templates";
 import { formatIdr, discountPercent } from "@/lib/products";
+import { getEffectiveProduct } from "@/lib/product-overrides";
 import { getSessionUser } from "@/lib/auth";
 import { canDownloadTemplate, getUserAccess } from "@/lib/entitlements";
 import { BuyButton } from "@/components/buy-button";
@@ -46,9 +47,12 @@ export default async function TemplateDetailPage({
   const access = await getUserAccess(user?.id ?? null);
   const unlocked = canDownloadTemplate(access, template.slug);
   const related = TEMPLATES.filter((t) => t.slug !== template.slug).slice(0, 3);
-  const compareAt = template.compareAtPriceIdr;
+  const effective = await getEffectiveProduct(`tpl:${template.slug}`);
+  const displayName = effective?.name ?? template.name;
+  const priceIdr = effective?.priceIdr ?? template.priceIdr;
+  const compareAt = effective?.compareAtPriceIdr ?? template.compareAtPriceIdr;
   const promoPct =
-    compareAt && compareAt > template.priceIdr ? discountPercent(template.priceIdr, compareAt) : null;
+    compareAt && compareAt > priceIdr ? discountPercent(priceIdr, compareAt) : null;
 
   const generated = template.preset
     ? generateBoilerplate({
@@ -61,7 +65,7 @@ export default async function TemplateDetailPage({
       })
     : {};
   const allFiles: Record<string, string> = { ...generated, ...(template.extraFiles ?? {}) };
-  const canViewAll = template.priceIdr === 0 || unlocked;
+  const canViewAll = priceIdr === 0 || unlocked;
   const previewFiles: PreviewFile[] = Object.keys(allFiles)
     .sort()
     .map((path) => ({
@@ -78,13 +82,13 @@ export default async function TemplateDetailPage({
       </nav>
       <header className="mt-4">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight">{template.name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{displayName}</h1>
           <span
             className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-              template.priceIdr === 0 ? "bg-success/10 text-success" : "bg-accent-soft text-accent"
+              priceIdr === 0 ? "bg-success/10 text-success" : "bg-accent-soft text-accent"
             }`}
           >
-            {template.priceIdr === 0 ? "Gratis" : formatIdr(template.priceIdr)}
+            {priceIdr === 0 ? "Gratis" : formatIdr(priceIdr)}
           </span>
           {promoPct !== null && compareAt && (
             <>
@@ -169,8 +173,8 @@ export default async function TemplateDetailPage({
             <p className="text-xs text-muted-foreground line-through">{formatIdr(compareAt)}</p>
           )}
           <p className="text-sm font-semibold">
-            {template.priceIdr === 0 ? "Gratis" : formatIdr(template.priceIdr)}
-            {template.priceIdr > 0 && <span className="ml-1 text-xs text-muted-foreground">sekali bayar</span>}
+            {priceIdr === 0 ? "Gratis" : formatIdr(priceIdr)}
+            {priceIdr > 0 && <span className="ml-1 text-xs text-muted-foreground">sekali bayar</span>}
           </p>
           {promoPct !== null && (
             <p className="mt-1 inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
@@ -178,7 +182,7 @@ export default async function TemplateDetailPage({
             </p>
           )}
           <div className="mt-4">
-            {template.priceIdr === 0 || unlocked ? (
+            {priceIdr === 0 || unlocked ? (
               <TemplateDownloadButton slug={template.slug} />
             ) : (
               <div className="space-y-3">
@@ -188,7 +192,7 @@ export default async function TemplateDetailPage({
                 </p>
                 <BuyButton
                   productId={`tpl:${template.slug}`}
-                  label={`Beli ${formatIdr(template.priceIdr)}`}
+                  label={`Beli ${formatIdr(priceIdr)}`}
                   className="btn-primary w-full"
                 />
                 <Link href="/pricing" className="btn-secondary block w-full text-center text-xs">

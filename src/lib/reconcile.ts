@@ -3,6 +3,7 @@ import { db, DB_ACTIVE } from "@/db/client";
 import { orders } from "@/db/schema";
 import { dokuConfig, fetchDokuOrderStatus } from "@/lib/doku";
 import { finalizeOrderIfPaid } from "@/lib/entitlements";
+import { logOrderEvent } from "@/lib/order-events";
 
 // Rekonsiliasi pembayaran: order pending > 1 jam ditanyakan statusnya
 // langsung ke DOKU — webhook bisa hilang, tapi uang tidak boleh.
@@ -47,6 +48,7 @@ export async function reconcilePendingOrders(limit = 25): Promise<{
         .update(orders)
         .set({ status: "expired", updatedAt: Date.now() })
         .where(eq(orders.id, order.id));
+      await logOrderEvent(order.id, "expired", `Reconciled as ${status}`);
       expired += 1;
     } else {
       stillPending += 1;

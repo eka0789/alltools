@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getProduct } from "@/lib/products";
+import { getEffectiveProduct } from "@/lib/product-overrides";
 import { validateCoupon } from "@/lib/coupons";
 import { clientIp, rateLimitPersistent } from "@/lib/rate-limit";
 
@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ valid: false, error: "bad-json" }, { status: 400 });
   }
 
-  const product = getProduct(productId);
-  if (!product) {
+  const product = await getEffectiveProduct(productId);
+  if (!product || !product.active) {
     return Response.json({ valid: false, error: "product-not-found" }, { status: 400 });
   }
 

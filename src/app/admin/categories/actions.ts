@@ -39,11 +39,14 @@ export async function updateCategoryAction(formData: FormData) {
   const sortOrder = Math.round(Number(formData.get("sortOrder") ?? 0) || 0);
   const homeOrderRaw = String(formData.get("homeOrder") ?? "").trim();
   const homeOrder = homeOrderRaw ? Math.round(Number(homeOrderRaw)) || 0 : null;
+  const seoTitle = String(formData.get("seoTitle") ?? "").trim().slice(0, 120) || null;
+  const seoDescription =
+    String(formData.get("seoDescription") ?? "").trim().slice(0, 300) || null;
   if (!id || !name) redirect("/admin/categories?error=validation");
 
   await db
     .update(categories)
-    .set({ name, description, icon, sortOrder, homeOrder })
+    .set({ name, description, icon, sortOrder, homeOrder, seoTitle, seoDescription })
     .where(eq(categories.id, id));
   await logAudit("category.update", `category:${id}`, `Updated ${name}`);
   await after();

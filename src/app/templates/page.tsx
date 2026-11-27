@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TEMPLATES } from "@/data/templates";
 import { formatIdr, discountPercent } from "@/lib/products";
+import { getEffectiveProducts } from "@/lib/product-overrides";
 import { getSessionUser } from "@/lib/auth";
 import { canDownloadTemplate, getUserAccess } from "@/lib/entitlements";
 import { CustomServiceCta } from "@/components/custom-service-cta";
@@ -20,21 +21,35 @@ export default async function TemplatesPage() {
   const user = await getSessionUser();
   const access = await getUserAccess(user?.id ?? null);
 
-  const items: TemplateCardItem[] = TEMPLATES.map((t) => ({
-    slug: t.slug,
-    name: t.name,
-    tagline: t.tagline,
-    tags: t.tags,
-    priceIdr: t.priceIdr,
-    compareAtPriceIdr: t.compareAtPriceIdr,
-    discountPct: discountPercent(t.priceIdr, t.compareAtPriceIdr),
-    priceFormatted: t.priceIdr === 0 ? "Gratis" : formatIdr(t.priceIdr),
-    compareAtFormatted:
-      t.compareAtPriceIdr && t.compareAtPriceIdr > t.priceIdr
-        ? formatIdr(t.compareAtPriceIdr)
-        : null,
-    unlocked: canDownloadTemplate(access, t.slug),
-  }));
+  const items: TemplateCardItem[] = await (async () => {
+    const effective = await getEffectiveProducts();
+    const overridesBySlug = new Map(
+      effective
+        .filter((product) => product.kind === "template" && product.templateSlug)
+        .map((product) => [product.templateSlug as string, product]),
+    );
+    return TEMPLATES.map((t) => {
+      const override = overridesBySlug.get(t.slug);
+      const name = override?.name ?? t.name;
+      const priceIdr = override?.priceIdr ?? t.priceIdr;
+      const compareAtPriceIdr = override?.compareAtPriceIdr ?? t.compareAtPriceIdr;
+      return {
+        slug: t.slug,
+        name,
+        tagline: t.tagline,
+        tags: t.tags,
+        priceIdr,
+        compareAtPriceIdr,
+        discountPct: discountPercent(priceIdr, compareAtPriceIdr),
+        priceFormatted: priceIdr === 0 ? "Gratis" : formatIdr(priceIdr),
+        compareAtFormatted:
+          compareAtPriceIdr && compareAtPriceIdr > priceIdr
+            ? formatIdr(compareAtPriceIdr)
+            : null,
+        unlocked: canDownloadTemplate(access, t.slug),
+      };
+    });
+  })();
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">

@@ -96,6 +96,7 @@ export default async function UsersPage({
         <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
           {sp.ok === "granted" && "Pro granted."}
           {sp.ok === "revoked" && "Entitlement dicabut."}
+          {sp.ok === "deleted" && "User dan seluruh datanya dihapus."}
         </p>
       )}
       {sp.error === "not_found" && (
@@ -140,7 +141,9 @@ export default async function UsersPage({
                 return (
                   <tr key={u.id} className="border-b border-border last:border-0 align-top">
                     <td className="px-4 py-2.5">
-                      <span className="font-medium">{u.email}</span>
+                      <Link href={`/admin/users/${u.id}`} className="font-medium text-accent hover:underline">
+                        {u.email}
+                      </Link>
                       <span className="block text-[10px] text-muted-foreground">#{u.id}</span>
                     </td>
                     <td className="px-4 py-2.5 text-xs text-muted-foreground">{formatDate(u.createdAt)}</td>

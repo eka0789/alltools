@@ -5,6 +5,8 @@ import { orders } from "@/db/schema";
 import { dokuConfig, verifyDokuSignature, fetchDokuOrderStatus } from "@/lib/doku";
 import { getProduct } from "@/lib/products";
 import { finalizeOrderIfPaid } from "@/lib/entitlements";
+import { logOrderEvent } from "@/lib/order-events";
+import { notifyAdmin } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -89,15 +91,24 @@ export async function POST(req: NextRequest) {
   const isFailed =
     statusApiResult === "FAILED" || (statusApiResult === null && failedStatuses.has(reportedStatus));
   if (isExpired || isFailed) {
+    const nextStatus = isExpired ? "expired" : "failed";
     await db
       .update(orders)
       .set({
-        status: isExpired ? "expired" : "failed",
+        status: nextStatus,
         providerPayload: raw,
         updatedAt: Date.now(),
       })
       .where(eq(orders.id, order.id));
-    return Response.json({ ok: true, status: isExpired ? "expired" : "failed" });
+    await logOrderEvent(order.id, nextStatus, `DOKU reported ${nextStatus}`);
+    await notifyAdmin({
+      type: "payment_failed",
+      severity: "warning",
+      title: `Pembayaran ${nextStatus}: ${order.invoiceNo}`,
+      body: `${order.amount} IDR — ${order.productId}`,
+      link: `/admin/orders/${order.invoiceNo}`,
+    });
+    return Response.json({ ok: true, status: nextStatus });
   }
 
   return Response.json({ ok: true, ignored: true });

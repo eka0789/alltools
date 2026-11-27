@@ -4,13 +4,14 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
-import { getProduct } from "@/lib/products";
+import { getEffectiveProduct } from "@/lib/product-overrides";
 import { getUserAccess } from "@/lib/entitlements";
 import { createDokuPayment, dokuConfig, dokuConfigured, dokuSimulationAllowed } from "@/lib/doku";
 import { siteUrl } from "@/lib/email";
 import { clientIp, rateLimitPersistent } from "@/lib/rate-limit";
 import { validateCoupon } from "@/lib/coupons";
 import { isCheckoutEnabled } from "@/lib/settings";
+import { logOrderEvent } from "@/lib/order-events";
 
 export const runtime = "nodejs";
 
@@ -46,8 +47,10 @@ export async function POST(req: NextRequest) {
   } catch {
     productId = "";
   }
-  const product = getProduct(productId);
-  if (!product) return Response.json({ error: "product-not-found" }, { status: 400 });
+  const product = await getEffectiveProduct(productId);
+  if (!product || !product.active) {
+    return Response.json({ error: "product-not-found" }, { status: 400 });
+  }
 
   // Cegah pembelian ganda untuk produk yang sudah dimiliki user.
   const access = await getUserAccess(user.id);
@@ -90,6 +93,7 @@ export async function POST(req: NextRequest) {
     })
     .returning();
   const order = inserted[0];
+  await logOrderEvent(order.id, "created", `${product.name} — ${finalAmount} IDR`);
 
   const config = dokuConfig();
   if (config) {

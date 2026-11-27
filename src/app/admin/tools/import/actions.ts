@@ -54,6 +54,7 @@ export async function importToolsAction(formData: FormData) {
 
   const raw = String(formData.get("csv") ?? "").trim();
   if (!raw) redirect("/admin/tools/import?error=empty");
+  const dryRun = formData.get("dryRun") === "on";
 
   const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length === 0) redirect("/admin/tools/import?error=empty");
@@ -123,35 +124,38 @@ export async function importToolsAction(formData: FormData) {
       continue;
     }
 
-    try {
-      await db.insert(tools).values({
-        name,
-        slug: uniqueSlug(name),
-        url,
-        description,
-        categoryId: cat.id,
-        tags: JSON.stringify(
-          tagsRaw
-            .split("|")
-            .map((tag) => tag.trim().toLowerCase())
-            .filter(Boolean),
-        ),
-        pricing,
-        createdAt: now,
-        updatedAt: now,
-        verified: false,
-      });
-      seenUrls.add(key);
-      created += 1;
-    } catch {
-      invalid += 1;
+    if (!dryRun) {
+      try {
+        await db.insert(tools).values({
+          name,
+          slug: uniqueSlug(name),
+          url,
+          description,
+          categoryId: cat.id,
+          tags: JSON.stringify(
+            tagsRaw
+              .split("|")
+              .map((tag) => tag.trim().toLowerCase())
+              .filter(Boolean),
+          ),
+          pricing,
+          createdAt: now,
+          updatedAt: now,
+          verified: false,
+        });
+      } catch {
+        invalid += 1;
+        continue;
+      }
     }
+    seenUrls.add(key);
+    created += 1;
   }
 
   await logAudit(
-    "tools.import",
+    dryRun ? "tools.import_dry" : "tools.import",
     `tools:${created}`,
-    `created=${created} skipped=${skipped} invalid=${invalid}`,
+    `${dryRun ? "dry-run " : ""}created=${created} skipped=${skipped} invalid=${invalid}`,
   );
   invalidateCatalog();
   if (DB_IS_REMOTE) {
@@ -163,5 +167,9 @@ export async function importToolsAction(formData: FormData) {
   }
   revalidatePath("/admin/tools");
   revalidatePath("/");
-  redirect(`/admin/tools/import?done=created-${created}-skipped-${skipped}-invalid-${invalid}`);
+  redirect(
+    `/admin/tools/import?done=created-${created}-skipped-${skipped}-invalid-${invalid}${
+      dryRun ? "&dry=1" : ""
+    }`,
+  );
 }

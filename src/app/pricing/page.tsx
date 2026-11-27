@@ -11,7 +11,8 @@ import {
   Users,
 } from "lucide-react";
 import { getCatalog } from "@/lib/data";
-import { LIFETIME_PRODUCT, TEAM_PRODUCT, TEMPLATE_PRODUCTS, formatIdr, discountPercent } from "@/lib/products";
+import { formatIdr, discountPercent } from "@/lib/products";
+import { getEffectiveProducts } from "@/lib/product-overrides";
 import { dokuConfigured, dokuSimulationAllowed } from "@/lib/doku";
 import { getSessionUser } from "@/lib/auth";
 import { getUserAccess } from "@/lib/entitlements";
@@ -42,6 +43,14 @@ export default async function PricingPage() {
   const access = await getUserAccess(user?.id ?? null);
   const dokuOn = dokuConfigured();
   const simMode = dokuSimulationAllowed();
+
+  // Admin-editable prices/promos are merged over the code-defined catalog.
+  const products = await getEffectiveProducts();
+  const lifetime = products.find((product) => product.kind === "lifetime")!;
+  const team = products.find((product) => product.kind === "team")!;
+  const templates = products.filter(
+    (product) => product.kind === "template" && product.active,
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -96,7 +105,7 @@ export default async function PricingPage() {
               Pro Lifetime
             </p>
             <p className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold">{formatIdr(LIFETIME_PRODUCT.priceIdr)}</span>
+              <span className="text-3xl font-bold">{formatIdr(lifetime.priceIdr)}</span>
               <span className="text-xs text-muted-foreground">sekali bayar</span>
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -115,8 +124,8 @@ export default async function PricingPage() {
                 </span>
               ) : (
                 <BuyButton
-                  productId={LIFETIME_PRODUCT.id}
-                  label={`Beli ${formatIdr(LIFETIME_PRODUCT.priceIdr)}`}
+                  productId={lifetime.id}
+                  label={`Beli ${formatIdr(lifetime.priceIdr)}`}
                   className="btn-primary w-full"
                 />
               )}
@@ -129,7 +138,7 @@ export default async function PricingPage() {
               Paket Tim — 10 seat
             </p>
             <p className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold">{formatIdr(TEAM_PRODUCT.priceIdr)}</span>
+              <span className="text-3xl font-bold">{formatIdr(team.priceIdr)}</span>
               <span className="text-xs text-muted-foreground">sekali bayar</span>
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -148,8 +157,8 @@ export default async function PricingPage() {
                 </span>
               ) : (
                 <BuyButton
-                  productId={TEAM_PRODUCT.id}
-                  label={`Beli ${formatIdr(TEAM_PRODUCT.priceIdr)}`}
+                  productId={team.id}
+                  label={`Beli ${formatIdr(team.priceIdr)}`}
                   className="btn-primary w-full"
                 />
               )}
@@ -173,7 +182,7 @@ export default async function PricingPage() {
           Lifetime mendapatkan semua template ini otomatis.
         </p>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
-          {TEMPLATE_PRODUCTS.map((p) => (
+          {templates.map((p) => (
             <div key={p.id} className="card flex flex-col p-6">
               <p className="text-sm font-semibold">{p.name}</p>
               <p className="mt-1 text-xs text-muted-foreground">{p.description}</p>

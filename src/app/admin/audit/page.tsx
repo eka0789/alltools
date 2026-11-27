@@ -5,8 +5,22 @@ import { db, DB_ACTIVE } from "@/db/client";
 import { adminAudit } from "@/db/schema";
 import { ensureOpsSchema, getAdminIdentity, roleCan } from "@/lib/admin";
 import { formatDate } from "@/lib/slug";
+import { rollbackToolAction } from "../actions";
 
 export const dynamic = "force-dynamic";
+
+function changedKeys(beforeJson: string | null, afterJson: string | null): string[] {
+  if (!beforeJson || !afterJson) return [];
+  try {
+    const before = JSON.parse(beforeJson) as Record<string, unknown>;
+    const after = JSON.parse(afterJson) as Record<string, unknown>;
+    return Object.keys(after).filter(
+      (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]),
+    );
+  } catch {
+    return [];
+  }
+}
 
 export default async function AuditPage({
   searchParams,
@@ -28,6 +42,8 @@ export default async function AuditPage({
     action: string;
     target: string;
     detail: string;
+    beforeJson: string | null;
+    afterJson: string | null;
     createdAt: number;
   }[] = [];
   let total = 0;
@@ -79,6 +95,17 @@ export default async function AuditPage({
         <a href="/admin/export?type=audit" className="btn-secondary">Download CSV</a>
       </div>
 
+      {sp.rolled === "1" && (
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          Tool dikembalikan ke snapshot audit tersebut.
+        </p>
+      )}
+      {sp.error === "rollback" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Rollback gagal: entri audit bukan update tool atau snapshot tidak tersedia.
+        </p>
+      )}
+
       <form className="mt-5 flex gap-2" action="/admin/audit">
         <input
           name="q"
@@ -98,15 +125,15 @@ export default async function AuditPage({
               <th className="px-4 py-3">Aksi</th>
               <th className="px-4 py-3">Target</th>
               <th className="px-4 py-3">Detail</th>
+              <th className="px-4 py-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   Belum ada aktivitas tercatat.
-                </td>
-              </tr>
+                </td>              </tr>
             ) : (
               rows.map((row) => (
                 <tr key={row.id} className="border-b border-border last:border-0 align-top">
@@ -119,7 +146,34 @@ export default async function AuditPage({
                   <td className="px-4 py-2.5 text-xs font-mono">{row.actor}</td>
                   <td className="px-4 py-2.5 text-xs font-medium">{row.action}</td>
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">{row.target}</td>
-                  <td className="px-4 py-2.5 text-xs">{row.detail}</td>
+                  <td className="px-4 py-2.5 text-xs">
+                    {row.detail}
+                    {(() => {
+                      const keys = changedKeys(row.beforeJson, row.afterJson);
+                      if (keys.length === 0) return null;
+                      return (
+                        <span className="mt-1 flex flex-wrap gap-1">
+                          {keys.slice(0, 10).map((key) => (
+                            <span key={key} className="rounded bg-muted px-1.5 py-0.5 text-[9px]">
+                              {key}
+                            </span>
+                          ))}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    {row.action === "tool.update" && row.beforeJson ? (
+                      <form action={rollbackToolAction}>
+                        <input type="hidden" name="auditId" value={row.id} />
+                        <button type="submit" className="btn-secondary !px-2 !py-1 text-xs">
+                          Rollback
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

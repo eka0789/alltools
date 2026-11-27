@@ -12,6 +12,8 @@ export const categories = sqliteTable("categories", {
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   icon: text("icon").notNull().default("Box"),
+  seoTitle: text("seo_title"),
+  seoDescription: text("seo_description"),
   homeOrder: integer("home_order"), // position on homepage grid, null = not on homepage
   sortOrder: integer("sort_order").notNull().default(0),
 });
@@ -89,6 +91,13 @@ export const tools = sqliteTable(
     // until a chosen timestamp (admin "Recheck later").
     linkIgnoredAt: integer("link_ignored_at"),
     recheckAfter: integer("recheck_after"),
+    // Scheduled publishing: future timestamp hides the tool from the public
+    // catalog until then; admins still see it with a "scheduled" badge.
+    publishAt: integer("publish_at"),
+    // Optional SEO overrides. Empty = generated defaults.
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    seoNoindex: integer("seo_noindex", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -109,8 +118,11 @@ export const submissions = sqliteTable("submissions", {
   documentationUrl: text("documentation_url"),
   pricing: text("pricing").notNull().default("free"),
   tags: text("tags").notNull().default("[]"),
-  status: text("status").notNull().default("pending"), // pending | approved | rejected
+  status: text("status").notNull().default("pending"), // pending | reviewing | approved | rejected
   rejectionReason: text("rejection_reason"), // internal note when rejected
+  submitterEmail: text("submitter_email"), // optional — used to notify the submitter
+  assignedTo: text("assigned_to"), // admin name handling the review
+  internalNotes: text("internal_notes"),
   createdAt: integer("created_at").notNull(),
   reviewedAt: integer("reviewed_at"),
 });
@@ -140,6 +152,8 @@ export const feedback = sqliteTable("feedback", {
   type: text("type").notNull(), // broken_link | edit_suggestion
   message: text("message").notNull().default(""),
   status: text("status").notNull().default("open"), // open | resolved | dismissed
+  assignedTo: text("assigned_to"),
+  internalNotes: text("internal_notes"),
   createdAt: integer("created_at").notNull(),
   resolvedAt: integer("resolved_at"),
 });
@@ -256,6 +270,9 @@ export const orders = sqliteTable(
     paidAt: integer("paid_at"),
     // Raw DOKU notification payload for reconciliation/audit.
     providerPayload: text("provider_payload"),
+    // Partial refunds: net revenue = amount - refundedAmount.
+    refundedAmount: integer("refunded_amount").notNull().default(0),
+    refundReason: text("refund_reason"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -388,6 +405,8 @@ export const adminAudit = sqliteTable(
     action: text("action").notNull(), // e.g. tools.bulk, order.mark_paid
     target: text("target").notNull().default(""), // e.g. order:AK-20260101-AB12
     detail: text("detail").notNull().default(""), // short human-readable summary
+    beforeJson: text("before_json"), // snapshot before a mutation (rollback support)
+    afterJson: text("after_json"), // snapshot after a mutation
     createdAt: integer("created_at").notNull(),
   },
   (t) => [index("admin_audit_created_idx").on(t.createdAt)],
@@ -418,6 +437,66 @@ export const jobRuns = sqliteTable(
   (t) => [index("job_runs_job_idx").on(t.job, t.startedAt)],
 );
 
+// Permanent redirects recorded when a tool slug changes (SEO safety) plus
+// manually managed entries from /admin/redirects. Served by the tool page
+// fallback: unknown slug -> 308 to the recorded target.
+export const redirects = sqliteTable("redirects", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  fromPath: text("from_path").notNull().unique(),
+  toPath: text("to_path").notNull(),
+  statusCode: integer("status_code").notNull().default(301),
+  hits: integer("hits").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+});
+
+// Admin notification center. Written by notifyAdmin() on business events
+// (new submission/report/order, cron failures). Optional webhook mirrors the
+// same message to Telegram/Slack.
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    type: text("type").notNull(),
+    severity: text("severity").notNull().default("info"), // info | warning | success
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    link: text("link"),
+    createdAt: integer("created_at").notNull(),
+    readAt: integer("read_at"),
+  },
+  (t) => [index("notifications_created_idx").on(t.createdAt)],
+);
+
+// Order status timeline (created/paid/refunded/cancelled). Complements the
+// two timestamps on the order row and powers the admin order detail view.
+export const orderEvents = sqliteTable(
+  "order_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    orderId: integer("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    detail: text("detail").notNull().default(""),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("order_events_order_idx").on(t.orderId, t.createdAt)],
+);
+
+// Admin-editable product overrides (price, scheduled promo, active flag).
+// Merged over the code-defined catalog in src/lib/products.ts so prices can
+// change without a deploy while the base definitions remain the fallback.
+export const productOverrides = sqliteTable("product_overrides", {
+  productId: text("product_id").primaryKey(),
+  name: text("name"),
+  priceIdr: integer("price_idr"),
+  promoPriceIdr: integer("promo_price_idr"),
+  promoStartsAt: integer("promo_starts_at"),
+  promoEndsAt: integer("promo_ends_at"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export type Tool = typeof tools.$inferSelect;
 export type NewTool = typeof tools.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -443,3 +522,7 @@ export type RateLimitRow = typeof rateLimits.$inferSelect;
 export type AdminAudit = typeof adminAudit.$inferSelect;
 export type SiteSetting = typeof siteSettings.$inferSelect;
 export type JobRun = typeof jobRuns.$inferSelect;
+export type Redirect = typeof redirects.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+export type OrderEvent = typeof orderEvents.$inferSelect;
+export type ProductOverride = typeof productOverrides.$inferSelect;

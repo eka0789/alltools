@@ -17,11 +17,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const cat = getCatalog().categories.find((c) => c.slug === slug);
   if (!cat) return { title: "Category not found" };
+  const title = cat.seoTitle || `${cat.name} — Tools & Resources`;
+  const description = cat.seoDescription || cat.description;
   return {
-    title: `${cat.name} — Tools & Resources`,
-    description: cat.description,
+    title,
+    description,
     alternates: { canonical: `/categories/${cat.slug}` },
-    openGraph: { title: `${cat.name} — AktifKoding`, description: cat.description },
+    openGraph: { title: cat.seoTitle || `${cat.name} — AktifKoding`, description },
   };
 }
 

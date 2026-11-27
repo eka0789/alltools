@@ -37,6 +37,7 @@ export default async function EditSubmissionPage({
   const catalog = getCatalog();
   const categories = catalog.categories.map((c) => ({ slug: c.slug, name: c.name }));
   const error = typeof sp.error === "string" ? sp.error : undefined;
+  const saved = sp.saved === "1";
 
   return (
     <div className="py-2">
@@ -59,9 +60,14 @@ export default async function EditSubmissionPage({
           tags: sub.tags,
           githubUrl: sub.githubUrl,
           documentationUrl: sub.documentationUrl,
+          submitterEmail: sub.submitterEmail,
+          assignedTo: sub.assignedTo,
+          internalNotes: sub.internalNotes,
+          status: sub.status,
         }}
         categories={categories}
         error={error}
+        saved={saved}
       />
     </div>
   );

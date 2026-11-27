@@ -6,11 +6,12 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, DB_IS_REMOTE } from "@/db/client";
-import { submissions, tools, feedback, linkChecks, entitlements, coupons } from "@/db/schema";
+import { submissions, tools, feedback, linkChecks, entitlements, coupons, adminAudit } from "@/db/schema";
 import {
   ADMIN_COOKIE,
   checkLoginRateLimit,
   getAdminIdentity,
+  isAdminIpAllowed,
   logAudit,
   matchAdminToken,
   roleCan,
@@ -21,7 +22,10 @@ import { safeHttpUrl } from "@/lib/url-check";
 import { getCatalog, invalidateCatalog, refreshCatalogFromDb, normalizeUrlKey } from "@/lib/data";
 import { invalidateSearchIndex } from "@/lib/search";
 import { generateUniqueSlugIncludingTrash } from "@/lib/tools-service";
+import { recordRedirect } from "@/lib/redirects";
 import { slugify } from "@/lib/slug";
+import { emailShell, escapeHtml, sendEmail, siteUrl } from "@/lib/email";
+import { notifyAdmin } from "@/lib/notifications";
 // Duplicate URL check that also sees soft-deleted rows: the unique index on
 // tools.url still covers the trash, so a re-add would otherwise 500.
 async function findDuplicateUrl(url: string, exceptId?: number): Promise<boolean> {
@@ -81,6 +85,7 @@ export async function loginAction(formData: FormData) {
     redirect("/admin?error=not_configured");
   }
   if (!(await checkLoginRateLimit())) redirect("/admin?error=rate_limited");
+  if (!(await isAdminIpAllowed())) redirect("/admin?error=ip");
   const entry = matchAdminToken(provided);
   if (!entry) redirect("/admin?error=1");
 
@@ -94,6 +99,13 @@ export async function loginAction(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7,
   });
   await logAudit("admin.login", `admin:${entry.name}`, `Signed in as ${entry.role}`);
+  await notifyAdmin({
+    type: "admin_login",
+    severity: "info",
+    title: `Admin login: ${entry.name}`,
+    body: `Role ${entry.role}`,
+    link: "/admin/audit",
+  });
   redirect("/admin");
 }
 
@@ -145,6 +157,10 @@ export async function saveToolAction(formData: FormData) {
   );
   const now = Date.now();
 
+  const publishRaw = String(formData.get("publishAt") ?? "").trim();
+  const publishParsed = publishRaw ? Date.parse(publishRaw) : NaN;
+  const publishAt = Number.isFinite(publishParsed) ? publishParsed : null;
+
   const platforms = ["web", "desktop", "cli", "mobile", "extension"].filter((p) =>
     formData.get(`platform-${p}`) === "on",
   );
@@ -192,15 +208,37 @@ export async function saveToolAction(formData: FormData) {
     verified: formData.get("verified") === "on",
     lastVerifiedAt: formData.get("verified") === "on" ? now : null,
     featured: formData.get("featured") === "on",
+    publishAt,
+    seoTitle: String(formData.get("seoTitle") ?? "").trim().slice(0, 120) || null,
+    seoDescription: String(formData.get("seoDescription") ?? "").trim().slice(0, 300) || null,
+    seoNoindex: formData.get("seoNoindex") === "on",
     updatedAt: now,
   };
+
+  let before: typeof tools.$inferSelect | null = null;
+  if (id) {
+    try {
+      before = (await db.select().from(tools).where(eq(tools.id, id)).limit(1))[0] ?? null;
+    } catch {
+      before = null;
+    }
+  }
 
   if (id) {
     await db.update(tools).set(values).where(eq(tools.id, id));
   } else {
     await db.insert(tools).values({ ...values, createdAt: now });
   }
-  await logAudit(id ? "tool.update" : "tool.create", `tool:${slug}`, `${name} (${url})`);
+  await logAudit(
+    id ? "tool.update" : "tool.create",
+    `tool:${slug}`,
+    `${name} (${url})`,
+    { before: before ?? undefined, after: { ...values, slug } },
+  );
+  // Preserve SEO when a slug changes: old /tools/<slug> permanently redirects.
+  if (before?.slug && before.slug !== slug) {
+    await recordRedirect(`/tools/${before.slug}`, `/tools/${slug}`);
+  }
   await touch();
   redirect("/admin/tools?saved=1");
 }
@@ -255,6 +293,76 @@ export async function toggleFeaturedAction(formData: FormData) {
     await logAudit("tool.featured", `tool:${tool.slug}`, `${tool.featured ? "Unfeatured" : "Featured"} ${tool.name}`);
     await touch();
   }
+}
+
+// Fields restored by an audit rollback. Deliberately excludes id/createdAt so
+// a rollback can never move a row or rewrite history.
+const RESTORABLE_TOOL_FIELDS = [
+  "name",
+  "slug",
+  "url",
+  "description",
+  "logo",
+  "installCommand",
+  "categoryId",
+  "subcategoryId",
+  "tags",
+  "pricing",
+  "openSource",
+  "selfHosted",
+  "githubUrl",
+  "documentationUrl",
+  "platforms",
+  "languages",
+  "frameworks",
+  "useCases",
+  "pros",
+  "cons",
+  "alternatives",
+  "relatedTools",
+  "status",
+  "verified",
+  "lastVerifiedAt",
+  "featured",
+  "publishAt",
+  "seoTitle",
+  "seoDescription",
+  "seoNoindex",
+] as const;
+
+export async function rollbackToolAction(formData: FormData) {
+  await requireCap("catalog");
+  const auditId = Number(formData.get("auditId") ?? 0);
+  const entry = (
+    await db.select().from(adminAudit).where(eq(adminAudit.id, auditId)).limit(1)
+  )[0];
+  if (!entry || entry.action !== "tool.update" || !entry.beforeJson) {
+    redirect("/admin/audit?error=rollback");
+  }
+
+  let before: Record<string, unknown>;
+  try {
+    before = JSON.parse(entry.beforeJson) as Record<string, unknown>;
+  } catch {
+    redirect("/admin/audit?error=rollback");
+  }
+
+  const toolId = Number(before.id);
+  if (!Number.isFinite(toolId) || toolId <= 0) redirect("/admin/audit?error=rollback");
+
+  const patch: Record<string, unknown> = { updatedAt: Date.now() };
+  for (const field of RESTORABLE_TOOL_FIELDS) {
+    if (field in before) patch[field] = before[field];
+  }
+  await db.update(tools).set(patch as Partial<typeof tools.$inferInsert>).where(eq(tools.id, toolId));
+
+  await logAudit(
+    "tool.rollback",
+    `tool:${String(before.slug ?? toolId)}`,
+    `Rolled back tool #${toolId} to audit #${auditId}`,
+  );
+  await touch();
+  redirect("/admin/audit?rolled=1");
 }
 
 const BULK_ACTIONS = new Set([
@@ -318,9 +426,44 @@ export async function bulkToolAction(formData: FormData) {
 
 type ApproveOutcome = "ok" | "missing" | "category" | "url" | "duplicate" | "save";
 
+async function sendSubmissionDecisionEmail(
+  sub: typeof submissions.$inferSelect,
+  decision: "approved" | "rejected",
+  opts: { slug?: string; reason?: string } = {},
+): Promise<void> {
+  const to = sub.submitterEmail;
+  if (!to) return;
+  const toolUrl = opts.slug
+    ? `${siteUrl()}/tools/${encodeURIComponent(opts.slug)}`
+    : null;
+  const body =
+    decision === "approved"
+      ? `<p>Kabar baik — <strong>${escapeHtml(sub.name)}</strong> sudah tayang di direktori AktifKoding.</p>${
+          toolUrl ? `<p><a href="${toolUrl}">${escapeHtml(toolUrl)}</a></p>` : ""
+        }<p>Terima kasih sudah berkontribusi.</p>`
+      : `<p>Terima kasih sudah mengirim <strong>${escapeHtml(sub.name)}</strong>. Setelah review, submission ini belum bisa kami publikasikan.</p>${
+          opts.reason ? `<p><strong>Alasan:</strong> ${escapeHtml(opts.reason)}</p>` : ""
+        }<p>Kamu tetap bisa mengirim tool lain kapan saja.</p>`;
+  try {
+    await sendEmail({
+      to,
+      subject:
+        decision === "approved"
+          ? `Tool kamu tayang: ${sub.name}`
+          : `Update submission: ${sub.name}`,
+      html: emailShell(
+        decision === "approved" ? "Tool kamu sudah tayang" : "Update submission",
+        body,
+      ),
+    });
+  } catch {
+    // best effort
+  }
+}
+
 async function approveSubmissionById(id: number): Promise<ApproveOutcome> {
   const sub = await db.select().from(submissions).where(eq(submissions.id, id)).get();
-  if (!sub || sub.status !== "pending") return "missing";
+  if (!sub || (sub.status !== "pending" && sub.status !== "reviewing")) return "missing";
 
   // The submission's category must resolve to a real category — approving
   // without one would silently drop the tool from the directory, so leave
@@ -337,10 +480,11 @@ async function approveSubmissionById(id: number): Promise<ApproveOutcome> {
   if (!url) return "url";
   if (await findDuplicateUrl(url)) return "duplicate";
 
+  const slug = await generateUniqueSlugIncludingTrash(slugify(sub.name));
   try {
     await db.insert(tools).values({
       name: sub.name,
-      slug: await generateUniqueSlugIncludingTrash(slugify(sub.name)),
+      slug,
       url,
       description: sub.description,
       logo: (() => {
@@ -368,6 +512,7 @@ async function approveSubmissionById(id: number): Promise<ApproveOutcome> {
     .update(submissions)
     .set({ status: "approved", reviewedAt: now, rejectionReason: null })
     .where(eq(submissions.id, id));
+  await sendSubmissionDecisionEmail(sub, "approved", { slug });
   return "ok";
 }
 
@@ -413,6 +558,9 @@ export async function updateSubmissionAndApproveAction(formData: FormData) {
   const categorySlug = String(formData.get("categorySlug") ?? "").trim();
   const pricing = String(formData.get("pricing") ?? "free");
   const tags = JSON.stringify(commaList(formData.get("tags")));
+  const assignedTo = String(formData.get("assignedTo") ?? "").trim().slice(0, 80) || null;
+  const internalNotes =
+    String(formData.get("internalNotes") ?? "").trim().slice(0, 2000) || null;
 
   if (!id || !name || !url || !description || !categorySlug) {
     redirect(`/admin/submissions/${id}?error=validation`);
@@ -429,8 +577,10 @@ export async function updateSubmissionAndApproveAction(formData: FormData) {
       tags,
       githubUrl: optUrl(formData.get("githubUrl")),
       documentationUrl: optUrl(formData.get("documentationUrl")),
+      assignedTo,
+      internalNotes,
     })
-    .where(and(eq(submissions.id, id), eq(submissions.status, "pending")));
+    .where(and(eq(submissions.id, id), inArray(submissions.status, ["pending", "reviewing"])));
 
   const outcome = await approveSubmissionById(id);
   if (outcome === "ok") {
@@ -446,14 +596,42 @@ export async function rejectSubmissionAction(formData: FormData) {
   await requireCap("moderate");
   const id = Number(formData.get("id") ?? 0);
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 500);
-  // Only pending submissions are actionable — re-rejecting an
+  const sub = await db.select().from(submissions).where(eq(submissions.id, id)).get();
+  // Only pending/reviewing submissions are actionable — re-rejecting an
   // already-reviewed row would overwrite the original decision's timestamp.
   await db
     .update(submissions)
     .set({ status: "rejected", reviewedAt: Date.now(), rejectionReason: reason || null })
-    .where(and(eq(submissions.id, id), eq(submissions.status, "pending")));
+    .where(and(eq(submissions.id, id), inArray(submissions.status, ["pending", "reviewing"])));
+  if (sub && (sub.status === "pending" || sub.status === "reviewing")) {
+    await sendSubmissionDecisionEmail(sub, "rejected", { reason });
+  }
   await logAudit("submission.reject", `submission:${id}`, reason ? `Rejected: ${reason}` : "Rejected");
   redirect("/admin/submissions?rejected=1");
+}
+
+// Save triage metadata without publishing — assignee, internal notes and a
+// "reviewing" state so the queue has an explicit owner.
+export async function saveSubmissionMetaAction(formData: FormData) {
+  await requireCap("moderate");
+  const id = Number(formData.get("id") ?? 0);
+  const assignedTo = String(formData.get("assignedTo") ?? "").trim().slice(0, 80) || null;
+  const internalNotes =
+    String(formData.get("internalNotes") ?? "").trim().slice(0, 2000) || null;
+  const statusRaw = String(formData.get("status") ?? "reviewing");
+  const status = statusRaw === "pending" ? "pending" : "reviewing";
+  if (id) {
+    await db
+      .update(submissions)
+      .set({ assignedTo, internalNotes, status })
+      .where(and(eq(submissions.id, id), inArray(submissions.status, ["pending", "reviewing"])));
+    await logAudit(
+      "submission.triage",
+      `submission:${id}`,
+      `assigned=${assignedTo ?? "-"} status=${status}`,
+    );
+  }
+  redirect(`/admin/submissions/${id}?saved=1`);
 }
 
 // Lightweight AI/heuristic metadata suggestion for the submission editor.
@@ -580,6 +758,20 @@ export async function dismissFeedbackAction(formData: FormData) {
   await logAudit("feedback.dismiss", `feedback:${id}`, "Dismissed");
   revalidatePath("/admin");
   revalidatePath("/admin/feedback");
+}
+
+export async function updateFeedbackMetaAction(formData: FormData) {
+  await requireCap("moderate");
+  const id = Number(formData.get("id") ?? 0);
+  const assignedTo = String(formData.get("assignedTo") ?? "").trim().slice(0, 80) || null;
+  const internalNotes =
+    String(formData.get("internalNotes") ?? "").trim().slice(0, 2000) || null;
+  if (id) {
+    await db.update(feedback).set({ assignedTo, internalNotes }).where(eq(feedback.id, id));
+    await logAudit("feedback.triage", `feedback:${id}`, `assigned=${assignedTo ?? "-"}`);
+    revalidatePath("/admin/feedback");
+  }
+  redirect("/admin/feedback?saved=1");
 }
 
 // ── Billing ─────────────────────────────────────────────────────────────

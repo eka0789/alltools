@@ -1,14 +1,18 @@
 import { NextRequest } from "next/server";
-import { desc, eq, gte } from "drizzle-orm";
+import { desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db, DB_ACTIVE } from "@/db/client";
 import { getAdminIdentity, roleCan } from "@/lib/admin";
 import {
   adminAudit,
+  aiUsage,
   coupons,
+  entitlements,
   feedback,
   orders,
   searchQueries,
   subscribers,
+  teamMembers,
+  teams,
   toolClicks,
   users,
 } from "@/db/schema";
@@ -27,10 +31,11 @@ const EXPORTS = new Set([
   "searches",
   "clicks",
   "users",
+  "user",
   "audit",
 ]);
 
-const OWNER_ONLY = new Set(["orders", "users", "audit"]);
+const OWNER_ONLY = new Set(["orders", "users", "user", "audit"]);
 
 // GET /admin/export?type=tools — CSV download for operators. Bounded rows so
 // a large table can't tie up a serverless/PM2 request; the dataset is small
@@ -99,6 +104,46 @@ export async function GET(req: NextRequest) {
 
   if (!DB_ACTIVE) {
     return csvResponse(`${type}-${stamp}.csv`, toCsv(["empty"], [["database unavailable"]]));
+  }
+
+  if (type === "user") {
+    // GDPR data export: everything we store about one user.
+    const id = Number(req.nextUrl.searchParams.get("id") ?? 0);
+    if (!id) return new Response("Missing id", { status: 400 });
+    const userRows = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    if (!userRows[0]) return new Response("Not found", { status: 404 });
+
+    const [orderRows, entitlementRows, memberRows, aiRows] = await Promise.all([
+      db.select().from(orders).where(eq(orders.userId, id)),
+      db.select().from(entitlements).where(eq(entitlements.userId, id)),
+      db
+        .select({ teamId: teamMembers.teamId, role: teamMembers.role })
+        .from(teamMembers)
+        .where(eq(teamMembers.userId, id)),
+      db.select({ n: sql<number>`count(*)` }).from(aiUsage).where(eq(aiUsage.userId, id)),
+    ]);
+    const teamIds = memberRows.map((m) => m.teamId);
+    const teamRows =
+      teamIds.length > 0
+        ? await db.select().from(teams).where(inArray(teams.id, teamIds))
+        : [];
+
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      user: userRows[0],
+      orders: orderRows,
+      entitlements: entitlementRows,
+      teams: teamRows,
+      teamRoles: memberRows,
+      aiUsageCount: Number(aiRows[0]?.n ?? 0),
+    };
+    return new Response(JSON.stringify(payload, null, 2), {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Disposition": `attachment; filename="user-${id}.json"`,
+        "Cache-Control": "no-store",
+      },
+    });
   }
 
   if (type === "orders") {

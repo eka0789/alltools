@@ -42,6 +42,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   "1": "Invalid token.",
   not_configured: "ADMIN_TOKEN is not configured on this deployment — login is disabled.",
   rate_limited: "Too many attempts. Try again in a few minutes.",
+  ip: "This IP is not allowed to access the admin area (ADMIN_IP_ALLOWLIST).",
 };
 
 export default async function AdminPage({
@@ -146,7 +147,7 @@ export default async function AdminPage({
         db
           .select({
             count: sql<number>`COUNT(*)`,
-            revenue: sql<number>`COALESCE(SUM(${orders.amount}), 0)`,
+            revenue: sql<number>`COALESCE(SUM(${orders.amount} - ${orders.refundedAmount}), 0)`,
           })
           .from(orders)
           .where(eq(orders.status, "paid")),
@@ -305,9 +306,9 @@ export default async function AdminPage({
       {/* Monetization & Growth overview */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="card p-5">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Revenue (Paid)</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Revenue (Net)</p>
           <p className="mt-1 text-2xl font-bold text-success">{formatIdr(totalRevenueIdr)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{paidOrdersCount} paid order(s)</p>
+          <p className="mt-1 text-xs text-muted-foreground">{paidOrdersCount} paid order(s) · net of refunds</p>
         </div>
         <div className="card p-5">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending Orders</p>

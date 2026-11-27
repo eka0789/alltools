@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, DB_ACTIVE } from "@/db/client";
-import { searchQueries, toolClicks } from "@/db/schema";
+import { orders, searchQueries, submissions, toolClicks } from "@/db/schema";
 import { getAdminIdentity, roleCan } from "@/lib/admin";
 import { noResultQueries, trendingQueries } from "@/lib/search-analytics";
 import { getCatalog } from "@/lib/data";
@@ -15,6 +15,56 @@ const RANGES = [7, 30, 90];
 function sinceFor(days: number): number {
   return Date.now() - days * DAY_MS;
 }
+
+function dayKeys(days: number): string[] {
+  const now = Date.now();
+  const keys: string[] = [];
+  for (let i = days - 1; i >= 0; i -= 1) {
+    keys.push(new Date(now - i * DAY_MS).toISOString().slice(0, 10));
+  }
+  return keys;
+}
+
+function Bars({
+  title,
+  keys,
+  data,
+  tone,
+}: {
+  title: string;
+  keys: string[];
+  data: Record<string, number>;
+  tone: string;
+}) {
+  const max = Math.max(1, ...keys.map((key) => data[key] ?? 0));
+  const total = keys.reduce((sum, key) => sum + (data[key] ?? 0), 0);
+  return (
+    <div className="card p-4">
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">{title}</p>
+      <div className="mt-2 flex h-16 items-end gap-0.5">
+        {keys.map((key) => {
+          const value = data[key] ?? 0;
+          return (
+            <div
+              key={key}
+              title={`${key}: ${value}`}
+              className={`flex-1 rounded-sm ${tone}`}
+              style={{
+                height: `${Math.max(3, (value / max) * 100)}%`,
+                opacity: value ? 1 : 0.12,
+              }}
+            />
+          );
+        })}
+      </div>
+      <p className="mt-1 text-[10px] text-muted-foreground">
+        {keys[0]} → {keys[keys.length - 1]} · total {total}
+      </p>
+    </div>
+  );
+}
+
+const FUNNEL_ORDER = ["pending", "paid", "refunded", "expired", "failed"];
 
 export default async function AnalyticsPage({
   searchParams,
@@ -37,6 +87,13 @@ export default async function AnalyticsPage({
   const catalog = getCatalog();
   let clicks: { slug: string; clicks: number; weeklyClicks: number }[] = [];
   let totals = { searches: 0, zeroResult: 0 };
+  let series: {
+    paidOrders: Record<string, number>;
+    searches: Record<string, number>;
+    submissions: Record<string, number>;
+  } = { paidOrders: {}, searches: {}, submissions: {} };
+  let funnel: { status: string; n: number }[] = [];
+  const keys = dayKeys(days);
 
   if (DB_ACTIVE) {
     try {
@@ -69,6 +126,42 @@ export default async function AnalyticsPage({
       };
     } catch {
       totals = { searches: 0, zeroResult: 0 };
+    }
+    try {
+      const dayExpr = (column: unknown) => sql<string>`date(${column} / 1000, 'unixepoch')`;
+      const [paidRows, searchRows, submissionRows, funnelRows] = await Promise.all([
+        db
+          .select({ day: dayExpr(orders.createdAt), n: sql<number>`count(*)` })
+          .from(orders)
+          .where(and(gte(orders.createdAt, since), eq(orders.status, "paid")))
+          .groupBy(dayExpr(orders.createdAt)),
+        db
+          .select({ day: dayExpr(searchQueries.createdAt), n: sql<number>`count(*)` })
+          .from(searchQueries)
+          .where(gte(searchQueries.createdAt, since))
+          .groupBy(dayExpr(searchQueries.createdAt)),
+        db
+          .select({ day: dayExpr(submissions.createdAt), n: sql<number>`count(*)` })
+          .from(submissions)
+          .where(gte(submissions.createdAt, since))
+          .groupBy(dayExpr(submissions.createdAt)),
+        db
+          .select({ status: orders.status, n: sql<number>`count(*)` })
+          .from(orders)
+          .where(gte(orders.createdAt, since))
+          .groupBy(orders.status),
+      ]);
+      const toMap = (rows: { day: string; n: number }[]) =>
+        Object.fromEntries(rows.map((row) => [row.day, Number(row.n)]));
+      series = {
+        paidOrders: toMap(paidRows),
+        searches: toMap(searchRows),
+        submissions: toMap(submissionRows),
+      };
+      funnel = funnelRows.map((row) => ({ status: row.status, n: Number(row.n) }));
+    } catch {
+      series = { paidOrders: {}, searches: {}, submissions: {} };
+      funnel = [];
     }
   }
 
@@ -119,6 +212,33 @@ export default async function AnalyticsPage({
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Tools dengan klik</p>
           <p className="mt-1 text-2xl font-bold">{clicks.length}</p>
         </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        <Bars title="Order lunas / hari" keys={keys} data={series.paidOrders} tone="bg-success" />
+        <Bars title="Searches / hari" keys={keys} data={series.searches} tone="bg-accent" />
+        <Bars title="Submissions / hari" keys={keys} data={series.submissions} tone="bg-warning" />
+      </div>
+
+      <div className="card mt-4 p-5">
+        <h2 className="font-semibold">Funnel order ({days} hari)</h2>
+        {funnel.length === 0 ? (
+          <p className="mt-2 text-xs text-muted-foreground">Belum ada order pada rentang ini.</p>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            {FUNNEL_ORDER.map((status) => {
+              const total = funnel.reduce((sum, row) => sum + row.n, 0);
+              const n = funnel.find((row) => row.status === status)?.n ?? 0;
+              const pct = total > 0 ? Math.round((n / total) * 100) : 0;
+              return (
+                <span key={status} className="text-xs">
+                  <span className="font-semibold">{status}</span> {n}{" "}
+                  <span className="text-muted-foreground">({pct}%)</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

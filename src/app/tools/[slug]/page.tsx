@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import {
   ArrowUpRight,
   BookOpen,
@@ -32,6 +32,7 @@ import { TrackedOutboundLink } from "@/components/tracked-outbound-link";
 import { CopyButton } from "@/components/copy-button";
 import { RecentlyViewedStrip, RecentlyViewedTracker } from "@/components/recently-viewed";
 import { getToolBySlug, getCatalog } from "@/lib/data";
+import { lookupRedirect } from "@/lib/redirects";
 import { PLATFORM_LABEL, type Platform } from "@/data/types";
 import { formatCompact, formatDate, formatNumberExact, monthsSince } from "@/lib/slug";
 
@@ -45,13 +46,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const tool = getToolBySlug(slug);
   if (!tool) return { title: "Tool not found" };
+  const title = tool.seoTitle || `${tool.name} — ${tool.categoryName}`;
+  const description = tool.seoDescription || tool.description;
   return {
-    title: `${tool.name} — ${tool.categoryName}`,
-    description: tool.description,
+    title,
+    description,
     alternates: { canonical: `/tools/${tool.slug}` },
+    ...(tool.seoNoindex ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
-      title: `${tool.name} — AktifKoding`,
-      description: tool.description,
+      title: tool.seoTitle || `${tool.name} — AktifKoding`,
+      description,
       type: "website",
       url: `/tools/${tool.slug}`,
     },
@@ -93,7 +97,13 @@ function MetaRow({ label, children }: { label: string; children: React.ReactNode
 export default async function ToolPage({ params }: Props) {
   const { slug } = await params;
   const tool = getToolBySlug(slug);
-  if (!tool || tool.status === "deprecated") notFound();
+  if (!tool) {
+    // Slug changed by an admin? Serve the recorded permanent redirect.
+    const target = await lookupRedirect(`/tools/${slug}`);
+    if (target) permanentRedirect(target);
+    notFound();
+  }
+  if (tool.status === "deprecated") notFound();
 
   const catalog = getCatalog();
   const resolve = (slugs: string[]) =>

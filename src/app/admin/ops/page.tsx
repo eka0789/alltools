@@ -171,6 +171,11 @@ export default async function OpsPage({
             })}
           </tbody>
         </table>
+        <div className="flex justify-end px-4 pb-4 pt-2">
+          <Link href="/admin/jobs" className="btn-secondary !px-2.5 !py-1 text-xs">
+            Riwayat &amp; trigger manual →
+          </Link>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

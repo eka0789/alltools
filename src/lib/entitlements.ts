@@ -10,8 +10,11 @@ import {
   type Order,
 } from "@/db/schema";
 import { getProduct } from "@/lib/products";
+import { getEffectiveProduct } from "@/lib/product-overrides";
 import { emailShell, escapeHtml, sendEmail, siteUrl } from "@/lib/email";
 import { consumeCouponUsage } from "@/lib/coupons";
+import { logOrderEvent } from "@/lib/order-events";
+import { notifyAdmin } from "@/lib/notifications";
 
 // ── Entitlement: apa yang boleh diakses seorang pengguna ─────────────────
 // Entitlement "materialized": saat order dibayar, satu baris per user dibuat
@@ -83,6 +86,14 @@ export async function finalizeOrderIfPaid(
   if (order.couponCode) {
     void consumeCouponUsage(order.couponCode).catch(() => undefined);
   }
+  await logOrderEvent(order.id, "paid", `Paid ${order.amount} IDR via ${order.provider}`);
+  await notifyAdmin({
+    type: "order_paid",
+    severity: "success",
+    title: `Order lunas: ${order.invoiceNo}`,
+    body: `${order.amount} IDR — ${order.productId}`,
+    link: `/admin/orders/${order.invoiceNo}`,
+  });
   // Struk pembelian — best-effort: kegagalan email tidak boleh memengaruhi
   // grant entitlement (yang sudah atomik).
   void sendReceiptEmail(order).catch(() => undefined);
@@ -90,7 +101,7 @@ export async function finalizeOrderIfPaid(
 }
 
 export async function sendReceiptEmail(order: Order): Promise<void> {
-  const product = getProduct(order.productId);
+  const product = await getEffectiveProduct(order.productId);
   const rows = await db.select({ email: users.email }).from(users).where(eq(users.id, order.userId)).limit(1);
   const to = rows[0]?.email;
   if (!to) return;

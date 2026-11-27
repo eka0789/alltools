@@ -74,6 +74,16 @@ boilerplate/API docs/deployment config generators, and AI code review).
   (checkout / AI review kill switches). Multi-admin tokens with roles
   (`ADMIN_TOKENS`); login fails closed without `ADMIN_TOKEN`/`ADMIN_TOKENS` —
   there is no default token.
+- **Admin workflow & operations (v2)** — triage/assignee/internal notes on
+  submissions and community reports (with submitter email notifications),
+  scheduled tool publishing (`publishAt`), per-tool/category SEO overrides,
+  automatic 301 redirects when a slug changes, audit snapshots with one-click
+  rollback, a notification center (with optional Slack/Telegram webhook),
+  manual cron triggers plus run history (`/admin/jobs`), products & price/promo
+  overrides (no deploy needed), customer 360 with GDPR JSON export/user
+  deletion, partial refunds with net-revenue accounting, order event timeline,
+  time-series/funnel analytics, a Ctrl/Cmd+K admin search, tool health/stale
+  filters, duplicate merging, and an optional admin IP allowlist.
 - **Automated link health checker** that verifies every URL and flags broken
   ones as `needs_review` (never auto-deletes). Works against local SQLite
   *and* Turso; runnable via CI or the bundled Vercel Cron endpoint.
@@ -127,6 +137,8 @@ Open http://localhost:3000 (or your chosen port).
 | `ALLTOOLS_DB_DRIVER`   | auto                    | Force `libsql` driver against a local file (testing) |
 | `ADMIN_TOKEN`          | — (login disabled)      | Token for `/admin` login. **Required in production** — there is no default |
 | `ADMIN_TOKENS`         | —                       | Optional multi-admin list: `name:role:token,...` (roles: `owner`, `editor`, `moderator`). Each token logs in as its own named admin; `ADMIN_TOKEN` still works as owner `admin`. Role gates: moderator = moderation only, editor = catalog/content, owner = everything (billing, users, settings, audit). |
+| `ADMIN_IP_ALLOWLIST`   | —                       | Optional comma-separated IP allowlist for admin login (exact IPs, `*` = allow all). Empty = no restriction. |
+| `ADMIN_ALERT_WEBHOOK`  | —                       | Optional chat webhook (Slack-compatible `{text}` payload; Telegram via bridge) that receives the same messages as the admin notification center (new submission/report/order, cron failures). |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical URLs, sitemap, OpenGraph |
 | `CRON_SECRET`          | —                       | Bearer token protecting `/api/cron/check-links` (Vercel Cron) |
 | `GITHUB_TOKEN`         | —                       | GitHub API token for `scripts/fetch-github-stats.mjs` |

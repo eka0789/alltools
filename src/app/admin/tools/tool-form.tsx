@@ -79,6 +79,38 @@ export function ToolForm({ tool }: { tool?: ToolWithMeta }) {
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
+        <Field
+          label="Jadwal publish"
+          hint="Kosong = langsung tampil. Tanggal masa depan menyembunyikan tool dari katalog publik sampai saat itu."
+        >
+          <input
+            name="publishAt"
+            type="datetime-local"
+            defaultValue={tool?.publishAt ? new Date(tool.publishAt).toISOString().slice(0, 16) : ""}
+            className="input"
+          />
+        </Field>
+        <Field label="SEO title" hint="Opsional — menggantikan title otomatis.">
+          <input name="seoTitle" maxLength={120} defaultValue={tool?.seoTitle ?? ""} className="input" />
+        </Field>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="SEO description" hint="Opsional — menggantikan meta description.">
+          <input
+            name="seoDescription"
+            maxLength={300}
+            defaultValue={tool?.seoDescription ?? ""}
+            className="input"
+          />
+        </Field>
+        <label className="flex items-end gap-2 pb-2 text-sm">
+          <input type="checkbox" name="seoNoindex" defaultChecked={tool?.seoNoindex} className="h-4 w-4" />
+          Noindex halaman tool ini
+        </label>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Tags" hint="Comma separated, lowercase.">
           <input name="tags" defaultValue={tool?.tags.join(", ")} className="input" />
         </Field>

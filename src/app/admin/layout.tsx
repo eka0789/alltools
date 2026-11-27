@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Bell } from "lucide-react";
 import { getAdminIdentity } from "@/lib/admin";
+import { unreadNotificationCount } from "@/lib/notifications";
 import { AdminNav } from "./admin-nav";
+import { AdminSearch } from "./admin-search";
 import { logoutAction } from "./actions";
 
 export const metadata: Metadata = {
@@ -20,6 +23,8 @@ export default async function AdminLayout({
     return <>{children}</>;
   }
 
+  const unread = await unreadNotificationCount();
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-sm">
@@ -34,6 +39,19 @@ export default async function AdminLayout({
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <AdminSearch />
+          <Link
+            href="/admin/notifications"
+            className="relative inline-flex items-center text-muted-foreground hover:text-foreground"
+            aria-label={`Notifikasi (${unread} belum dibaca)`}
+          >
+            <Bell className="h-4 w-4" />
+            {unread > 0 && (
+              <span className="absolute -right-2 -top-1.5 rounded-full bg-destructive px-1 text-[9px] font-bold leading-4 text-white">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
+          </Link>
           <Link href="/" className="text-xs text-accent hover:underline">
             View site
           </Link>

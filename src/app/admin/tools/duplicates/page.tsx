@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAdminIdentity, roleCan } from "@/lib/admin";
 import { getCatalog } from "@/lib/data";
 import type { ToolWithMeta } from "@/lib/data";
+import { mergeToolsAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -51,10 +52,16 @@ interface Pair {
   sameHost: boolean;
 }
 
-export default async function DuplicatesPage() {
+export default async function DuplicatesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const identity = await getAdminIdentity();
   if (!identity) redirect("/admin");
   if (!roleCan(identity.role, "catalog")) redirect("/admin?error=forbidden");
+
+  const sp = await searchParams;
 
   const tools = getCatalog().tools;
   const prepared = tools.map((tool) => ({
@@ -93,6 +100,23 @@ export default async function DuplicatesPage() {
         {tools.length} tools dipindai · {pairs.length} pasangan perlu ditinjau
         {pairs.length > 60 ? " (menampilkan 60 teratas)" : ""}.
       </p>
+
+      {sp.merged === "1" && (
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          Duplikat digabung: klik dijumlahkan, riwayat link check dipindah, slug lama di-redirect,
+          dan duplikat dipindah ke trash (bisa dipulihkan).
+        </p>
+      )}
+      {sp.error === "invalid" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Pilih dua tool yang berbeda.
+        </p>
+      )}
+      {sp.error === "missing" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Tool tidak ditemukan.
+        </p>
+      )}
 
       {pairs.length === 0 ? (
         <p className="card mt-4 p-5 text-sm text-muted-foreground">
@@ -133,13 +157,27 @@ export default async function DuplicatesPage() {
                     )}
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="flex justify-end gap-2 text-xs">
+                    <div className="flex flex-wrap justify-end gap-2 text-xs">
                       <Link href={`/admin/tools/${pair.a.id}`} className="text-accent hover:underline">
                         Edit A
                       </Link>
                       <Link href={`/admin/tools/${pair.b.id}`} className="text-accent hover:underline">
                         Edit B
                       </Link>
+                      <form action={mergeToolsAction}>
+                        <input type="hidden" name="keepId" value={pair.a.id} />
+                        <input type="hidden" name="mergeId" value={pair.b.id} />
+                        <button type="submit" className="text-destructive hover:underline">
+                          Keep A
+                        </button>
+                      </form>
+                      <form action={mergeToolsAction}>
+                        <input type="hidden" name="keepId" value={pair.b.id} />
+                        <input type="hidden" name="mergeId" value={pair.a.id} />
+                        <button type="submit" className="text-destructive hover:underline">
+                          Keep B
+                        </button>
+                      </form>
                     </div>
                   </td>
                 </tr>

@@ -8,6 +8,8 @@ import { submissions } from "@/db/schema";
 import { getCatalog, normalizeUrlKey } from "@/lib/data";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeHttpUrl } from "@/lib/url-check";
+import { normalizeEmail } from "@/lib/auth";
+import { notifyAdmin } from "@/lib/notifications";
 
 export interface SubmitState {
   error?: string;
@@ -59,6 +61,12 @@ export async function submitAction(
     return { error: "The GitHub or documentation URL must be a valid http(s) URL." };
   }
 
+  const rawEmail = get("submitterEmail");
+  const submitterEmail = rawEmail ? normalizeEmail(rawEmail) : null;
+  if (rawEmail && !submitterEmail) {
+    return { error: "Please enter a valid email address (or leave it empty)." };
+  }
+
   // The category must exist in the catalog, otherwise the submission could
   // never be approved into a real category.
   const catalog = getCatalog();
@@ -96,6 +104,7 @@ export async function submitAction(
       categorySlug,
       githubUrl: githubUrl,
       documentationUrl: documentationUrl,
+      submitterEmail,
       pricing: ["free", "freemium", "paid"].includes(get("pricing"))
         ? get("pricing")
         : "free",
@@ -114,6 +123,13 @@ export async function submitAction(
         "We couldn't save your submission right now. Please try again in a moment.",
     };
   }
+
+  await notifyAdmin({
+    type: "submission",
+    title: "Submission baru",
+    body: `${name} — ${parsedUrl}`,
+    link: "/admin/submissions",
+  });
 
   redirect("/submit?submitted=1");
 }

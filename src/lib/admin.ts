@@ -109,6 +109,23 @@ export function matchAdminToken(provided: string): TokenEntry | null {
   return null;
 }
 
+export async function isAdminIpAllowed(): Promise<boolean> {
+  const raw = process.env.ADMIN_IP_ALLOWLIST?.trim();
+  if (!raw) return true;
+  const allowed = raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (allowed.includes("*")) return true;
+  const hdrs = await headers();
+  const ip =
+    hdrs.get("x-vercel-forwarded-for-ip")?.split(",")[0].trim() ??
+    hdrs.get("x-forwarded-for")?.split(",")[0].trim() ??
+    hdrs.get("x-real-ip")?.trim() ??
+    "unknown";
+  return allowed.includes(ip);
+}
+
 export async function getAdminIdentity(): Promise<AdminIdentity | null> {
   const entries = parseEntries();
   if (entries.length === 0) return null;
@@ -117,6 +134,7 @@ export async function getAdminIdentity(): Promise<AdminIdentity | null> {
   if (!provided) return null;
   for (const entry of entries) {
     if (safeEqual(provided, tokenDigest(entry.token))) {
+      if (!(await isAdminIpAllowed())) return null;
       // Every authenticated admin request bootstraps the additive admin
       // schema once per instance, so pages/actions never query a column the
       // live database does not have yet.
@@ -161,7 +179,23 @@ export async function ensureOpsSchema(): Promise<void> {
 
 // Best-effort audit trail. Never let a logging failure block the mutation
 // it describes — visibility is valuable, but correctness comes first.
-export async function logAudit(action: string, target = "", detail = ""): Promise<void> {
+// `snapshots` stores before/after JSON for rollback of tool edits.
+function serializeSnapshot(value: unknown): string | null {
+  if (value === undefined) return null;
+  try {
+    const json = JSON.stringify(value);
+    return json.length > 20000 ? json.slice(0, 20000) : json;
+  } catch {
+    return null;
+  }
+}
+
+export async function logAudit(
+  action: string,
+  target = "",
+  detail = "",
+  snapshots?: { before?: unknown; after?: unknown },
+): Promise<void> {
   try {
     const identity = await getAdminIdentity();
     await ensureOpsSchema();
@@ -170,6 +204,8 @@ export async function logAudit(action: string, target = "", detail = ""): Promis
       action: action.slice(0, 80),
       target: target.slice(0, 200),
       detail: detail.slice(0, 1000),
+      beforeJson: serializeSnapshot(snapshots?.before),
+      afterJson: serializeSnapshot(snapshots?.after),
       createdAt: Date.now(),
     });
   } catch {

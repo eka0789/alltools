@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { entitlements, users } from "@/db/schema";
+import { authTokens, entitlements, users } from "@/db/schema";
 import { getAdminIdentity, logAudit, roleCan } from "@/lib/admin";
 
 async function requireBilling() {
@@ -50,4 +50,21 @@ export async function revokeUserEntitlementsAction(formData: FormData) {
   );
   revalidatePath("/admin/users");
   redirect("/admin/users?ok=revoked");
+}
+
+// GDPR / right-to-erasure: removes the user row; sessions, orders,
+// entitlements, team memberships, lists and AI usage cascade via FK. Magic-link
+// tokens are keyed by email (no FK), so clear them explicitly first.
+export async function deleteUserAction(formData: FormData) {
+  await requireBilling();
+  const userId = Number(formData.get("userId") ?? 0);
+  if (!userId) redirect("/admin/users?error=not_found");
+  const row = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+  if (!row) redirect("/admin/users?error=not_found");
+
+  await db.delete(authTokens).where(eq(authTokens.email, row.email));
+  await db.delete(users).where(eq(users.id, userId));
+  await logAudit("user.delete", `user:${row.email}`, "Deleted user + cascaded data (GDPR)");
+  revalidatePath("/admin/users");
+  redirect("/admin/users?ok=deleted");
 }

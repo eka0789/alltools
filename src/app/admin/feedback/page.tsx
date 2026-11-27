@@ -6,7 +6,7 @@ import { feedback, type Feedback } from "@/db/schema";
 import { getAdminIdentity, roleCan } from "@/lib/admin";
 import { getCatalog } from "@/lib/data";
 import { formatDate } from "@/lib/slug";
-import { dismissFeedbackAction, resolveFeedbackAction } from "../actions";
+import { dismissFeedbackAction, resolveFeedbackAction, updateFeedbackMetaAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +108,12 @@ export default async function FeedbackPage({
         </div>
       </div>
 
+      {sp.saved === "1" && (
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          Triage tersimpan.
+        </p>
+      )}
+
       {rows.length === 0 ? (
         <p className="card mt-5 p-5 text-sm text-muted-foreground">Tidak ada laporan.</p>
       ) : (
@@ -137,6 +143,12 @@ export default async function FeedbackPage({
                     <p className="mt-1.5 text-xs italic text-muted-foreground/70">(tanpa pesan)</p>
                   )}
                   <p className="mt-1 text-[10px] text-muted-foreground/70">{formatDate(f.createdAt)}</p>
+                  {(f.assignedTo || f.internalNotes) && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {f.assignedTo && <span>PIC: {f.assignedTo} · </span>}
+                      {f.internalNotes && <span>Catatan: {f.internalNotes}</span>}
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
                   {catalog.bySlug.get(f.toolSlug) && (
@@ -165,6 +177,27 @@ export default async function FeedbackPage({
                   )}
                 </div>
               </div>
+              <form
+                action={updateFeedbackMetaAction}
+                className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3"
+              >
+                <input type="hidden" name="id" value={f.id} />
+                <input
+                  name="assignedTo"
+                  defaultValue={f.assignedTo ?? ""}
+                  placeholder="PIC"
+                  className="input !w-40 !py-1 text-xs"
+                />
+                <input
+                  name="internalNotes"
+                  defaultValue={f.internalNotes ?? ""}
+                  placeholder="Catatan internal"
+                  className="input min-w-[200px] flex-1 !py-1 text-xs"
+                />
+                <button type="submit" className="btn-secondary !px-2.5 !py-1 text-xs">
+                  Simpan triage
+                </button>
+              </form>
             </li>
           ))}
         </ul>

@@ -108,7 +108,7 @@ export default async function AdminOrdersPage({
           .select({
             status: orders.status,
             n: sql<number>`count(*)`,
-            sum: sql<number>`coalesce(sum(${orders.amount}), 0)`,
+            sum: sql<number>`coalesce(sum(${orders.amount} - ${orders.refundedAmount}), 0)`,
           })
           .from(orders)
           .groupBy(orders.status),
@@ -183,9 +183,9 @@ export default async function AdminOrdersPage({
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-4">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Revenue (paid)</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Revenue (net)</p>
           <p className="mt-1 text-2xl font-bold text-success">{formatIdr(paid?.sum ?? 0)}</p>
-          <p className="text-xs text-muted-foreground">{paid?.n ?? 0} order</p>
+          <p className="text-xs text-muted-foreground">{paid?.n ?? 0} order · net of refunds</p>
         </div>
         <div className="card p-4">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending</p>

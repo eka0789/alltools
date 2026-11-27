@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { isAdmin } from "@/lib/admin";
-import { getCatalog } from "@/lib/data";
+import { getCatalog, getToolMetaByIdFromDb } from "@/lib/data";
 import { ToolForm } from "../tool-form";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,8 @@ export default async function EditToolPage({
 }) {
   if (!(await isAdmin())) redirect("/admin");
   const { id } = await params;
-  const tool = getCatalog().byId.get(Number(id));
+  const tool =
+    getCatalog().byId.get(Number(id)) ?? (await getToolMetaByIdFromDb(Number(id)));
   if (!tool) notFound();
 
   return (

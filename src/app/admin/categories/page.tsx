@@ -94,6 +94,22 @@ export default async function CategoriesPage({
                     className="input text-sm"
                   />
                 </label>
+                <label className="lg:col-span-6">
+                  <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                    SEO title (opsional)
+                  </span>
+                  <input name="seoTitle" defaultValue={cat.seoTitle ?? ""} className="input text-sm" />
+                </label>
+                <label className="lg:col-span-6">
+                  <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                    SEO description (opsional)
+                  </span>
+                  <input
+                    name="seoDescription"
+                    defaultValue={cat.seoDescription ?? ""}
+                    className="input text-sm"
+                  />
+                </label>
                 <div className="lg:col-span-12 flex justify-end">
                   <button type="submit" className="btn-secondary !px-3 !py-1 text-xs">Simpan kategori</button>
                 </div>

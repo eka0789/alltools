@@ -90,6 +90,21 @@ export default function SubmitForm({
         </label>
         <input id="tags" name="tags" className={inputClass} placeholder="api, testing, open-source" />
       </div>
+      <div>
+        <label htmlFor="submitterEmail" className="mb-1.5 block text-sm font-medium">
+          Your email <span className="font-normal text-muted-foreground">(optional)</span>
+        </label>
+        <input
+          id="submitterEmail"
+          name="submitterEmail"
+          type="email"
+          className={inputClass}
+          placeholder="you@example.com"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Only used to tell you the review outcome. Never shown publicly.
+        </p>
+      </div>
       <button type="submit" disabled={pending} className="btn-primary w-full disabled:opacity-60">
         {pending ? "Submitting…" : "Submit for review"}
       </button>
