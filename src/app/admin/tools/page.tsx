@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Download, Plus, Trash2 } from "lucide-react";
 import { getAdminIdentity, roleCan } from "@/lib/admin";
 import { getCatalog, getScheduledTools } from "@/lib/data";
-import { bulkToolAction, deleteToolAction, toggleFeaturedAction } from "../actions";
+import { bulkToolAction, deleteToolAction, rollbackToolAction, toggleFeaturedAction } from "../actions";
 import { PricingBadge } from "@/components/tool-card";
 import { ConfirmDeleteButton } from "./confirm-delete-button";
 import { SelectAllCheckbox } from "./bulk-select";
@@ -198,6 +198,27 @@ export default async function AdminToolsPage({ searchParams }: Props) {
           Pilih minimal satu tool dan satu aksi massal.
         </p>
       )}
+      {sp.error === "bulk_publish" && (
+        <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Isi tanggal jadwal publish terlebih dahulu.
+        </p>
+      )}
+      {sp.error === "bulk_category" && (
+        <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Pilih kategori yang valid.
+        </p>
+      )}
+      {typeof sp.audit === "string" && sp.audit !== "" && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-accent/30 bg-accent-soft px-3 py-2 text-xs text-accent">
+          <span>Perubahan tersimpan.</span>
+          <form action={rollbackToolAction}>
+            <input type="hidden" name="auditId" value={sp.audit} />
+            <button type="submit" className="font-semibold underline">
+              Undo
+            </button>
+          </form>
+        </div>
+      )}
 
       <form className="mt-5 flex flex-wrap items-end gap-2" action="/admin/tools">
         <input
@@ -274,7 +295,23 @@ export default async function AdminToolsPage({ searchParams }: Props) {
           <option value="verify">Tandai verified</option>
           <option value="unverify">Hapus verified</option>
           <option value="flag_incomplete">Tandai belum lengkap (needs review + unverify)</option>
+          <option value="schedule_publish">Jadwalkan publish (isi tanggal di samping)</option>
+          <option value="set_category">Set kategori (pilih kategori di samping)</option>
           <option value="trash">Pindahkan ke trash</option>
+        </select>
+        <input
+          name="bulkPublishAt"
+          type="datetime-local"
+          aria-label="Jadwal publish massal"
+          className="input !w-auto text-xs"
+        />
+        <select name="bulkCategory" defaultValue="" className="input !w-auto text-xs">
+          <option value="">Kategori…</option>
+          {catalog.categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
         </select>
         <button type="submit" className="btn-primary text-xs">
           Terapkan ke terpilih

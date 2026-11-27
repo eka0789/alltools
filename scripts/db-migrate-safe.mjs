@@ -142,6 +142,92 @@ const ddl = [
     active integer DEFAULT true NOT NULL,
     updated_at integer NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS tool_impressions (
+    slug text NOT NULL,
+    day text NOT NULL,
+    count integer DEFAULT 0 NOT NULL,
+    PRIMARY KEY (slug, day)
+  )`,
+  `CREATE TABLE IF NOT EXISTS email_campaigns (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    subject text NOT NULL,
+    body text DEFAULT '' NOT NULL,
+    segment text DEFAULT 'subscribers' NOT NULL,
+    cta_label text,
+    cta_url text,
+    status text DEFAULT 'draft' NOT NULL,
+    scheduled_at integer,
+    sent_at integer,
+    recipients integer DEFAULT 0 NOT NULL,
+    sent_count integer DEFAULT 0 NOT NULL,
+    created_at integer NOT NULL,
+    updated_at integer NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS email_events (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    campaign_id integer NOT NULL REFERENCES email_campaigns(id) ON DELETE CASCADE,
+    email text NOT NULL,
+    type text NOT NULL,
+    url text,
+    created_at integer NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS email_events_unique ON email_events (campaign_id, email, type)`,
+  `CREATE TABLE IF NOT EXISTS admin_sessions (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    token_hash text NOT NULL,
+    actor text NOT NULL,
+    role text NOT NULL,
+    ip text,
+    user_agent text,
+    created_at integer NOT NULL,
+    last_seen_at integer NOT NULL,
+    expires_at integer NOT NULL,
+    revoked_at integer
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS admin_sessions_token_unique ON admin_sessions (token_hash)`,
+  `CREATE TABLE IF NOT EXISTS approvals (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    kind text NOT NULL,
+    target text NOT NULL,
+    payload text DEFAULT '{}' NOT NULL,
+    summary text DEFAULT '' NOT NULL,
+    status text DEFAULT 'pending' NOT NULL,
+    requested_by text NOT NULL,
+    decided_by text,
+    decided_at integer,
+    note text,
+    created_at integer NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS approvals_status_idx ON approvals (status, created_at)`,
+  `CREATE TABLE IF NOT EXISTS collections (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    slug text NOT NULL,
+    title text NOT NULL,
+    tagline text DEFAULT '' NOT NULL,
+    description text DEFAULT '' NOT NULL,
+    emoji text DEFAULT '📦' NOT NULL,
+    tools text DEFAULT '[]' NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    active integer DEFAULT true NOT NULL,
+    created_at integer NOT NULL,
+    updated_at integer NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS collections_slug_unique ON collections (slug)`,
+  `CREATE TABLE IF NOT EXISTS glossary_terms (
+    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    slug text NOT NULL,
+    term text NOT NULL,
+    category text NOT NULL,
+    short text NOT NULL,
+    definition text NOT NULL,
+    example text,
+    related_tools text DEFAULT '[]' NOT NULL,
+    related_terms text DEFAULT '[]' NOT NULL,
+    active integer DEFAULT true NOT NULL,
+    created_at integer NOT NULL,
+    updated_at integer NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS glossary_terms_slug_unique ON glossary_terms (slug)`,
 ];
 
 async function columnsOf(table) {
@@ -182,6 +268,9 @@ if (toolColumns.size > 0) {
   }
   if (!toolColumns.has("seo_noindex")) {
     ddl.push("ALTER TABLE `tools` ADD `seo_noindex` integer NOT NULL DEFAULT 0");
+  }
+  if (!toolColumns.has("featured_order")) {
+    ddl.push("ALTER TABLE `tools` ADD `featured_order` integer");
   }
 }
 const submissionColumns = await columnsOf("submissions");

@@ -155,12 +155,30 @@ export async function POST(req: NextRequest) {
       reconcile = null;
     }
 
+    // Scheduled email campaigns due now (lazy cron; no extra schedule slot).
+    let campaigns: { campaigns: number; sent: number } | null = null;
+    try {
+      const { sendDueCampaigns } = await import("@/lib/campaigns");
+      campaigns = await sendDueCampaigns();
+    } catch {
+      campaigns = null;
+    }
+
     await finishJobRun(runId, {
       status: "success",
-      summary: `checked=${targets.length} ok=${ok} review=${review} transient=${transient} reconcile.paid=${reconcile?.paid ?? 0}`,
+      summary: `checked=${targets.length} ok=${ok} review=${review} transient=${transient} reconcile.paid=${
+        reconcile?.paid ?? 0
+      } campaigns.sent=${campaigns?.sent ?? 0}`,
     });
 
-    return NextResponse.json({ checked: targets.length, ok, review, transient, reconcile });
+    return NextResponse.json({
+      checked: targets.length,
+      ok,
+      review,
+      transient,
+      reconcile,
+      campaigns,
+    });
   } catch (error) {
     await finishJobRun(runId, {
       status: "failed",

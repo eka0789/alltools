@@ -2,18 +2,20 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { entitlements, orders, type Order } from "@/db/schema";
-import { getAdminIdentity, logAudit, roleCan } from "@/lib/admin";
+import { orders, type Order } from "@/db/schema";
+import { getAdminIdentity, logAudit, roleCan, type AdminIdentity } from "@/lib/admin";
 import { finalizeOrderIfPaid, sendReceiptEmail } from "@/lib/entitlements";
 import { logOrderEvent } from "@/lib/order-events";
-import { notifyAdmin } from "@/lib/notifications";
+import { approvalRequired, createApproval } from "@/lib/approvals";
+import { performFullRefund, performPartialRefund } from "@/lib/order-ops";
 
-async function requireBilling() {
+async function requireBilling(): Promise<AdminIdentity> {
   const identity = await getAdminIdentity();
   if (!identity) redirect("/admin");
   if (!roleCan(identity.role, "billing")) redirect("/admin?error=forbidden");
+  return identity;
 }
 
 async function getOrder(id: number): Promise<Order | null> {
@@ -51,34 +53,25 @@ export async function markOrderPaidAction(formData: FormData) {
 // Pending order → cancel (failed). Paid order → refund and revoke every
 // entitlement granted by that order (revokedAt is honoured by getUserAccess).
 export async function voidOrderAction(formData: FormData) {
-  await requireBilling();
+  const identity = await requireBilling();
   const id = Number(formData.get("id") ?? 0);
   const order = await getOrder(id);
   if (!order) redirect("/admin/orders?error=not_found");
 
   const now = Date.now();
   if (order.status === "paid") {
-    await db
-      .update(orders)
-      .set({
-        status: "refunded",
-        refundedAmount: order.amount,
-        refundReason: "Full refund (admin)",
-        updatedAt: now,
-      })
-      .where(eq(orders.id, id));
-    await db
-      .update(entitlements)
-      .set({ revokedAt: now })
-      .where(and(eq(entitlements.orderId, id), isNull(entitlements.revokedAt)));
-    await logOrderEvent(order.id, "refunded", `Full refund ${order.amount} IDR`);
-    await notifyAdmin({
-      type: "order_refund",
-      severity: "warning",
-      title: `Refund penuh: ${order.invoiceNo}`,
-      body: `${order.amount} IDR`,
-      link: `/admin/orders/${order.invoiceNo}`,
-    });
+    if (approvalRequired("refund")) {
+      await createApproval({
+        kind: "refund",
+        target: order.invoiceNo,
+        payload: { orderId: order.id, mode: "full" },
+        summary: `Refund penuh ${order.amount} IDR — ${order.invoiceNo}`,
+        requestedBy: identity.name,
+      });
+      redirect("/admin/approvals?queued=1");
+    }
+
+    await performFullRefund(order);
     await logAudit(
       "order.refund",
       `order:${order.invoiceNo}`,
@@ -101,8 +94,9 @@ export async function voidOrderAction(formData: FormData) {
 
 // Partial refund: records the amount, keeps the order paid unless the full
 // amount has been refunded, and revokes entitlements only on the full amount.
+// With ADMIN_REQUIRE_APPROVAL=refund it becomes a pending approval instead.
 export async function partialRefundAction(formData: FormData) {
-  await requireBilling();
+  const identity = await requireBilling();
   const id = Number(formData.get("id") ?? 0);
   const amount = Math.round(Number(formData.get("amount") ?? 0));
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
@@ -117,37 +111,24 @@ export async function partialRefundAction(formData: FormData) {
     redirect(`/admin/orders/${order.invoiceNo}?error=refund_amount`);
   }
 
-  const newRefunded = order.refundedAmount + amount;
-  const full = newRefunded >= order.amount;
-  await db
-    .update(orders)
-    .set({
-      refundedAmount: newRefunded,
-      refundReason: reason || order.refundReason,
-      status: full ? "refunded" : "paid",
-      updatedAt: Date.now(),
-    })
-    .where(eq(orders.id, id));
-
-  if (full) {
-    await db
-      .update(entitlements)
-      .set({ revokedAt: Date.now() })
-      .where(and(eq(entitlements.orderId, id), isNull(entitlements.revokedAt)));
+  if (approvalRequired("refund")) {
+    await createApproval({
+      kind: "refund",
+      target: order.invoiceNo,
+      payload: { orderId: order.id, mode: "partial", amount, reason },
+      summary: `Refund sebagian ${amount} IDR — ${order.invoiceNo}`,
+      requestedBy: identity.name,
+    });
+    redirect("/admin/approvals?queued=1");
   }
 
-  await logOrderEvent(
-    order.id,
-    full ? "refunded" : "partial_refund",
-    `${amount} IDR — ${reason || "no reason"}`,
-  );
-  await notifyAdmin({
-    type: "order_refund",
-    severity: "warning",
-    title: `${full ? "Refund penuh" : "Refund sebagian"}: ${order.invoiceNo}`,
-    body: `${amount} IDR — ${reason || "-"}`,
-    link: `/admin/orders/${order.invoiceNo}`,
-  });
+  let full = false;
+  try {
+    ({ full } = await performPartialRefund(order, amount, reason));
+  } catch {
+    redirect(`/admin/orders/${order.invoiceNo}?error=refund_amount`);
+  }
+
   await logAudit(
     "order.refund",
     `order:${order.invoiceNo}`,

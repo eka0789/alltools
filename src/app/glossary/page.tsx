@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BookA } from "lucide-react";
-import { glossaryByCategory, GLOSSARY, GLOSSARY_CATEGORY_ORDER } from "@/data/glossary";
+import { GLOSSARY_CATEGORY_ORDER, type GlossaryCategory } from "@/data/glossary";
+import { getAllGlossaryTerms } from "@/lib/managed-content";
 
 export const revalidate = 120;
 
@@ -12,8 +13,14 @@ export const metadata: Metadata = {
   alternates: { canonical: "/glossary" },
 };
 
-export default function GlossaryPage() {
-  const byCategory = glossaryByCategory();
+export default async function GlossaryPage() {
+  const terms = await getAllGlossaryTerms();
+  const byCategory = new Map<GlossaryCategory, typeof terms>();
+  for (const term of terms) {
+    const list = byCategory.get(term.category) ?? [];
+    list.push(term);
+    byCategory.set(term.category, list);
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -23,7 +30,7 @@ export default function GlossaryPage() {
           Developer glossary
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          {GLOSSARY.length} terms, defined in plain English — what it means, why it
+          {terms.length} terms, defined in plain English — what it means, why it
           matters, and the tools behind it. The dictionary half of AktifKoding.
         </p>
       </header>

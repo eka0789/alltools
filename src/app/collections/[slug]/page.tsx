@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { COLLECTIONS } from "@/data/collections";
+import { getAllCollections } from "@/lib/managed-content";
 import { getCatalog } from "@/lib/data";
 import { ResultGrid } from "@/components/result-grid";
 import { ExportMarkdown } from "@/components/export-markdown";
@@ -18,7 +19,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const collection = COLLECTIONS.find((c) => c.slug === slug);
+  const collection = (await getAllCollections()).find((c) => c.slug === slug);
   if (!collection) return { title: "Collection not found" };
   return {
     title: `${collection.title} — Curated Collection`,
@@ -33,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CollectionPage({ params }: Props) {
   const { slug } = await params;
-  const collection = COLLECTIONS.find((c) => c.slug === slug);
+  const collection = (await getAllCollections()).find((c) => c.slug === slug);
   if (!collection) notFound();
 
   const catalog = getCatalog();

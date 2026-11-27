@@ -14,6 +14,7 @@ export const TRACKED_JOBS = [
   { key: "check-links", label: "Link health sweep" },
   { key: "reconcile-orders", label: "DOKU reconciliation" },
   { key: "weekly-digest", label: "Weekly digest" },
+  { key: "email-campaign", label: "Email campaign" },
 ] as const;
 
 export async function startJobRun(job: string): Promise<number | null> {

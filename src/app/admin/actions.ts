@@ -1,7 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
-import { createHash } from "crypto";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
@@ -10,10 +9,12 @@ import { submissions, tools, feedback, linkChecks, entitlements, coupons, adminA
 import {
   ADMIN_COOKIE,
   checkLoginRateLimit,
+  createAdminSession,
   getAdminIdentity,
   isAdminIpAllowed,
   logAudit,
   matchAdminToken,
+  revokeCurrentAdminSession,
   roleCan,
   type AdminIdentity,
   type Capability,
@@ -90,8 +91,16 @@ export async function loginAction(formData: FormData) {
   if (!entry) redirect("/admin?error=1");
 
   const store = await cookies();
-  const digest = createHash("sha256").update(`alltools:${provided}`).digest("hex");
-  store.set(ADMIN_COOKIE, digest, {
+  const headerStore = await headers();
+  const ip =
+    headerStore.get("x-forwarded-for")?.split(",")[0].trim() ??
+    headerStore.get("x-real-ip")?.trim() ??
+    null;
+  const sessionCookie = await createAdminSession(entry, {
+    ip,
+    userAgent: headerStore.get("user-agent"),
+  });
+  store.set(ADMIN_COOKIE, sessionCookie, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -112,6 +121,7 @@ export async function loginAction(formData: FormData) {
 export async function logoutAction() {
   const identity = await getAdminIdentity();
   if (identity) await logAudit("admin.logout", `admin:${identity.name}`, "Signed out");
+  await revokeCurrentAdminSession();
   const store = await cookies();
   store.delete(ADMIN_COOKIE);
   redirect("/admin");
@@ -229,7 +239,7 @@ export async function saveToolAction(formData: FormData) {
   } else {
     await db.insert(tools).values({ ...values, createdAt: now });
   }
-  await logAudit(
+  const auditId = await logAudit(
     id ? "tool.update" : "tool.create",
     `tool:${slug}`,
     `${name} (${url})`,
@@ -240,8 +250,7 @@ export async function saveToolAction(formData: FormData) {
     await recordRedirect(`/tools/${before.slug}`, `/tools/${slug}`);
   }
   await touch();
-  redirect("/admin/tools?saved=1");
-}
+  redirect(`/admin/tools?saved=1${auditId ? `&audit=${auditId}` : ""}`);}
 
 // Soft delete: the tool disappears from the public catalog and the admin
 // list but stays recoverable from /admin/tools/trash.
@@ -336,15 +345,33 @@ export async function rollbackToolAction(formData: FormData) {
   const entry = (
     await db.select().from(adminAudit).where(eq(adminAudit.id, auditId)).limit(1)
   )[0];
-  if (!entry || entry.action !== "tool.update" || !entry.beforeJson) {
-    redirect("/admin/audit?error=rollback");
-  }
+  const allowed =
+    entry &&
+    entry.beforeJson &&
+    ["tool.update", "tools.bulk_schedule", "tools.bulk_category"].includes(entry.action);
+  if (!allowed) redirect("/admin/audit?error=rollback");
 
   let before: Record<string, unknown>;
   try {
-    before = JSON.parse(entry.beforeJson) as Record<string, unknown>;
+    before = JSON.parse(entry.beforeJson as string) as Record<string, unknown>;
   } catch {
     redirect("/admin/audit?error=rollback");
+  }
+
+  // Bulk scheduling/category undo: restore the snapshotted fields per row.
+  if (Array.isArray(before.rows)) {
+    for (const raw of before.rows as Record<string, unknown>[]) {
+      const rowId = Number(raw.id);
+      if (!Number.isFinite(rowId) || rowId <= 0) continue;
+      const patch: Record<string, unknown> = { updatedAt: Date.now() };
+      if ("publishAt" in raw) patch.publishAt = raw.publishAt;
+      if ("categoryId" in raw) patch.categoryId = raw.categoryId;
+      if ("subcategoryId" in raw) patch.subcategoryId = raw.subcategoryId;
+      await db.update(tools).set(patch as Partial<typeof tools.$inferInsert>).where(eq(tools.id, rowId));
+    }
+    await logAudit("tool.rollback_bulk", `audit:${auditId}`, `Restored ${before.rows.length} row(s)`);
+    await touch();
+    redirect("/admin/audit?rolled=1");
   }
 
   const toolId = Number(before.id);
@@ -375,6 +402,8 @@ const BULK_ACTIONS = new Set([
   "verify",
   "unverify",
   "flag_incomplete",
+  "schedule_publish",
+  "set_category",
 ]);
 
 export async function bulkToolAction(formData: FormData) {
@@ -389,6 +418,21 @@ export async function bulkToolAction(formData: FormData) {
   }
 
   const now = Date.now();
+  let beforeRows: { id: number; publishAt: number | null; categoryId: number; subcategoryId: number | null }[] = [];
+  try {
+    beforeRows = await db
+      .select({
+        id: tools.id,
+        publishAt: tools.publishAt,
+        categoryId: tools.categoryId,
+        subcategoryId: tools.subcategoryId,
+      })
+      .from(tools)
+      .where(inArray(tools.id, ids));
+  } catch {
+    beforeRows = [];
+  }
+
   if (action === "trash") {
     await db.update(tools).set({ deletedAt: now, updatedAt: now }).where(inArray(tools.id, ids));
   } else if (action === "activate") {
@@ -415,11 +459,36 @@ export async function bulkToolAction(formData: FormData) {
       .update(tools)
       .set({ status: "needs_review", verified: false, updatedAt: now })
       .where(inArray(tools.id, ids));
+  } else if (action === "schedule_publish") {
+    const raw = String(formData.get("bulkPublishAt") ?? "").trim();
+    const parsed = raw ? Date.parse(raw) : NaN;
+    if (!Number.isFinite(parsed)) redirect("/admin/tools?error=bulk_publish");
+    await db.update(tools).set({ publishAt: parsed, updatedAt: now }).where(inArray(tools.id, ids));
+  } else if (action === "set_category") {
+    const categoryId = Number(formData.get("bulkCategory") ?? 0);
+    if (!categoryId || !getCatalog().categories.some((c) => c.id === categoryId)) {
+      redirect("/admin/tools?error=bulk_category");
+    }
+    await db
+      .update(tools)
+      .set({ categoryId, subcategoryId: null, updatedAt: now })
+      .where(inArray(tools.id, ids));
   }
 
-  await logAudit("tools.bulk", `tools:${ids.length}`, `${action}: ${ids.join(",")}`);
+  const auditId = await logAudit(
+    action === "schedule_publish"
+      ? "tools.bulk_schedule"
+      : action === "set_category"
+        ? "tools.bulk_category"
+        : "tools.bulk",
+    `tools:${ids.length}`,
+    `${action}: ${ids.join(",")}`,
+    action === "schedule_publish" || action === "set_category"
+      ? { before: { rows: beforeRows } }
+      : undefined,
+  );
   await touch();
-  redirect("/admin/tools?bulk=1");
+  redirect(`/admin/tools?bulk=1${auditId ? `&audit=${auditId}` : ""}`);
 }
 
 // ── Submissions ─────────────────────────────────────────────────────────

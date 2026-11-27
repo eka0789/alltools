@@ -4,6 +4,7 @@ import {
   integer,
   index,
   uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/sqlite-core";
 
 export const categories = sqliteTable("categories", {
@@ -82,6 +83,7 @@ export const tools = sqliteTable(
     githubPushedAt: integer("github_pushed_at"), // unix ms of last push
     githubLicense: text("github_license"),
     featured: integer("featured", { mode: "boolean" }).notNull().default(false),
+    featuredOrder: integer("featured_order"), // editorial ordering on the homepage
     // Soft delete: the admin "Delete" action moves a tool to the trash
     // instead of destroying it. Public catalog builders skip these rows;
     // /admin/tools/trash can restore or purge them.
@@ -497,6 +499,120 @@ export const productOverrides = sqliteTable("product_overrides", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+// Daily aggregate impressions per tool. Written by the client-side
+// /api/track-view beacon (real page views, not prefetches). CTR = clicks /
+// impressions; shelf-ware = many impressions, zero clicks.
+export const toolImpressions = sqliteTable(
+  "tool_impressions",
+  {
+    slug: text("slug").notNull(),
+    day: text("day").notNull(), // YYYY-MM-DD (UTC)
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.slug, t.day] })],
+);
+
+// Marketing campaigns sent from the admin. Body is plain text rendered inside
+// the shared email shell; optional CTA gets click tracking. Opens/clicks land
+// in email_events.
+export const emailCampaigns = sqliteTable("email_campaigns", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  subject: text("subject").notNull(),
+  body: text("body").notNull().default(""),
+  segment: text("segment").notNull().default("subscribers"), // subscribers | users | pro
+  ctaLabel: text("cta_label"),
+  ctaUrl: text("cta_url"),
+  status: text("status").notNull().default("draft"), // draft | scheduled | sending | sent | failed
+  scheduledAt: integer("scheduled_at"),
+  sentAt: integer("sent_at"),
+  recipients: integer("recipients").notNull().default(0),
+  sentCount: integer("sent_count").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const emailEvents = sqliteTable(
+  "email_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    campaignId: integer("campaign_id")
+      .notNull()
+      .references(() => emailCampaigns.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    type: text("type").notNull(), // open | click
+    url: text("url"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("email_events_unique").on(t.campaignId, t.email, t.type)],
+);
+
+// Server-side admin sessions. The cookie carries `s.<raw token>`; only the
+// sha256 lives here, enabling session listing and forced logout. Legacy
+// token-digest cookies keep working (see lib/admin.ts).
+export const adminSessions = sqliteTable("admin_sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tokenHash: text("token_hash").notNull().unique(),
+  actor: text("actor").notNull(),
+  role: text("role").notNull(),
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  createdAt: integer("created_at").notNull(),
+  lastSeenAt: integer("last_seen_at").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  revokedAt: integer("revoked_at"),
+});
+
+// Four-eyes approvals for sensitive money/price actions. Enabled per kind via
+// ADMIN_REQUIRE_APPROVAL (e.g. "refund,price"); a different admin must approve.
+export const approvals = sqliteTable(
+  "approvals",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    kind: text("kind").notNull(), // refund | price
+    target: text("target").notNull(),
+    payload: text("payload").notNull().default("{}"),
+    summary: text("summary").notNull().default(""),
+    status: text("status").notNull().default("pending"), // pending | approved | rejected
+    requestedBy: text("requested_by").notNull(),
+    decidedBy: text("decided_by"),
+    decidedAt: integer("decided_at"),
+    note: text("note"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("approvals_status_idx").on(t.status, t.createdAt)],
+);
+
+// DB-backed editorial collections merged over src/data/collections.ts.
+export const collections = sqliteTable("collections", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  tagline: text("tagline").notNull().default(""),
+  description: text("description").notNull().default(""),
+  emoji: text("emoji").notNull().default("📦"),
+  tools: text("tools").notNull().default("[]"), // JSON string[] of tool slugs
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+// DB-backed glossary terms merged over src/data/glossary.ts.
+export const glossaryTerms = sqliteTable("glossary_terms", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  slug: text("slug").notNull().unique(),
+  term: text("term").notNull(),
+  category: text("category").notNull(),
+  short: text("short").notNull(),
+  definition: text("definition").notNull(),
+  example: text("example"),
+  relatedTools: text("related_tools").notNull().default("[]"),
+  relatedTerms: text("related_terms").notNull().default("[]"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export type Tool = typeof tools.$inferSelect;
 export type NewTool = typeof tools.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -526,3 +642,10 @@ export type Redirect = typeof redirects.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type OrderEvent = typeof orderEvents.$inferSelect;
 export type ProductOverride = typeof productOverrides.$inferSelect;
+export type ToolImpression = typeof toolImpressions.$inferSelect;
+export type EmailCampaign = typeof emailCampaigns.$inferSelect;
+export type EmailEvent = typeof emailEvents.$inferSelect;
+export type AdminSession = typeof adminSessions.$inferSelect;
+export type Approval = typeof approvals.$inferSelect;
+export type CollectionRow = typeof collections.$inferSelect;
+export type GlossaryTermRow = typeof glossaryTerms.$inferSelect;

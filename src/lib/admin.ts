@@ -1,8 +1,9 @@
 import { cookies, headers } from "next/headers";
-import { createHash, timingSafeEqual } from "crypto";
+import { createHash, randomBytes, timingSafeEqual } from "crypto";
+import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ensureAdminSchema } from "@/db/ensure-admin-schema";
-import { adminAudit } from "@/db/schema";
+import { adminAudit, adminSessions, type AdminSession } from "@/db/schema";
 import { rateLimit } from "./rate-limit";
 
 export const ADMIN_COOKIE = "at_admin";
@@ -132,6 +133,12 @@ export async function getAdminIdentity(): Promise<AdminIdentity | null> {
   const store = await cookies();
   const provided = store.get(ADMIN_COOKIE)?.value;
   if (!provided) return null;
+
+  // Server-side sessions (revocable) take the `s.` prefix.
+  if (provided.startsWith(ADMIN_SESSION_PREFIX)) {
+    return identityFromSession(provided.slice(ADMIN_SESSION_PREFIX.length));
+  }
+
   for (const entry of entries) {
     if (safeEqual(provided, tokenDigest(entry.token))) {
       if (!(await isAdminIpAllowed())) return null;
@@ -147,6 +154,104 @@ export async function getAdminIdentity(): Promise<AdminIdentity | null> {
     }
   }
   return null;
+}
+
+// ── Revocable admin sessions ────────────────────────────────────────────
+const ADMIN_SESSION_PREFIX = "s.";
+const ADMIN_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function hashSession(token: string): string {
+  return createHash("sha256").update(`admin-session:${token}`).digest("hex");
+}
+
+export async function createAdminSession(
+  identity: AdminIdentity,
+  info: { ip?: string | null; userAgent?: string | null } = {},
+): Promise<string> {
+  await ensureAdminSchema();
+  const raw = randomBytes(32).toString("base64url");
+  const now = Date.now();
+  await db.insert(adminSessions).values({
+    tokenHash: hashSession(raw),
+    actor: identity.name,
+    role: identity.role,
+    ip: info.ip?.slice(0, 80) ?? null,
+    userAgent: info.userAgent?.slice(0, 300) ?? null,
+    createdAt: now,
+    lastSeenAt: now,
+    expiresAt: now + ADMIN_SESSION_TTL_MS,
+  });
+  return `${ADMIN_SESSION_PREFIX}${raw}`;
+}
+
+async function identityFromSession(rawToken: string): Promise<AdminIdentity | null> {
+  try {
+    await ensureAdminSchema();
+    const rows = await db
+      .select()
+      .from(adminSessions)
+      .where(
+        and(
+          eq(adminSessions.tokenHash, hashSession(rawToken)),
+          isNull(adminSessions.revokedAt),
+          gt(adminSessions.expiresAt, Date.now()),
+        ),
+      )
+      .limit(1);
+    const session = rows[0];
+    if (!session) return null;
+    if (!(await isAdminIpAllowed())) return null;
+    // Best-effort last-seen update; never block the request.
+    void db
+      .update(adminSessions)
+      .set({ lastSeenAt: Date.now() })
+      .where(eq(adminSessions.id, session.id))
+      .catch(() => undefined);
+    return { name: session.actor, role: isAdminRole(session.role) ? session.role : "owner" };
+  } catch {
+    return null;
+  }
+}
+
+export async function revokeAdminSession(id: number): Promise<void> {
+  try {
+    await ensureAdminSchema();
+    await db
+      .update(adminSessions)
+      .set({ revokedAt: Date.now() })
+      .where(eq(adminSessions.id, id));
+  } catch {
+    // ignore
+  }
+}
+
+export async function revokeCurrentAdminSession(): Promise<void> {
+  try {
+    const store = await cookies();
+    const value = store.get(ADMIN_COOKIE)?.value;
+    if (!value || !value.startsWith(ADMIN_SESSION_PREFIX)) return;
+    await ensureAdminSchema();
+    await db
+      .update(adminSessions)
+      .set({ revokedAt: Date.now() })
+      .where(eq(adminSessions.tokenHash, hashSession(value.slice(ADMIN_SESSION_PREFIX.length))));
+  } catch {
+    // ignore
+  }
+}
+
+export async function listAdminSessions(): Promise<AdminSession[]> {
+  try {
+    await ensureAdminSchema();
+    return await db
+      .select()
+      .from(adminSessions)
+      .where(isNull(adminSessions.revokedAt))
+      .orderBy(desc(adminSessions.lastSeenAt))
+      .limit(100);
+  } catch {
+    return [];
+  }
 }
 
 export async function isAdmin(): Promise<boolean> {
@@ -195,20 +300,24 @@ export async function logAudit(
   target = "",
   detail = "",
   snapshots?: { before?: unknown; after?: unknown },
-): Promise<void> {
+): Promise<number | null> {
   try {
     const identity = await getAdminIdentity();
     await ensureOpsSchema();
-    await db.insert(adminAudit).values({
-      actor: identity ? `${identity.role}:${identity.name}` : "system",
-      action: action.slice(0, 80),
-      target: target.slice(0, 200),
-      detail: detail.slice(0, 1000),
-      beforeJson: serializeSnapshot(snapshots?.before),
-      afterJson: serializeSnapshot(snapshots?.after),
-      createdAt: Date.now(),
-    });
+    const inserted = await db
+      .insert(adminAudit)
+      .values({
+        actor: identity ? `${identity.role}:${identity.name}` : "system",
+        action: action.slice(0, 80),
+        target: target.slice(0, 200),
+        detail: detail.slice(0, 1000),
+        beforeJson: serializeSnapshot(snapshots?.before),
+        afterJson: serializeSnapshot(snapshots?.after),
+        createdAt: Date.now(),
+      })
+      .returning({ id: adminAudit.id });
+    return inserted[0]?.id ?? null;
   } catch {
-    // ignore
+    return null;
   }
 }

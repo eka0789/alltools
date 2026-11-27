@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookA } from "lucide-react";
-import { GLOSSARY, getGlossaryTerm } from "@/data/glossary";
+import { GLOSSARY } from "@/data/glossary";
+import { getAllGlossaryTerms } from "@/lib/managed-content";
 import { getCatalog } from "@/lib/data";
 import { ToolLogo } from "@/components/tool-logo";
 
@@ -18,7 +19,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const term = getGlossaryTerm(slug);
+  const term = (await getAllGlossaryTerms()).find((t) => t.slug === slug);
   if (!term) return { title: "Term not found" };
   return {
     title: `What is ${term.term}? — Developer Glossary`,
@@ -35,7 +36,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function GlossaryTermPage({ params }: Props) {
   const { slug } = await params;
-  const term = getGlossaryTerm(slug);
+  const allTerms = await getAllGlossaryTerms();
+  const term = allTerms.find((t) => t.slug === slug);
   if (!term) notFound();
 
   const catalog = getCatalog();
@@ -43,7 +45,7 @@ export default async function GlossaryTermPage({ params }: Props) {
     .map((s) => catalog.bySlug.get(s))
     .filter((t): t is NonNullable<typeof t> => !!t && t.status !== "deprecated");
   const related = (term.relatedTerms ?? [])
-    .map((s) => getGlossaryTerm(s))
+    .map((s) => allTerms.find((t) => t.slug === s))
     .filter((t): t is NonNullable<typeof t> => !!t);
 
   // Rich-result markup so search engines can lift the definition.

@@ -152,6 +152,12 @@ function buildCatalog(
 
   const featured = toolsWithMeta
     .filter((t) => t.featured && t.status === "active")
+    .sort(
+      (a, b) =>
+        (a.featuredOrder ?? Number.MAX_SAFE_INTEGER) -
+          (b.featuredOrder ?? Number.MAX_SAFE_INTEGER) ||
+        a.name.localeCompare(b.name),
+    )
     .slice(0, 12);
 
   const recent = toolsWithMeta

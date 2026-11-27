@@ -31,6 +31,7 @@ import { FeedbackButton } from "@/components/feedback-button";
 import { TrackedOutboundLink } from "@/components/tracked-outbound-link";
 import { CopyButton } from "@/components/copy-button";
 import { RecentlyViewedStrip, RecentlyViewedTracker } from "@/components/recently-viewed";
+import { TrackView } from "@/components/track-view";
 import { getToolBySlug, getCatalog } from "@/lib/data";
 import { lookupRedirect } from "@/lib/redirects";
 import { PLATFORM_LABEL, type Platform } from "@/data/types";
@@ -166,6 +167,7 @@ export default async function ToolPage({ params }: Props) {
       </nav>
 
       <RecentlyViewedTracker slug={tool.slug} />
+      <TrackView slug={tool.slug} />
 
       {/* Header */}
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">

@@ -163,7 +163,10 @@ export default async function AuditPage({
                     })()}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    {row.action === "tool.update" && row.beforeJson ? (
+                    {row.beforeJson &&
+                    ["tool.update", "tools.bulk_schedule", "tools.bulk_category"].includes(
+                      row.action,
+                    ) ? (
                       <form action={rollbackToolAction}>
                         <input type="hidden" name="auditId" value={row.id} />
                         <button type="submit" className="btn-secondary !px-2 !py-1 text-xs">

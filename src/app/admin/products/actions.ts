@@ -2,13 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getAdminIdentity, logAudit, roleCan } from "@/lib/admin";
+import { getAdminIdentity, logAudit, roleCan, type AdminIdentity } from "@/lib/admin";
+import { approvalRequired, createApproval } from "@/lib/approvals";
 import { clearProductOverride, setProductOverride } from "@/lib/product-overrides";
 
-async function requireBilling() {
+async function requireBilling(): Promise<AdminIdentity> {
   const identity = await getAdminIdentity();
   if (!identity) redirect("/admin");
   if (!roleCan(identity.role, "billing")) redirect("/admin?error=forbidden");
+  return identity;
 }
 
 function parseDate(raw: string): number | null {
@@ -31,7 +33,7 @@ function after() {
 }
 
 export async function updateProductAction(formData: FormData) {
-  await requireBilling();
+  const identity = await requireBilling();
   const productId = String(formData.get("productId") ?? "").trim();
   if (!productId) redirect("/admin/products?error=validation");
 
@@ -42,7 +44,7 @@ export async function updateProductAction(formData: FormData) {
   const promoEndsAt = parseDate(String(formData.get("promoEndsAt") ?? ""));
   const active = formData.get("active") === "on";
 
-  await setProductOverride({
+  const input = {
     productId,
     name,
     priceIdr,
@@ -50,7 +52,20 @@ export async function updateProductAction(formData: FormData) {
     promoStartsAt,
     promoEndsAt,
     active,
-  });
+  };
+
+  if (approvalRequired("price")) {
+    await createApproval({
+      kind: "price",
+      target: productId,
+      payload: input,
+      summary: `${productId}: harga ${priceIdr ?? "base"}, promo ${promoPriceIdr ?? "-"}${active ? "" : ", nonaktif"}`,
+      requestedBy: identity.name,
+    });
+    redirect("/admin/approvals?queued=1");
+  }
+
+  await setProductOverride(input);
   await logAudit(
     "product.update",
     `product:${productId}`,
@@ -61,9 +76,19 @@ export async function updateProductAction(formData: FormData) {
 }
 
 export async function resetProductAction(formData: FormData) {
-  await requireBilling();
+  const identity = await requireBilling();
   const productId = String(formData.get("productId") ?? "").trim();
   if (productId) {
+    if (approvalRequired("price")) {
+      await createApproval({
+        kind: "price",
+        target: productId,
+        payload: { productId, reset: true },
+        summary: `Reset harga ${productId} ke base`,
+        requestedBy: identity.name,
+      });
+      redirect("/admin/approvals?queued=1");
+    }
     await clearProductOverride(productId);
     await logAudit("product.reset", `product:${productId}`, "Override dihapus (kembali ke base)");
     after();

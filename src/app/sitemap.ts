@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getCatalog } from "@/lib/data";
 import { STACKS } from "@/lib/stacks";
-import { COLLECTIONS } from "@/data/collections";
-import { GLOSSARY } from "@/data/glossary";
+import { getAllCollections, getAllGlossaryTerms } from "@/lib/managed-content";
 import { getSeoLandingPages } from "@/lib/programmatic-seo";
 import { getTopComparePairs } from "@/lib/compare-seo";
 import { TEMPLATES } from "@/data/templates";
@@ -11,9 +10,13 @@ import { TEMPLATES } from "@/data/templates";
 // honest for search engines and avoids treating every crawler hit as fresh.
 export const revalidate = 3600;
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const { tools, categories } = getCatalog();
+  const [collections, glossary] = await Promise.all([
+    getAllCollections(),
+    getAllGlossaryTerms(),
+  ]);
 
   // Stable anchor timestamp: uses the latest tool updatedAt in the catalog
   // rather than new Date() on every request, so search crawlers can trust
@@ -52,13 +55,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/submit`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/pricing`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/about`, lastModified: catalogDate, changeFrequency: "monthly", priority: 0.4 },
-    ...COLLECTIONS.map((c) => ({
+    ...collections.map((c) => ({
       url: `${base}/collections/${c.slug}`,
       lastModified: catalogDate,
       changeFrequency: "weekly" as const,
       priority: 0.7,
     })),
-    ...GLOSSARY.map((t) => ({
+    ...glossary.map((t) => ({
       url: `${base}/glossary/${t.slug}`,
       lastModified: catalogDate,
       changeFrequency: "weekly" as const,

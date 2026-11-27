@@ -84,6 +84,13 @@ boilerplate/API docs/deployment config generators, and AI code review).
   deletion, partial refunds with net-revenue accounting, order event timeline,
   time-series/funnel analytics, a Ctrl/Cmd+K admin search, tool health/stale
   filters, duplicate merging, and an optional admin IP allowlist.
+- **Admin growth & governance (v3)** — impression/CTR tracking with shelf-ware
+  reporting (client beacon → daily aggregates), an editorial calendar,
+  bulk scheduling/category assignment with undo, email campaigns with
+  first-party open/click tracking (plus lazy scheduled sending), four-eyes
+  approvals for refunds/price changes, revocable server-side admin sessions,
+  DB-backed collections & glossary CRUD, a tag rename/merge/delete manager, and
+  homepage curation (featured + category ordering).
 - **Automated link health checker** that verifies every URL and flags broken
   ones as `needs_review` (never auto-deletes). Works against local SQLite
   *and* Turso; runnable via CI or the bundled Vercel Cron endpoint.
@@ -139,6 +146,8 @@ Open http://localhost:3000 (or your chosen port).
 | `ADMIN_TOKENS`         | —                       | Optional multi-admin list: `name:role:token,...` (roles: `owner`, `editor`, `moderator`). Each token logs in as its own named admin; `ADMIN_TOKEN` still works as owner `admin`. Role gates: moderator = moderation only, editor = catalog/content, owner = everything (billing, users, settings, audit). |
 | `ADMIN_IP_ALLOWLIST`   | —                       | Optional comma-separated IP allowlist for admin login (exact IPs, `*` = allow all). Empty = no restriction. |
 | `ADMIN_ALERT_WEBHOOK`  | —                       | Optional chat webhook (Slack-compatible `{text}` payload; Telegram via bridge) that receives the same messages as the admin notification center (new submission/report/order, cron failures). |
+| `ADMIN_REQUIRE_APPROVAL` | —                     | Optional four-eyes approvals: comma-separated action kinds (`refund`, `price`). When enabled, those actions queue in `/admin/approvals` and must be approved by a **different** admin (add a second name to `ADMIN_TOKENS`). |
+| `CAMPAIGN_SECRET`      | —                       | Optional HMAC secret for email campaign open/click tracking tokens. Falls back to `CRON_SECRET` / `ADMIN_TOKEN`. |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical URLs, sitemap, OpenGraph |
 | `CRON_SECRET`          | —                       | Bearer token protecting `/api/cron/check-links` (Vercel Cron) |
 | `GITHUB_TOKEN`         | —                       | GitHub API token for `scripts/fetch-github-stats.mjs` |

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LayoutGrid } from "lucide-react";
-import { COLLECTIONS } from "@/data/collections";
+import { getAllCollections } from "@/lib/managed-content";
 import { getCatalog } from "@/lib/data";
 
 export const revalidate = 120;
@@ -13,8 +13,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/collections" },
 };
 
-export default function CollectionsPage() {
+export default async function CollectionsPage() {
   const catalog = getCatalog();
+  const collections = await getAllCollections();
   const resolve = (slugs: string[]) =>
     slugs.map((s) => catalog.bySlug.get(s)).filter((t): t is NonNullable<typeof t> => !!t);
 
@@ -32,7 +33,7 @@ export default function CollectionsPage() {
       </header>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {COLLECTIONS.map((c) => {
+        {collections.map((c) => {
           const tools = resolve(c.tools);
           return (
             <Link

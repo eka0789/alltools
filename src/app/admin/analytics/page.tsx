@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, DB_ACTIVE } from "@/db/client";
-import { orders, searchQueries, submissions, toolClicks } from "@/db/schema";
+import { orders, searchQueries, submissions, toolClicks, toolImpressions } from "@/db/schema";
 import { getAdminIdentity, roleCan } from "@/lib/admin";
 import { noResultQueries, trendingQueries } from "@/lib/search-analytics";
 import { getCatalog } from "@/lib/data";
@@ -93,6 +93,7 @@ export default async function AnalyticsPage({
     submissions: Record<string, number>;
   } = { paidOrders: {}, searches: {}, submissions: {} };
   let funnel: { status: string; n: number }[] = [];
+  let impressions: { slug: string; n: number }[] = [];
   const keys = dayKeys(days);
 
   if (DB_ACTIVE) {
@@ -159,11 +160,43 @@ export default async function AnalyticsPage({
         submissions: toMap(submissionRows),
       };
       funnel = funnelRows.map((row) => ({ status: row.status, n: Number(row.n) }));
+      const impressionRows = await db
+        .select({
+          slug: toolImpressions.slug,
+          n: sql<number>`sum(${toolImpressions.count})`,
+        })
+        .from(toolImpressions)
+        .where(gte(toolImpressions.day, keys[0]))
+        .groupBy(toolImpressions.slug);
+      impressions = impressionRows.map((row) => ({ slug: row.slug, n: Number(row.n) }));
     } catch {
       series = { paidOrders: {}, searches: {}, submissions: {} };
       funnel = [];
+      impressions = [];
     }
   }
+
+  const clickBySlug = new Map(clicks.map((row) => [row.slug, row]));
+  const quality = impressions
+    .map((row) => {
+      const clickRow = clickBySlug.get(row.slug);
+      // Clicks are all-time counters; impressions are range-scoped, so this
+      // CTR is an indicator (labelled as approximate), not an exact ratio.
+      const clickCount = clickRow?.clicks ?? 0;
+      return {
+        slug: row.slug,
+        name: catalog.bySlug.get(row.slug)?.name ?? row.slug,
+        impressions: row.n,
+        clicks: clickCount,
+        ctr: row.n > 0 ? clickCount / row.n : 0,
+      };
+    })
+    .sort((a, b) => b.impressions - a.impressions)
+    .slice(0, 30);
+  const shelfWare = quality.filter((row) => row.impressions >= 20 && row.clicks === 0);
+  const totalImpressions = impressions.reduce((sum, row) => sum + row.n, 0);
+  const totalClicks = clicks.reduce((sum, row) => sum + row.clicks, 0);
+  const overallCtr = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
 
   return (
     <div className="py-2">
@@ -239,6 +272,84 @@ export default async function AnalyticsPage({
             })}
           </div>
         )}
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div className="card p-4">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Impressions</p>
+          <p className="mt-1 text-2xl font-bold">{totalImpressions.toLocaleString()}</p>
+          <p className="text-[10px] text-muted-foreground">tool page views, {days} hari</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Shelf-ware</p>
+          <p className={`mt-1 text-2xl font-bold ${shelfWare.length > 0 ? "text-warning" : ""}`}>
+            {shelfWare.length}
+          </p>
+          <p className="text-[10px] text-muted-foreground">≥20 impresi, 0 klik</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">CTR keseluruhan</p>
+          <p className="mt-1 text-2xl font-bold">{(overallCtr * 100).toFixed(1)}%</p>
+          <p className="text-[10px] text-muted-foreground">klik all-time ÷ impresi periode</p>
+        </div>
+      </div>
+
+      <div className="card mt-4 overflow-x-auto">
+        <div className="px-4 pt-4">
+          <h2 className="font-semibold">Kualitas katalog — impresi &amp; CTR</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            CTR = klik keluar all-time ÷ impresi pada periode. Shelf-ware = banyak dilihat, tidak
+            pernah diklik.
+          </p>
+        </div>
+        <table className="mt-3 w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+              <th className="px-4 py-2">Tool</th>
+              <th className="px-4 py-2 text-right">Impresi</th>
+              <th className="px-4 py-2 text-right">Klik</th>
+              <th className="px-4 py-2 text-right">CTR</th>
+              <th className="px-4 py-2">Sinyal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {quality.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  Belum ada impresi. Beacon aktif di halaman tool — data akan muncul seiring traffic.
+                </td>
+              </tr>
+            ) : (
+              quality.map((row) => (
+                <tr key={row.slug} className="border-b border-border last:border-0">
+                  <td className="px-4 py-2">
+                    <Link href={`/tools/${row.slug}`} className="font-medium hover:text-accent">
+                      {row.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 text-right text-xs">{row.impressions.toLocaleString()}</td>
+                  <td className="px-4 py-2 text-right text-xs">{row.clicks.toLocaleString()}</td>
+                  <td className="px-4 py-2 text-right text-xs">
+                    {(row.ctr * 100).toFixed(1)}%
+                  </td>
+                  <td className="px-4 py-2 text-xs">
+                    {row.clicks === 0 && row.impressions >= 20 ? (
+                      <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
+                        shelf-ware
+                      </span>
+                    ) : row.ctr >= 0.2 ? (
+                      <span className="rounded bg-success/15 px-1.5 py-0.5 text-[10px] text-success">
+                        CTR tinggi
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
