@@ -9,11 +9,16 @@ export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("t") ?? "";
   const rawUrl = req.nextUrl.searchParams.get("u") ?? "";
 
-  if (campaignId > 0 && email && verifyCampaignToken(campaignId, email, token)) {
-    await recordEmailEvent(campaignId, email, "click", rawUrl || null);
+  // Redirect only for verified campaign links — otherwise this endpoint would
+  // be an open redirect for anyone who can craft a URL.
+  const valid =
+    campaignId > 0 && email.length > 0 && verifyCampaignToken(campaignId, email, token);
+  if (!valid) {
+    return NextResponse.redirect(new URL("/", req.url), 302);
   }
 
-  // Only http(s) targets; anything else falls back to the homepage.
+  await recordEmailEvent(campaignId, email, "click", rawUrl || null);
+
   if (/^https?:\/\//i.test(rawUrl)) {
     return NextResponse.redirect(rawUrl, 302);
   }
