@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
 import { AnnouncementBanner } from "@/components/announcement-banner";
+import { HideOnAdmin } from "@/components/hide-on-admin";
 import { Footer } from "@/components/footer";
 import { ChatWidget } from "@/components/chat/chat-widget";
 import { CompareTray } from "@/components/compare-tray";
@@ -89,12 +90,16 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen flex flex-col">
         <AnnouncementBanner />
-        <Navbar />
+        <HideOnAdmin>
+          <Navbar />
+        </HideOnAdmin>
         <main className="flex-1">{children}</main>
-        <Footer />
-        <CompareTray />
-        <ChatWidget />
-        <AccountSync />
+        <HideOnAdmin>
+          <Footer />
+          <CompareTray />
+          <ChatWidget />
+          <AccountSync />
+        </HideOnAdmin>
         <ServiceWorkerRegistration />
         <Analytics />
       </body>

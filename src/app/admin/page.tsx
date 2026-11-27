@@ -1,12 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Flag, Plus } from "lucide-react";
+import type { ReactNode } from "react";
+import {
+  AlertTriangle,
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  Flag,
+  HeartPulse,
+  Inbox,
+  Mail,
+  Plus,
+  Receipt,
+  Settings2,
+  ShieldCheck,
+  Users,
+  Wallet,
+  Wrench,
+} from "lucide-react";
 import { isAdmin, adminToken } from "@/lib/admin";
 import { getCatalog, needsReviewCount } from "@/lib/data";
 import { formatDate } from "@/lib/slug";
 import {
   loginAction,
-  logoutAction,
   resolveFeedbackAction,
   dismissFeedbackAction,
   reconcileOrdersAction,
@@ -45,6 +61,52 @@ const ERROR_MESSAGES: Record<string, string> = {
   ip: "This IP is not allowed to access the admin area (ADMIN_IP_ALLOWLIST).",
 };
 
+const QUICK_ACTIONS = [
+  { href: "/admin/tools", label: "All tools", icon: Wrench },
+  { href: "/admin/submissions", label: "Submissions", icon: Inbox },
+  { href: "/admin/link-health", label: "Link Health", icon: HeartPulse },
+  { href: "/admin/feedback", label: "Reports", icon: Flag },
+  { href: "/admin/orders", label: "Orders", icon: Receipt },
+  { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/ops", label: "Ops", icon: Settings2 },
+];
+
+function StatCard({
+  icon,
+  label,
+  value,
+  valueClassName = "",
+  href,
+  hint,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string | number;
+  valueClassName?: string;
+  href: string;
+  hint: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="card group p-5 transition duration-150 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-sm"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
+        <span className="rounded-lg bg-muted p-1.5 text-muted-foreground transition-colors group-hover:text-accent">
+          {icon}
+        </span>
+      </div>
+      <p className={`mt-2 text-3xl font-bold ${valueClassName}`}>{value}</p>
+      <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-accent">
+        {hint}
+      </p>
+    </Link>
+  );
+}
+
 export default async function AdminPage({
   searchParams,
 }: {
@@ -55,34 +117,48 @@ export default async function AdminPage({
 
   if (!authed) {
     return (
-      <div className="mx-auto max-w-sm px-4 py-20">
-        <h1 className="text-xl font-bold">Admin Login</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Enter the admin token (env ADMIN_TOKEN).
-        </p>
-        {!adminToken() && (
-          <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-            ADMIN_TOKEN is not set on this server. Set it as an environment
-            variable to enable login — there is no default anymore.
+      <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center px-4 py-16">
+        <div className="card p-6">
+          <div className="mb-5 text-center">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
+              <ShieldCheck className="h-5 w-5" />
+            </span>
+            <h1 className="mt-3 text-xl font-bold tracking-tight">Admin Login</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Masukkan token admin (<code className="rounded bg-muted px-1 py-0.5 text-xs">ADMIN_TOKEN</code>).
+            </p>
+          </div>
+          {!adminToken() && (
+            <p className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+              ADMIN_TOKEN is not set on this server. Set it as an environment
+              variable to enable login — there is no default anymore.
+            </p>
+          )}
+          {typeof sp.error === "string" && (
+            <p className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+              {ERROR_MESSAGES[sp.error] ?? "Invalid token."}
+            </p>
+          )}
+          <form action={loginAction} className="space-y-3">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium">Admin token</span>
+              <input
+                type="password"
+                name="token"
+                required
+                placeholder="••••••••••••"
+                autoComplete="current-password"
+                className="input"
+              />
+            </label>
+            <button type="submit" className="btn-primary w-full">
+              Sign in
+            </button>
+          </form>
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+            Sesi admin tercatat dan dapat dicabut dari menu Admin Sessions.
           </p>
-        )}
-        {typeof sp.error === "string" && (
-          <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-            {ERROR_MESSAGES[sp.error] ?? "Invalid token."}
-          </p>
-        )}
-        <form action={loginAction} className="card mt-5 space-y-4 p-5">
-          <input
-            type="password"
-            name="token"
-            required
-            placeholder="Admin token"
-            className="input"
-          />
-          <button type="submit" className="btn-primary w-full">
-            Sign in
-          </button>
-        </form>
+        </div>
       </div>
     );
   }
@@ -219,12 +295,25 @@ export default async function AdminPage({
   const couponStatByCode = new Map(couponStats.map((stat) => [stat.code, stat]));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-        <form action={logoutAction}>
-          <button type="submit" className="btn-secondary">Sign out</button>
-        </form>
+    <div className="py-2">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Ringkasan katalog, penjualan, dan antrean operasional.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/admin/tools/new" className="btn-primary">
+            <Plus className="h-4 w-4" /> Add tool
+          </Link>
+          <Link href="/admin/link-health" className="btn-secondary">
+            <HeartPulse className="h-4 w-4" /> Link health
+          </Link>
+          <Link href="/admin/orders" className="btn-secondary">
+            <Receipt className="h-4 w-4" /> Orders
+          </Link>
+        </div>
       </div>
 
       {typeof sp.reconciled === "string" && (
@@ -260,59 +349,59 @@ export default async function AdminPage({
         </p>
       )}
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="card p-5">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Tools</p>
-          <p className="mt-1 text-3xl font-bold">{catalog.total.toLocaleString()}</p>
-          <Link href="/admin/tools" className="mt-2 inline-block text-xs text-accent hover:underline">
-            Manage tools →
-          </Link>
-        </div>
-        <div className="card p-5">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Needs review</p>
-          <Link
-            href="/admin/link-health"
-            className={`mt-1 block text-3xl font-bold hover:underline ${
-              needsReview > 0 ? "text-warning" : ""
-            }`}
-          >
-            {needsReview}
-          </Link>
-          <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-            <AlertTriangle className="h-3 w-3" />
-            <Link href="/admin/link-health" className="hover:underline">
-              flagged by the link checker
-            </Link>
-          </p>
-        </div>
-        <div className="card p-5">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending submissions</p>
-          <p className="mt-1 text-3xl font-bold">{pending.length}</p>
-          <Link href="/admin/submissions" className="mt-2 inline-block text-xs text-accent hover:underline">
-            Review submissions →
-          </Link>
-        </div>
-        <div className="card p-5">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Open reports</p>
-          <p className={`mt-1 text-3xl font-bold ${openFeedback.length > 0 ? "text-warning" : ""}`}>
-            {openFeedback.length}
-          </p>
-          <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-            <Flag className="h-3 w-3" /> broken links &amp; edit suggestions
-          </p>
-        </div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          icon={<Wrench className="h-4 w-4" />}
+          label="Tools"
+          value={catalog.total.toLocaleString()}
+          href="/admin/tools"
+          hint="Kelola katalog →"
+        />
+        <StatCard
+          icon={<AlertTriangle className="h-4 w-4" />}
+          label="Needs review"
+          value={needsReview}
+          valueClassName={needsReview > 0 ? "text-warning" : ""}
+          href="/admin/link-health"
+          hint="Cek link & perbaiki →"
+        />
+        <StatCard
+          icon={<Inbox className="h-4 w-4" />}
+          label="Pending submissions"
+          value={pending.length}
+          href="/admin/submissions"
+          hint="Review antrean →"
+        />
+        <StatCard
+          icon={<Flag className="h-4 w-4" />}
+          label="Open reports"
+          value={openFeedback.length}
+          valueClassName={openFeedback.length > 0 ? "text-warning" : ""}
+          href="/admin/feedback"
+          hint="Tindak lanjuti laporan →"
+        />
       </div>
 
       {/* Monetization & Growth overview */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="card p-5">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Revenue (Net)</p>
-          <p className="mt-1 text-2xl font-bold text-success">{formatIdr(totalRevenueIdr)}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Revenue (Net)</p>
+            <span className="rounded-lg bg-success/10 p-1.5 text-success">
+              <Wallet className="h-4 w-4" />
+            </span>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-success">{formatIdr(totalRevenueIdr)}</p>
           <p className="mt-1 text-xs text-muted-foreground">{paidOrdersCount} paid order(s) · net of refunds</p>
         </div>
         <div className="card p-5">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending Orders</p>
-          <p className={`mt-1 text-2xl font-bold ${pendingOrdersCount > 0 ? "text-warning" : ""}`}>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending Orders</p>
+            <span className="rounded-lg bg-warning/10 p-1.5 text-warning">
+              <Clock className="h-4 w-4" />
+            </span>
+          </div>
+          <p className={`mt-2 text-2xl font-bold ${pendingOrdersCount > 0 ? "text-warning" : ""}`}>
             {pendingOrdersCount}
           </p>
           <form action={reconcileOrdersAction} className="mt-2">
@@ -322,25 +411,31 @@ export default async function AdminPage({
           </form>
         </div>
         <div className="card p-5">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Newsletter Subscribers</p>
-          <p className="mt-1 text-2xl font-bold">{confirmedSubscriberCount}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Newsletter Subscribers</p>
+            <span className="rounded-lg bg-accent-soft p-1.5 text-accent">
+              <Mail className="h-4 w-4" />
+            </span>
+          </div>
+          <p className="mt-2 text-2xl font-bold">{confirmedSubscriberCount}</p>
           <p className="mt-1 text-xs text-muted-foreground">Confirmed double opt-in</p>
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        <Link href="/admin/tools/new" className="btn-primary">
-          <Plus className="h-4 w-4" /> Add tool
-        </Link>
-        <Link href="/admin/tools" className="btn-secondary">All tools</Link>
-        <Link href="/admin/submissions" className="btn-secondary">Submissions</Link>
-        <Link href="/admin/link-health" className="btn-secondary">Link Health</Link>
-        <Link href="/admin/feedback" className="btn-secondary">Reports</Link>
-        <Link href="/admin/orders" className="btn-secondary">Orders</Link>
-        <Link href="/admin/users" className="btn-secondary">Users</Link>
-        <Link href="/admin/newsletter" className="btn-secondary">Newsletter</Link>
-        <Link href="/admin/analytics" className="btn-secondary">Analytics</Link>
-        <Link href="/admin/ops" className="btn-secondary">Ops</Link>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {QUICK_ACTIONS.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className="card flex items-center gap-3 p-3 transition hover:border-accent/40 hover:bg-muted/40"
+          >
+            <span className="rounded-lg bg-accent-soft p-2 text-accent">
+              <Icon className="h-4 w-4" />
+            </span>
+            <span className="text-sm font-medium">{label}</span>
+            <span className="ml-auto text-muted-foreground">→</span>
+          </Link>
+        ))}
       </div>
 
       {/* Manual Pro Grant + Recent Orders */}

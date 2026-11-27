@@ -17,7 +17,7 @@ export default async function EditToolPage({
   if (!tool) notFound();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-3xl py-2">
       <h1 className="text-2xl font-bold tracking-tight">Edit: {tool.name}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         <a href={tool.url} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">

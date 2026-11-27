@@ -116,7 +116,15 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AdminNav({ role }: { role: Role }) {
+export function AdminNav({
+  role,
+  counts = {},
+  onNavigate,
+}: {
+  role: Role;
+  counts?: Record<string, number>;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname() ?? "";
 
   return (
@@ -133,10 +141,13 @@ export function AdminNav({ role }: { role: Role }) {
               {items.map((item) => {
                 const active = isActive(pathname, item.href);
                 const Icon = item.icon;
+                const badge = counts[item.href] ?? 0;
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onNavigate}
+                      aria-current={active ? "page" : undefined}
                       className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 transition-colors ${
                         active
                           ? "bg-accent-soft font-medium text-accent"
@@ -145,6 +156,15 @@ export function AdminNav({ role }: { role: Role }) {
                     >
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="truncate">{item.label}</span>
+                      {badge > 0 && (
+                        <span
+                          className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                            active ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );
