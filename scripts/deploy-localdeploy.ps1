@@ -24,21 +24,34 @@ $headers = @{ Authorization = "Bearer $Token" }
 
 Write-Host "[deploy] Requesting deployment for app $AppId via $ApiUrl ..."
 
-try {
-    $created = Invoke-RestMethod -Method Post `
-        -Uri "$ApiUrl/api/applications/$AppId/deploy" `
-        -Headers $headers `
-        -ContentType "application/json" `
-        -Body "{}"
-} catch {
-    $detail = $_.Exception.Message
-    if ($_.Exception.Response) {
-        try {
-            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-            $detail = $reader.ReadToEnd()
-        } catch { }
+$created = $null
+$detail = ""
+$delays = @(5, 15)
+for ($attempt = 1; $attempt -le ($delays.Count + 1); $attempt++) {
+    if ($attempt -gt 1) {
+        Write-Host "[deploy] Request failed (attempt $attempt of $($delays.Count + 1)); retrying in $($delays[$attempt - 2])s ..."
+        Start-Sleep -Seconds $delays[$attempt - 2]
     }
-    throw "Failed to request deployment: $detail"
+    try {
+        $created = Invoke-RestMethod -Method Post `
+            -Uri "$ApiUrl/api/applications/$AppId/deploy" `
+            -Headers $headers `
+            -ContentType "application/json" `
+            -Body "{}"
+        break
+    } catch {
+        $detail = $_.Exception.Message
+        if ($_.Exception.Response) {
+            try {
+                $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+                $detail = $reader.ReadToEnd()
+            } catch { }
+        }
+        Write-Host "[deploy] Deploy request failed: $detail"
+    }
+}
+if ($null -eq $created) {
+    throw "Failed to request deployment after $($delays.Count + 1) attempts: $detail"
 }
 
 $deploymentId = $created.deployment_id
